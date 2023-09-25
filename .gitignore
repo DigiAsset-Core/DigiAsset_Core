@@ -1,0 +1,4 @@
+cmake-build-debug
+bin\*
+*\_*
+tests\testFiles\assetTest.*
