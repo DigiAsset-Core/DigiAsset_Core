@@ -117,40 +117,12 @@ bool DigiByteTransaction::processKYC(const getrawtransaction_t& txData) {
 }
 
 void DigiByteTransaction::processAssetTX(const getrawtransaction_t& txData) {
+    //get the DigiAsset header and read the version and opcode
+    unsigned char version;
+    unsigned char opcode;
+    BitIO dataStream;
+    DigiAsset::decodeAssetTxHeader(txData, version, opcode, dataStream);
 
-
-    //find the encoded data
-    int iO = -1;
-    for (const vout_t& output: txData.vout) {
-        if (output.scriptPubKey.type != "nulldata") continue;
-        iO = output.n;
-    }
-    if (iO == -1) {
-        return;
-    }
-
-    //check encoded data on output 1 has correct header
-    BitIO dataStream = BitIO::makeHexString(txData.vout[iO].scriptPubKey.hex);
-    if (dataStream.getLength() < DIGIASSET_MIN_POSSIBLE_LENGTH) {
-        return;   //fc8ac69d67c298152a8b93b1b7a054e28427f02e69025249e09be123de2986f3 has an OP_RETURN with no extra data after.  This prevents error
-    }
-    if (!dataStream.checkIsBitcoinOpReturn()) {
-        return;   //not an OP_RETURN
-    }
-    if (dataStream.getBitcoinDataHeader() != BITIO_BITCOIN_TYPE_DATA) {
-        return; //not data
-    }
-    dataStream = dataStream.copyBitcoinData();    //strip the header out
-
-    if (dataStream.getBits(16) != 0x4441) {
-        return; //not asset tx
-    }
-
-    //get version number
-    _assetTransactionVersion = dataStream.getBits(8);
-
-    //get opcode
-    const unsigned char opcode = dataStream.getBits(8);
     if (opcode == 0) {
         return;//invalid op code
     }

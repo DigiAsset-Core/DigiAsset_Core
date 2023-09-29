@@ -5,9 +5,6 @@
 #ifndef DIGIASSET_CORE_DIGIBYTETRANSACTION_H
 #define DIGIASSET_CORE_DIGIBYTETRANSACTION_H
 
-//todo check if min length is longer (OP_RETURN - 8bit)(OP_RETURN LENGTH - 8 bit)(DigiAsset Header - 16 bit)(version - 8 bit)(OP_CODE - 8bit)?
-#define DIGIASSET_MIN_POSSIBLE_LENGTH 48
-
 
 #include "DigiAsset.h"
 #include <jsonrpccpp/server.h>
