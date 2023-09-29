@@ -118,10 +118,9 @@ bool DigiByteTransaction::processKYC(const getrawtransaction_t& txData) {
 
 void DigiByteTransaction::processAssetTX(const getrawtransaction_t& txData) {
     //get the DigiAsset header and read the version and opcode
-    unsigned char version;
     unsigned char opcode;
     BitIO dataStream;
-    DigiAsset::decodeAssetTxHeader(txData, version, opcode, dataStream);
+    DigiAsset::decodeAssetTxHeader(txData, _assetTransactionVersion, opcode, dataStream);
 
     if (opcode == 0) {
         return;//invalid op code
