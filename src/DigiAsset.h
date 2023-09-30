@@ -81,7 +81,7 @@ public:
 
     //helper functions for preprocessing asset
     static void decodeAssetTxHeader(const getrawtransaction_t& txData, unsigned char& version, unsigned char& opcode,
-                                    BitIO& opReturnData);
+                                    BitIO& dataStream);
 
     //constructor intended for use by Database only
     DigiAsset(uint64_t assetIndex, const std::string& assetId, const std::string& cid, const KYC& issuer,

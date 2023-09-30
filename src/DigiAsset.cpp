@@ -455,7 +455,7 @@ void DigiAsset::decodeAssetTxHeader(const getrawtransaction_t& txData, unsigned 
  * if (opcode 1,3, or 4) the next 32 bytes is the sha256 of the meta data
  * the next 1 to 8 bytes contains the number of assets to create(see BitIO::getFixedPrecision for exactly how to decode)
  * the next several bytes contains the rules if there are any(see DigiAssetRules::DigiAssetRules for exactly how to decode)
- * the next several bytes contains transfer instructions(see DigiByteTransaction::processAssetTransfer for exactly how to decode)
+ * the next several bytes contains transfer instructions(see DigiByteTransaction::decodeAssetTransfer for exactly how to decode)
  * the last 1 byte contains the issuance flags(bit 0 being the LSB)
  *      bit 7,6,5: divisibility
  *      bit 4: locked
@@ -972,7 +972,7 @@ void DigiAsset::checkRulesPass(const vector<AssetUTXO>& inputs, const vector<Ass
  *                             - required (unsigned int): Number of votes required for a transaction to be valid
  *                             - approvers (Json::Value): List of addresses(key) and their weights(value) that can cast
  *                               there approval to the transaction.  Total included in any transaction must be greater
- *                               or equal to required *
+ *                               or equal to required
  *                     - issuer (Json::Value): Information about the issuer, may contain:
  *                         - address (string): Issuer's address
  *                         - country (string, optional): Issuer's country

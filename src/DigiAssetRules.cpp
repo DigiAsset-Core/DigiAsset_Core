@@ -150,7 +150,7 @@ void DigiAssetRules::decodeApproval(const getrawtransaction_t& txData, BitIO& da
  *
  * header nibble of 9 already been processed
  * If first bit is 1:
- *      than next 7 bits indeicate standard exchange rate index number
+ *      than next 7 bits indicate standard exchange rate index number
  *
  * If first bit is 0:
  *      1-4 bytes - fixed precision value indicating that you should use the address of that output number.
@@ -595,6 +595,33 @@ bool DigiAssetRules::getIfVote() const {
     return (!_voteOptions.empty());
 }
 
+/**
+ * Converts DigiAssetRules Object into JSON for outputting by API.
+ *
+ * @return Json::Value - Returns a Json::Value object that represents the DigiAssetRules in JSON format.
+ *
+ * - changeable (bool): Indicates if the asset rules are changeable.
+ * - deflation (unsigned int, optional): Number of assets that must be burned to make a valid transaction.
+ * - expiry (unsigned int, optional): Block height or timestamp when asset can no longer be transferred.
+ *   - values less than MIN_EPOCH_VALUE are block height.
+ *   - values greater are epoch time in ms.
+ * - royalty (Json::Value): Information about royalty payments, may contain:
+ *   - units (Json::Value): Exchange rate units, may contain:
+ *     - address (string): Conversion rate tracking address.
+ *     - index (unsigned int): Conversion rate trackers can track up to 10 rates so this is which of the 10 (0 - 9).
+ *     - name (string, optional): If it is one of the default exchange rates, there will be a currency code.
+ *   - addresses (Json::Value): Royalty recipient addresses (key) and their amounts (value).
+ *     - value is in sats. So if not units, then 10000000 = 1 DGB. If units point to USD, then 100000000 = 1 USD.
+ * - geofence (Json::Value): Assets with this rule can only be sent to KYC verified addresses and will contain one of the following:
+ *   - denied (array of strings): Everyone can hold the asset except those countries listed here.
+ *   - allowed (array of strings): Only countries listed here can hold.
+ * - voting (Json::Value): Voting options, may contain:
+ *   - restricted (bool): If true, the asset can only be sent to one of the voting addresses.
+ *   - options (Json::Value): Voting options addresses (key) and labels (value).
+ * - approval (Json::Value): Rarely used rule but allows for an asset that requires approval by the creator for all trades.
+ *   - required (unsigned int): Number of votes required for a transaction to be valid.
+ *   - approvers (Json::Value): List of addresses (key) and their weights (value) that can cast their approval to the transaction.
+ */
 Json::Value DigiAssetRules::toJSON() {
     Json::Value result(Json::objectValue);
 
@@ -687,6 +714,16 @@ Json::Value DigiAssetRules::toJSON() {
     return result;
 }
 
+/**
+ * @brief Retrieves the voting options associated with the DigiAsset.
+ *
+ * This function fetches the voting options from the IPFS CID if they haven't been processed yet.
+ * It validates the format and addresses of the voting options against what was stored in the blockchain.
+ *
+ * @throws exceptionVoteOptionsCorrupt If the voting options fetched from IPFS are corrupt or don't match the blockchain data.
+ *
+ * @return A vector of VoteOption structs containing the addresses and labels for each voting option.
+ */
 std::vector<VoteOption> DigiAssetRules::getVoteOptions() {
     if (_voteLabelsCID.empty()) {         //labels already processed so skip that step
         IPFS* ipfs = IPFS::GetInstance();

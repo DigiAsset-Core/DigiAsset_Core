@@ -48,12 +48,12 @@ class DigiByteTransaction {
 
 
     //tx process TestHelpers
-    void processAssetTX(const getrawtransaction_t& txData);
-    bool processExchangeRate(const getrawtransaction_t& txData);
-    bool processKYC(const getrawtransaction_t& txData);
+    void decodeAssetTX(const getrawtransaction_t& txData);
+    bool decodeExchangeRate(const getrawtransaction_t& txData);
+    bool decodeKYC(const getrawtransaction_t& txData);
 
     //asset process TestHelpers
-    void processAssetTransfer(BitIO& dataStream, const std::vector<AssetUTXO>& inputAssets, uint8_t type);
+    void decodeAssetTransfer(BitIO& dataStream, const vector<AssetUTXO>& inputAssets, uint8_t type);
     void checkRulesPass() const;
     void addAssetToOutput(size_t output, const DigiAsset& asset);
 
