@@ -31,24 +31,24 @@ class DigiAssetRules {
 
     std::string _voteLabelsCID;  //empty if labels have been processed already
 
-    void processSigners(const getrawtransaction_t& txData, BitIO& opReturnData);
-    void processExchangeRate(const getrawtransaction_t& txData, BitIO& opReturnData);
-    void processRoyalties(const getrawtransaction_t& txData, BitIO& opReturnData);
-    void processCountryLimits(const getrawtransaction_t& txData, BitIO& opReturnData);
-    void processVoteAndExpiry(const getrawtransaction_t& txData, BitIO& opReturnData, const std::string& cid);
-    void processDeflate(const getrawtransaction_t& txData, BitIO& opReturnData);
+    void decodeApproval(const getrawtransaction_t& txData, BitIO& dataStream);
+    void decodeRoyaltyUnits(const getrawtransaction_t& txData, BitIO& dataStream);
+    void decodeRoyalties(const getrawtransaction_t& txData, BitIO& dataStream);
+    void decodeGeofence(const getrawtransaction_t& txData, BitIO& dataStream);
+    void decodeVoteAndExpiry(const getrawtransaction_t& txData, BitIO& dataStream, const std::string& cid);
+    void decodeDeflation(const getrawtransaction_t& txData, BitIO& dataStream);
 
     friend void serialize(std::vector<uint8_t>& serializedData, const DigiAssetRules& input);
     friend void deserialize(const std::vector<uint8_t>& serializedData, size_t& i, DigiAssetRules& output);
 public:
-    static const unsigned char RULE_SIGNER = 0;
+    static const unsigned char RULE_APPROVAL = 0;
     static const unsigned char RULE_ROYALTIES = 1;
-    static const unsigned char RULE_KYC_WHITE_LIST = 2;
-    static const unsigned char RULE_KYC_BLACK_LIST = 3;
+    static const unsigned char RULE_GEOFENCE_ALLOWED = 2;
+    static const unsigned char RULE_GEOFENCE_DENIED = 3;
     static const unsigned char RULE_VOTE = 4;
     static const unsigned char RULE_EXPIRES = 4;  //vote length=0 cutoff!=0
-    static const unsigned char RULE_DEFLATE = 5;
-    static const unsigned char RULE_EXCHANGE_RATE = 9;
+    static const unsigned char RULE_DEFLATION = 5;
+    static const unsigned char RULE_ROYALTY_UNITS = 9;
 
     static const unsigned char RULE_END = 15;
 
@@ -57,7 +57,7 @@ public:
 
 
     DigiAssetRules() = default;
-    DigiAssetRules(const getrawtransaction_t& txData, BitIO& opReturnData, const std::string& cid,
+    DigiAssetRules(const getrawtransaction_t& txData, BitIO& dataStream, const std::string& cid,
                    unsigned char opCode);
 
     void lock();
