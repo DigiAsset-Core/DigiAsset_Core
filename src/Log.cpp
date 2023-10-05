@@ -4,6 +4,9 @@
 
 #include "Log.h"
 
+std::mutex Log::_mutex;
+Log* Log::_pinstance = nullptr;
+
 Log* Log::GetInstance() {
     std::lock_guard<std::mutex> lock(_mutex);
     if (_pinstance == nullptr) {

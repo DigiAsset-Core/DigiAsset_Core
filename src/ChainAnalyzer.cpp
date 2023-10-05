@@ -288,11 +288,11 @@ void ChainAnalyzer::phaseSync() {
     string hash = _dgb->getBlockHash(_height);
     bool fastMode = false;
     chrono::steady_clock::time_point beginTime;
+    stringstream ss;
     while (hash == _nextHash) {
         if (_height % 100 == 0) fastMode = (_state < -1000);
 
         //show processing block
-        stringstream ss;
         if (fastMode) {
             if (_height % 100 == 0) {
                 ss << "processed blocks: " << setw(9) << _height << " to " << setw(9) << (_height + 99);
@@ -320,13 +320,18 @@ void ChainAnalyzer::phaseSync() {
                 ss << " in " << setw(6)
                    << chrono::duration_cast<chrono::milliseconds>(endTime - beginTime).count() / 100
                    << " ms per block";
+                log->addMessage(ss.str());
+                ss.str("");
+                ss.clear();
             }
         } else {
             chrono::steady_clock::time_point endTime = chrono::steady_clock::now();
             ss << " in " << setw(6)
                << chrono::duration_cast<chrono::milliseconds>(endTime - beginTime).count() << " ms per block";
+            log->addMessage(ss.str());
+            ss.str("");
+            ss.clear();
         }
-        log->addMessage(ss.str());
 
         //prune database
         phasePrune();
