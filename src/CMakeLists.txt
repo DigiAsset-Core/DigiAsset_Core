@@ -39,6 +39,7 @@ set(HEADER_FILES
         UTXOCache.h
         DigiByteCore_Types.h
         DigiByteCore_Exception.h
+        Log.h
         )
 
 set(SOURCE_FILES
@@ -60,6 +61,7 @@ set(SOURCE_FILES
         Config.cpp
         BitcoinRpcServer.cpp
         UTXOCache.cpp
+        Log.cpp
         )
 
 add_executable(digiasset_core main.cpp ${SOURCE_FILES} ${HEADER_FILES})

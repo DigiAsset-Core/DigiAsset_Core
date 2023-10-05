@@ -5,8 +5,10 @@
 #ifndef DIGIASSET_CORE_DIGIASSET_H
 #define DIGIASSET_CORE_DIGIASSET_H
 
-#define DIGIASSET_CALLBACK_GETVOTELABELS_ID "DigiAsset::_callbackGetVoteLabels"
 #define DIGIASSET_JSON_IPFS_MAX_WAIT 1000
+
+//todo check if min length is longer (OP_RETURN - 8bit)(OP_RETURN LENGTH - 8 bit)(DigiAsset Header - 16 bit)(version - 8 bit)(OP_CODE - 8bit)?
+#define DIGIASSET_MIN_POSSIBLE_LENGTH 48
 
 #include <string>
 #include <map>
@@ -49,7 +51,7 @@ class DigiAsset {
     //functions to help process chain data
     bool
     processIssuance(const getrawtransaction_t& txData, unsigned int height, unsigned char version, unsigned char opcode,
-                    BitIO& opReturnData);
+                    BitIO& dataStream);
     std::string calculateAssetId(const vin_t& firstVin, uint8_t issuanceFlags) const;
     static std::vector<uint8_t> calcSimpleScriptPubKey(const vin_t& vinData);
     static void insertSRHash(const std::string& dataToHash, std::vector<uint8_t>& result, size_t startIndex);
@@ -74,8 +76,12 @@ public:
 
     //constructors
     DigiAsset() = default;
-    DigiAsset(const getrawtransaction_t& txData, unsigned int height, unsigned char version, unsigned char opcode,
-              BitIO& opReturnData);
+    DigiAsset(const getrawtransaction_t& txData, unsigned int height, unsigned char version,
+              unsigned char opcode, BitIO& dataStream);
+
+    //helper functions for preprocessing asset
+    static void decodeAssetTxHeader(const getrawtransaction_t& txData, unsigned char& version, unsigned char& opcode,
+                                    BitIO& dataStream);
 
     //constructor intended for use by Database only
     DigiAsset(uint64_t assetIndex, const std::string& assetId, const std::string& cid, const KYC& issuer,

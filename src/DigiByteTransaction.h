@@ -5,9 +5,6 @@
 #ifndef DIGIASSET_CORE_DIGIBYTETRANSACTION_H
 #define DIGIASSET_CORE_DIGIBYTETRANSACTION_H
 
-//todo check if min length is longer (OP_RETURN - 8bit)(OP_RETURN LENGTH - 8 bit)(DigiAsset Header - 16 bit)(version - 8 bit)(OP_CODE - 8bit)?
-#define DIGIASSET_MIN_POSSIBLE_LENGTH 48
-
 
 #include "DigiAsset.h"
 #include <jsonrpccpp/server.h>
@@ -51,12 +48,12 @@ class DigiByteTransaction {
 
 
     //tx process TestHelpers
-    void processAssetTX(const getrawtransaction_t& txData);
-    bool processExchangeRate(const getrawtransaction_t& txData);
-    bool processKYC(const getrawtransaction_t& txData);
+    void decodeAssetTX(const getrawtransaction_t& txData);
+    bool decodeExchangeRate(const getrawtransaction_t& txData);
+    bool decodeKYC(const getrawtransaction_t& txData);
 
     //asset process TestHelpers
-    void processAssetTransfer(BitIO& dataStream, const std::vector<AssetUTXO>& inputAssets, uint8_t type);
+    void decodeAssetTransfer(BitIO& dataStream, const vector<AssetUTXO>& inputAssets, uint8_t type);
     void checkRulesPass() const;
     void addAssetToOutput(size_t output, const DigiAsset& asset);
 

@@ -1,6 +1,6 @@
 ## install ubuntu
 
-install ubuntu server using default settings(except add a 32GB swap partition)
+install ubuntu server using default settings(except add a 32GB swap partition).  You can probably get away with 8GB swap if low on storage space.  If someone tests with 8GB please change these instructions.
 
 ## Bugs found in js code
 
@@ -138,10 +138,7 @@ mv src/digiasset_core ../../bin
 
 - If submitting pull requests please utilize the .clang-format file to keep things standardized.
 - example.cfg has a write up of what the different config settings are.
-- The first 12066400 blocks database file can be downloaded using ipfs
- ```bash 
-ipfs get QmWPQ3msDsWbR4YB9PvePtNcPJtTum8hsQGjYa2GnPxc7F -o bin/chain.db
-```
+- There are instructions on how to bootstrap the blockchain in bin/readme.md
 
 
 ---

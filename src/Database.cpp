@@ -1217,6 +1217,7 @@ unsigned int Database::getPermanentSize(const string& txid) {
 
         //value found lets get the height
         height = _dgb->getBlock(txData.blockhash).height;
+        if (height < 12642645) return 0; //Exchange rate was not published before this point
     }
 
     //get exchange rate

@@ -14,7 +14,9 @@
 using namespace std;
 
 
-
+/**
+ * Create a new DigiAsset Object
+ */
 DigiByteTransaction::DigiByteTransaction() {
     _time = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now().time_since_epoch()).count();
 }
@@ -62,12 +64,18 @@ DigiByteTransaction::DigiByteTransaction(const string& txid, DigiByteCore& core,
     }
 
     //Check different tx types
-    if (processKYC(txData)) return;
-    if (processExchangeRate(txData)) return;
-    processAssetTX(txData);
+    if (decodeKYC(txData)) return;
+    if (decodeExchangeRate(txData)) return;
+    decodeAssetTX(txData);
 }
 
-bool DigiByteTransaction::processExchangeRate(const getrawtransaction_t& txData) {
+/**
+ * Looks to see if there is exchange rate data encoded in the transaction and we are tracking it
+ * New exchange rate addresses are automatically added to tracking if they are defined in a DigiAsset
+ * @param txData
+ * @return if there was exchange rate data
+ */
+bool DigiByteTransaction::decodeExchangeRate(const getrawtransaction_t& txData) {
     //exchange rate transactions always have 1 input and 2 outputs
     if (txData.vin.size() != 1) return false;
     if (txData.vout.size() != 2) return false;
@@ -102,7 +110,12 @@ bool DigiByteTransaction::processExchangeRate(const getrawtransaction_t& txData)
     return true;
 }
 
-bool DigiByteTransaction::processKYC(const getrawtransaction_t& txData) {
+/**
+ * Looks to see if there is KYC data encoded in the transaction and decodes it if there is
+ * @param txData
+ * @return true if there is KYC data in the transaction
+ */
+bool DigiByteTransaction::decodeKYC(const getrawtransaction_t& txData) {
     unsigned int txType = _kycData.processTX(txData, _height, [this](string txid, unsigned int vout) -> string {
         Database* db = Database::GetInstance();
         return db->getSendingAddress(txid, vout);
@@ -116,41 +129,16 @@ bool DigiByteTransaction::processKYC(const getrawtransaction_t& txData) {
     return true;
 }
 
-void DigiByteTransaction::processAssetTX(const getrawtransaction_t& txData) {
+/**
+ * Looks to see if there is DigiAsset Transaction in the transaction and decodes it if there is
+ * @param txData
+ */
+void DigiByteTransaction::decodeAssetTX(const getrawtransaction_t& txData) {
+    //get the DigiAsset header and read the version and opcode
+    unsigned char opcode;
+    BitIO dataStream;
+    DigiAsset::decodeAssetTxHeader(txData, _assetTransactionVersion, opcode, dataStream);
 
-
-    //find the encoded data
-    int iO = -1;
-    for (const vout_t& output: txData.vout) {
-        if (output.scriptPubKey.type != "nulldata") continue;
-        iO = output.n;
-    }
-    if (iO == -1) {
-        return;
-    }
-
-    //check encoded data on output 1 has correct header
-    BitIO dataStream = BitIO::makeHexString(txData.vout[iO].scriptPubKey.hex);
-    if (dataStream.getLength() < DIGIASSET_MIN_POSSIBLE_LENGTH) {
-        return;   //fc8ac69d67c298152a8b93b1b7a054e28427f02e69025249e09be123de2986f3 has an OP_RETURN with no extra data after.  This prevents error
-    }
-    if (!dataStream.checkIsBitcoinOpReturn()) {
-        return;   //not an OP_RETURN
-    }
-    if (dataStream.getBitcoinDataHeader() != BITIO_BITCOIN_TYPE_DATA) {
-        return; //not data
-    }
-    dataStream = dataStream.copyBitcoinData();    //strip the header out
-
-    if (dataStream.getBits(16) != 0x4441) {
-        return; //not asset tx
-    }
-
-    //get version number
-    _assetTransactionVersion = dataStream.getBits(8);
-
-    //get opcode
-    const unsigned char opcode = dataStream.getBits(8);
     if (opcode == 0) {
         return;//invalid op code
     }
@@ -164,10 +152,10 @@ void DigiByteTransaction::processAssetTX(const getrawtransaction_t& txData) {
 
             //create the asset
             _newAsset = DigiAsset{txData, _height, _assetTransactionVersion, opcode, dataStream};
-            processAssetTransfer(dataStream, vector<AssetUTXO>{{
-                                                                       .digibyte =  0,
-                                                                       .assets =  vector<DigiAsset>{_newAsset}
-                                                               }}, DIGIASSET_ISSUANCE);
+            decodeAssetTransfer(dataStream, vector<AssetUTXO>{{
+                                                                      .digibyte =  0,
+                                                                      .assets =  vector<DigiAsset>{_newAsset}
+                                                              }}, DIGIASSET_ISSUANCE);
             _txType = DIGIASSET_ISSUANCE;
         } catch (const DigiAsset::exception& e) {
 
@@ -189,7 +177,7 @@ void DigiByteTransaction::processAssetTX(const getrawtransaction_t& txData) {
 
         //do transfer
         try {
-            processAssetTransfer(dataStream, _inputs, burn ? DIGIASSET_BURN : DIGIASSET_TRANSFER);
+            decodeAssetTransfer(dataStream, _inputs, burn ? DIGIASSET_BURN : DIGIASSET_TRANSFER);
         } catch (const DigiAsset::exceptionRuleFailed& e) {
             //clear asset outputs
             _unintentionalBurn = true;
@@ -206,7 +194,16 @@ void DigiByteTransaction::processAssetTX(const getrawtransaction_t& txData) {
     }
 }
 
-void DigiByteTransaction::processAssetTransfer(BitIO& dataStream, const vector<AssetUTXO>& inputAssets, uint8_t type) {
+/**
+ * Helper function to handle processing where assets are now after this transaction
+ * @param dataStream - with pointer at transfer section
+ * @param inputAssets - list of input assets to this transaction
+ * @param type - type of transaction(see constants)
+ *    1 - Issuance
+ *    2 - Transfer
+ *    3 - Burn
+ */
+void DigiByteTransaction::decodeAssetTransfer(BitIO& dataStream, const vector<AssetUTXO>& inputAssets, uint8_t type) {
     bool allowSkip = true;
     size_t index = 0;
 
@@ -359,6 +356,10 @@ void DigiByteTransaction::processAssetTransfer(BitIO& dataStream, const vector<A
     }
 }
 
+/**
+ * Checks rules pass.
+ * Throws exception DigiAsset::exceptionRuleFailed if they don't
+ */
 void DigiByteTransaction::checkRulesPass() const {
     for (const AssetUTXO& utxo: _inputs) {
         for (const DigiAsset& asset: utxo.assets) asset.checkRulesPass(_inputs, _outputs, _height, _time);
@@ -449,7 +450,11 @@ ExchangeRate DigiByteTransaction::getExchangeRateName(uint8_t i) const {
     };
 }
 
-
+/**
+ * Handles adding an asset to a specific output
+ * @param output - index of output to add the asset to
+ * @param asset - asset to be added
+ */
 void DigiByteTransaction::addAssetToOutput(size_t output, const DigiAsset& asset) {
     //see if asset already in output
     if (asset.isAggregable() && (!_outputs[output].assets.empty())) {
@@ -465,6 +470,10 @@ void DigiByteTransaction::addAssetToOutput(size_t output, const DigiAsset& asset
     _outputs[output].assets.emplace_back(asset);
 }
 
+/**
+ * Adds the transaction to the database
+ * @param optionalMetaCallbackSymbol - used to asynchronously call metadata handling function
+ */
 void DigiByteTransaction::addToDatabase(const std::string& optionalMetaCallbackSymbol) {
     Database* db = Database::GetInstance();
 
@@ -533,6 +542,44 @@ void DigiByteTransaction::addToDatabase(const std::string& optionalMetaCallbackS
     db->endTransaction();
 }
 
+/**
+ * Converts DigiByteTransaction Object into JSON for outputting by API.
+ *
+ * @param original - A Json::Value object that may contain existing data to which this method will add.
+ *
+ * @return Value - Returns a Json::Value object that represents the DigiByteTransaction in JSON format.
+ *                 The JSON object contains the following keys and their expected data types:
+ *
+ * - txid (string): The transaction ID.
+ * - blockhash (string): The hash of the block containing the transaction.
+ * - height (int): The height of the block containing the transaction.
+ * - time (int): The timestamp of the transaction.
+ * - vin (Json::Array): Array of inputs, each with the following fields:
+ *   - txid (string): The transaction ID of the input.
+ *   - vout (int): The output index of the input.
+ *   - address (string): The address associated with the input.
+ *   - valueS (unsigned int): The DigiByte value of the input in satoshis.
+ *   - assets (array): An array of assets involved in the input, represented in simplified JSON format.
+ *                     See DigiAsset::toJSON documentation for the format
+ * - vout (Json::Array): Array of outputs, each with the following fields:
+ *   - n (int): The output index.
+ *   - address (string): The address associated with the output.
+ *   - valueS (unsigned int): The DigiByte value of the output in satoshis.
+ *   - assets (array): An array of assets involved in the output, represented in simplified JSON format.
+ *                     See DigiAsset::toJSON documentation for the format
+ * - issued (Json::Object, if applicable): See DigiAsset::toJSON documentation for the format.
+ * - exchange (Json::Array, if applicable): Array of exchange rates, each with the following fields:
+ *   - address (string): The address associated with the exchange rate.
+ *   - index (unsigned int): The index of the exchange rate.
+ *   - name (string if applicable): The name of the exchange rate.
+ *   - rate (double): The actual exchange rate.
+ * - kyc (Json::Object, if applicable): KYC information with the following fields:
+ *   - address (string): The address associated with the KYC.
+ *   - country (string): The country associated with the KYC(ISO 3166-1 alpha-3).
+ *   - name (string, optional): The name associated with the KYC(name or hash not both).
+ *   - hash (string, optional): The hash associated with the KYC(name or hash not both).
+ *   - revoked (bool): Indicates whether the KYC is beign revoked
+ */
 Value DigiByteTransaction::toJSON(const Value& original) const {
     Json::Value result = original;
     bool addingToOriginal = !original.empty();
@@ -626,6 +673,9 @@ Value DigiByteTransaction::toJSON(const Value& original) const {
     return result;
 }
 
+/**
+ * Returns the issued asset if there is one or throws an out_of_range exception
+ */
 DigiAsset DigiByteTransaction::getIssuedAsset() const {
     if (!isIssuance()) throw out_of_range("Not an issuance");
     return _newAsset;

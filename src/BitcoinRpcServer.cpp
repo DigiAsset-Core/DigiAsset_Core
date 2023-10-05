@@ -251,6 +251,8 @@ void BitcoinRpcServer::defineMethods() {
                      * params[0] - txid(string)
                      * params[1] - verbose(optional bool=false)
                      * params[2] - ignored
+                     *
+                     * Returns same as before but now extra fields form DigiAsset::toJSON are not present
                      */
                     .name="getrawtransaction",
                     .func=[this](const Json::Value& params) -> Value {
@@ -384,6 +386,9 @@ void BitcoinRpcServer::defineMethods() {
                      *  params[2] - vout(integer optional)
                      *  txid and vout are for any transaction involving the asset.  These are only needed for assets that
                      *  have more than 1 index.  All assets starting with L or Ua have only 1 index
+                     *
+                     * @return Json::Value - Returns a Json::Value object that represents the DigiAsset in JSON format.
+                     *                       Refer to DigiAsset::toJSON for the format of the returned JSON object.
                      */
                     .name="getassetdata",
                     .func=[this](const Json::Value& params) -> Value {

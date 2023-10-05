@@ -3,6 +3,8 @@
 #include "ChainAnalyzer.h"
 #include "IPFS.h"
 #include "BitcoinRpcServer.h"
+#include "Log.h"
+#include "Config.h"
 #include <iostream>
 
 
@@ -15,13 +17,20 @@ int main() {
     //IPFS::get("bafkreicr2pggml4j5bjv3hhxi5i5ud4rgnnaqphrfs2mtoub77zfiwbhju", "temp.json");
 
     /*
+     * Start Log
+     */
+    Log* log = Log::GetInstance("debug.log");
+    Config config = Config("config.cfg");
+    log->setMinLevelToScreen(static_cast<Log::LogLevel>(config.getInteger("logscreen", static_cast<int>(Log::INFO))));
+    log->setMinLevelToFile(static_cast<Log::LogLevel>(config.getInteger("logfile", static_cast<int>(Log::WARNING))));
+
+    /*
      * Connect to core wall
      */
 
     DigiByteCore api = DigiByteCore();
     api.setFileName("config.cfg");
     api.makeConnection();
-    std::cout << "\n(temp in main)Current Block Height: " << api.getBlockCount();
 
 
     /**
@@ -39,7 +48,6 @@ int main() {
     analyzer.loadConfig();
     analyzer.start();
     //analyzer.stop();
-    std::cout << "\nChain Analyzer Running";
 
     /**
      * Start RPC Server
@@ -50,7 +58,6 @@ int main() {
         BitcoinRpcServer server(api);
         server.start();
 
-        std::cout << "Bitcoin RPC server started on port " << server.getPort() << std::endl;
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
     }
