@@ -1,9 +1,11 @@
 //
 // Created by mctrivia on 31/07/23.
+// Updated by RenzoDD on 04/10/23
 //
 #include "DigiByteDomain.h"
 #include "IPFS.h"
 #include "static_block.hpp"
+#include "Log.h"
 #include <iostream>
 
 using namespace std;
@@ -34,6 +36,7 @@ void
 DigiByteDomain::_callbackNewMetadata(const std::string& cid, const std::string& extra, const std::string& content,
                                      bool failed) {
     //failed will always be false since no maxSleep ever set
+    Log* log=Log::GetInstance();
 
     Database* db = Database::GetInstance();
     Json::CharReaderBuilder rbuilder;
@@ -43,8 +46,57 @@ DigiByteDomain::_callbackNewMetadata(const std::string& cid, const std::string& 
     Json::parseFromStream(rbuilder, s, &metadata, &errs);
 
 
-    //todo Renzo Code Needed Here
+    vector<string> newDomains;
+    vector<string> revokedDomains;
+    bool dnsCompromised = false;
 
+    Json::Value V = metadata["DNS"];
+    for (const auto& member: V.getMemberNames()) {
+        string domain = member;
+        string assetId = V[domain].asString();
+
+        string onDB = db->getDomainAssetId(domain, false);
+
+       
+        if (onDB.empty()) { //no previous record of domain
+            newDomains.push_back(domain);
+        } else if (onDB != assetId) {
+            if (assetId.empty()) { //the assetId has been deleted
+                revokedDomains.push_back(domain);
+            } else { //someone has tampered with the record
+                dnsCompromised = true;
+                break;
+            }
+        }
+    }
+
+    if (dnsCompromised) {
+        db->setDomainCompromised();
+        log->addMessage("DNS Compromised!!!", Log::INFO);
+    }
+
+    //check if new domains has been issued
+    if (!newDomains.empty()) {
+        for (const auto& domain: newDomains) {
+            string assetId = metadata["DNS"][domain].asString();
+            db->addDomain(domain, assetId);
+            log->addMessage("Domain added: " + domain, Log::INFO);
+        }
+    }
+
+    //check if a domain has been revoked
+    if (!revokedDomains.empty()) {
+        for (const auto& domain: revokedDomains) {
+            db->revokeDomain(domain);
+            log->addMessage("Domain revoked: " + domain, Log::INFO);
+        }
+    }
+
+    //check if a new dns is published
+    if (metadata.isMember("next") || !metadata["next"].isString()) {
+        db->setMasterDomainAssetId(metadata["next"].asString());
+        log->addMessage("New DNS added " + metadata["next"].asString(), Log::INFO);
+    }
 }
 
 std::string DigiByteDomain::getAddress(const string& domain) {
