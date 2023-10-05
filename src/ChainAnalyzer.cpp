@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <fstream>
 #include "static_block.hpp"
+#include "Log.h"
 
 using namespace std;
 
@@ -249,7 +250,8 @@ void ChainAnalyzer::shutdownFunction() {
 
 void ChainAnalyzer::phaseRewind() {
 
-    cout << "\n\nRewinding\n";
+    Log* log = Log::GetInstance();
+    log->addMessage("Rewinding");
     Database* db = Database::GetInstance();
 
 ///should start at what ever number left off at since blocks is set only after finishing
@@ -267,7 +269,7 @@ void ChainAnalyzer::phaseRewind() {
                 _nextHash = db->getBlockHash(_height);
             } catch (const Database::exceptionDataPruned& e) {
                 //we rolled back to point that has been pruned so restart chain analyser
-                cout << "\nRewinded blocks past prune point.  Need to restart sync\n";
+                log->addMessage("Rewinded blocks past prune point.  Need to restart sync", Log::WARNING);
                 restart();
                 return;
             }
@@ -280,6 +282,7 @@ void ChainAnalyzer::phaseRewind() {
 
 void ChainAnalyzer::phaseSync() {
     Database* db = Database::GetInstance();
+    Log* log = Log::GetInstance();
 
     //start syncing
     string hash = _dgb->getBlockHash(_height);
@@ -289,20 +292,21 @@ void ChainAnalyzer::phaseSync() {
         if (_height % 100 == 0) fastMode = (_state < -1000);
 
         //show processing block
+        stringstream ss;
         if (fastMode) {
             if (_height % 100 == 0) {
-                cout << "\nprocessed blocks: " << setw(9) << _height << " to " << setw(9) << (_height + 99);
+                ss << "processed blocks: " << setw(9) << _height << " to " << setw(9) << (_height + 99);
                 beginTime = chrono::steady_clock::now();
             }
         } else {
-            cout << "\nprocessed block: " << setw(9) << _height;
+            ss << "processed block: " << setw(9) << _height;
             beginTime = chrono::steady_clock::now();
         }
 
         //process block
         blockinfo_t blockData = _dgb->getBlock(hash);   //get the next blocks data
         _state = 0 - blockData.confirmations;                   //calculate how far behind we are
-        if (!fastMode) cout << "(" << setw(8) << _state << ") ";
+        if (!fastMode) ss << "(" << setw(8) << _state << ") ";
 
         //process each tx in block
         if (shouldStoreNonAssetUTXO() || (_height >= 8432316)) {    //only non asset utxo below this height
@@ -313,15 +317,17 @@ void ChainAnalyzer::phaseSync() {
         if (fastMode) {
             if (_height % 100 == 99) {
                 chrono::steady_clock::time_point endTime = chrono::steady_clock::now();
-                cout << " in " << setw(6)
-                     << chrono::duration_cast<chrono::milliseconds>(endTime - beginTime).count() / 100
-                     << " ms per block";
+                ss << " in " << setw(6)
+                   << chrono::duration_cast<chrono::milliseconds>(endTime - beginTime).count() / 100
+                   << " ms per block";
             }
         } else {
             chrono::steady_clock::time_point endTime = chrono::steady_clock::now();
-            cout << " in " << setw(6)
-                 << chrono::duration_cast<chrono::milliseconds>(endTime - beginTime).count() << " ms per block";
+            ss << " in " << setw(6)
+               << chrono::duration_cast<chrono::milliseconds>(endTime - beginTime).count() << " ms per block";
         }
+        log->addMessage(ss.str());
+
         //prune database
         phasePrune();
 

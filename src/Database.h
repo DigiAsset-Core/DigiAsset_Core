@@ -261,7 +261,7 @@ public:
     class exception : public std::exception {
     public:
         char* what() {
-            _lastErrorMessage = "Something went wrong with IPFS controller";
+            _lastErrorMessage = "Something went wrong with database";
             return const_cast<char*>(_lastErrorMessage.c_str());
         }
     };

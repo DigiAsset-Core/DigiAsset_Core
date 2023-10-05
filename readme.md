@@ -1,6 +1,6 @@
 ## install ubuntu
 
-install ubuntu server using default settings(except add a 32GB swap partition)
+install ubuntu server using default settings(except add a 32GB swap partition).  You can probably get away with 8GB swap if low on storage space.  If someone tests with 8GB please change these instructions.
 
 ## Bugs found in js code
 
