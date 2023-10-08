@@ -1,10 +1,10 @@
-You can bootstrap the first 15848700 blocks by running the following command in this folder
+You can bootstrap the first 18,000,000 blocks by running the following command in this folder
 
 ```bash 
-ipfs get QmfYDKuZdkhuwS37p38TxY5xtnLtDGp5sSt25LhGw9EVxT -o chain.db
+ipfs get QmWz1HNwtcuWWNpqCWeDoS33MYiUfYc7Edax678ei2qQjB -o chain.db
 ```
 
 and if you wish to help distribute these files use
 ```bash
-ipfs pin add QmfYDKuZdkhuwS37p38TxY5xtnLtDGp5sSt25LhGw9EVxT
+ipfs pin add QmWz1HNwtcuWWNpqCWeDoS33MYiUfYc7Edax678ei2qQjB
 ```

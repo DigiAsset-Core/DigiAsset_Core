@@ -306,7 +306,7 @@ void ChainAnalyzer::phaseSync() {
         //process block
         blockinfo_t blockData = _dgb->getBlock(hash);   //get the next blocks data
         _state = 0 - blockData.confirmations;                   //calculate how far behind we are
-        if (!fastMode) ss << "(" << setw(8) << _state << ") ";
+        if (!fastMode) ss << "(" << setw(8) << (_state+1) << ") ";  //+1 because message is related to after block is done
 
         //process each tx in block
         if (shouldStoreNonAssetUTXO() || (_height >= 8432316)) {    //only non asset utxo below this height
@@ -338,8 +338,11 @@ void ChainAnalyzer::phaseSync() {
 
         //if fully synced pause until new block
         while (blockData.nextblockhash.empty()) {
-            //pause for 1 sec
-            chrono::seconds dura(1);
+            //mark as synced
+            _state=SYNCED;
+
+            //pause for 0.5 sec
+            chrono::milliseconds dura(500);
             this_thread::sleep_for(dura);
 
             //check current block has not changed
@@ -348,6 +351,9 @@ void ChainAnalyzer::phaseSync() {
                 _state = REWINDING;
                 return;
             }
+
+            //update blockData so we can exit loop
+            blockData = _dgb->getBlock(hash);
         }
 
         //set what block we will work on next
