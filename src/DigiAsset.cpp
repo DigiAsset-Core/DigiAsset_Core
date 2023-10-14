@@ -984,10 +984,10 @@ Value DigiAsset::toJSON(bool simplified) const {
     Json::Value result(Json::objectValue);
 
     // Simplified
-    result["assetIndex"] = getAssetIndex();
+    result["assetIndex"] = static_cast<Json::UInt64>(getAssetIndex());
     result["assetId"] = getAssetId();
     result["cid"] = getCID();
-    result["count"] = getCount();
+    result["count"] = static_cast<Json::UInt64>(getCount());
     result["decimals"] = getDecimals();
 
     if (simplified) return result;

@@ -588,7 +588,7 @@ Value DigiByteTransaction::toJSON(const Value& original) const {
     result["txid"] = _txid;
     result["blockhash"] = _blockHash;
     result["height"] = _height;
-    result["time"] = _time;
+    result["time"] = static_cast<Json::UInt64>(_time);
 
     // Add vin data
     Json::Value inputsArray(Json::arrayValue);
@@ -599,7 +599,7 @@ Value DigiByteTransaction::toJSON(const Value& original) const {
         inputObject["txid"] = input.txid;
         inputObject["vout"] = input.vout;
         inputObject["address"] = input.address;
-        inputObject["valueS"] = input.digibyte;
+        inputObject["valueS"] = static_cast<Json::UInt64>(input.digibyte);
 
         Json::Value assetArray(Json::arrayValue);
         for (const DigiAsset& asset: input.assets) {
@@ -618,7 +618,7 @@ Value DigiByteTransaction::toJSON(const Value& original) const {
                                                     : Json::objectValue;   //load original or blank
         outputObject["n"] = output.vout;
         outputObject["address"] = output.address;
-        outputObject["valueS"] = output.digibyte;
+        outputObject["valueS"] = static_cast<Json::UInt64>(output.digibyte);
 
         Json::Value assetArray(Json::arrayValue);
         for (const DigiAsset& asset: output.assets) {

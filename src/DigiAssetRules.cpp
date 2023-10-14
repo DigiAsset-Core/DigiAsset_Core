@@ -629,10 +629,10 @@ Json::Value DigiAssetRules::toJSON() {
     if (_noRules) return result;
     result["changeable"] = Json::Value(_rewritable);
     if (_deflate != 0) {
-        result["deflation"] = Json::Value(_deflate);
+        result["deflation"] = Json::Value(static_cast<Json::UInt64>(_deflate));
     }
     if (expires()) {
-        result["expiry"] = Json::Value(_expiry);
+        result["expiry"] = Json::Value(static_cast<Json::UInt64>(_expiry));
     }
 
     // Handle royalties
@@ -651,7 +651,7 @@ Json::Value DigiAssetRules::toJSON() {
 
         Json::Value addresses(Json::objectValue);
         for (const Royalty& recipient: _royalties) {
-            addresses[recipient.address] = Json::Value(recipient.amount);
+            addresses[recipient.address] = Json::Value(static_cast<Json::UInt64>(recipient.amount));
         }
         royalty["addresses"] = addresses;
         result["royalty"] = royalty;
@@ -705,7 +705,7 @@ Json::Value DigiAssetRules::toJSON() {
         approval["required"] = Json::Value(!_signersRequired);
         Json::Value signers(Json::objectValue);
         for (const Signer& option: _signers) {
-            signers[option.address] = Json::Value(option.weight);
+            signers[option.address] = Json::Value(static_cast<Json::UInt64>(option.weight));
         }
         approval["approvers"] = signers;
         result["approval"] = approval;

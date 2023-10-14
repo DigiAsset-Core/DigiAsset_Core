@@ -75,6 +75,7 @@ target_link_libraries(digiasset_core PUBLIC sqlite3)
 target_link_libraries(digiasset_core PRIVATE cryptopp)
 target_link_libraries(digiasset_core PRIVATE ssl)
 target_link_libraries(digiasset_core PRIVATE crypto)
+target_link_libraries(digiasset_core PRIVATE pthread)
 
 target_link_libraries(digiasset_core PRIVATE /lib/x86_64-linux-gnu/libjsoncpp.so)
 target_link_libraries(digiasset_core PRIVATE jsonrpccpp-common)
