@@ -36,9 +36,10 @@ DigiByteCore::~DigiByteCore() {
  * Changes what config file we should use
  * @param fileName
  */
-void DigiByteCore::setFileName(const std::string& fileName) {
+void DigiByteCore::setFileName(const std::string& fileName,bool useAssetPort) {
     //make change
     _configFileName = fileName;
+    _useAssetPort=useAssetPort;
 
     //drop connection
     dropConnection();
@@ -93,7 +94,10 @@ void DigiByteCore::makeConnection() {
                 "http://" + config.getString("rpcuser") + ":" +
                 config.getString("rpcpassword") + "@" +
                 config.getString("rpcbind", "127.0.0.1") + ":" +
-                std::to_string(config.getInteger("rpcport", 14022))
+                std::to_string( _useAssetPort?
+                    config.getInteger("rpcassetport", 14023):
+                    config.getInteger("rpcport", 14022)
+                )
         );
         client = new jsonrpc::Client(*httpClient, jsonrpc::JSONRPC_CLIENT_V1);
         httpClient->SetTimeout(config.getInteger("rpctimeout", 50000));

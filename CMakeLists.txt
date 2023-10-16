@@ -16,5 +16,9 @@ SET(SO_VERSION    0)
 include_directories(src)
 ADD_SUBDIRECTORY(src)
 
+#create cli
+include_directories(cli)
+ADD_SUBDIRECTORY(cli)
+
 set(GOOGLETEST_VERSION 1.11.0)
 ADD_SUBDIRECTORY(tests)

@@ -173,10 +173,10 @@ Value BitcoinRpcServer::handleRpcRequest(const Value& request) {
     string methodName = request["method"].asString();
 
     //lets check params is present
-    if (!request.isMember("params") || !request["params"].isArray()) {
+    if (request.isMember("params") && !request["params"].isArray()) {
         throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
     }
-    const Json::Value& params = request["params"];
+    const Json::Value& params = request.isMember("params")?request["params"]:Value(Json::nullValue);
 
     //see if method on approved list
     if (!isRPCAllowed(methodName)) throw DigiByteException(RPC_FORBIDDEN_BY_SAFE_MODE, methodName + " is forbidden");

@@ -23,6 +23,7 @@ class DigiByteCore {
     jsonrpc::Client* client = nullptr;
     uint64_t _dgbToSat(std::string value);
     static std::mutex _mutex;
+    bool _useAssetPort=false;
 
 
     static std::string _lastErrorMessage;
@@ -37,7 +38,7 @@ public:
     ~DigiByteCore();
 
     //functions that drop connection
-    void setFileName(const std::string& fileName);
+    void setFileName(const std::string& fileName,bool useAssetPort=false);
     void setConfig(const std::string& username, const std::string& password, const std::string& address = "127.0.0.1",
                    uint port = 14022);
     void dropConnection();

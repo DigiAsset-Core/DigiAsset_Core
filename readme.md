@@ -1,14 +1,14 @@
 ## install ubuntu
 
-install ubuntu server using default settings(except add a 32GB swap partition).  You can probably get away with 8GB swap if low on storage space.  If someone tests with 8GB please change these instructions.
+Ideally this should work on all OS.  So far it has only been tested on:
+- Ubuntu 20.04LTS - app works but google tests don't compile
+- Ubuntu 22.04LTS - all functions
 
-## Bugs found in js code
+The instructions below are specifically writen for Ubuntu 22.04 LTS any other OS may have slightly different instructions needed.
 
-- There was a bug in bitio that caused 7 and 8 byte numbers encoded in assets to be wrong.  This only effected the following txids.
-93d0407a6bf511a0eefe5a00d56965991b0a22df2fdcb74bbf025cae14549123
-- This didn't indirectly effect other txs so it has been fixed.
+Install ubuntu server using default settings.
 
-## increase swap size
+## Increase swap size
 Default install had a 4GB swap file but DigiByte core kept crashing during sync so I increased it to 8GB
 ```bash
 sudo swapoff /swap.img
@@ -25,7 +25,7 @@ place the following at the end(if swap.img is already there replace it)
 /swapfile       none    swap    sw      0       0
 ```
 
-## install DigiByte
+## Install DigiByte
 
 ```bash
 wget https://github.com/digibyte/digibyte/releases/download/v7.17.2/digibyte-7.17.2-x86_64-linux-gnu.tar.gz
@@ -92,7 +92,7 @@ Enable the service on boot
 sudo systemctl enable digibyted.service
 ```
 
-Start the serivice
+Start the service
 
 ```bash
 sudo systemctl start digibyted.service
@@ -198,6 +198,7 @@ cd build
 cmake -B . -S .. -DCMAKE_TOOLCHAIN_FILE=/opt/vcpkg/scripts/buildsystems/vcpkg.cmake
 cmake --build .
 mv src/digiasset_core ../bin
+mv cli/digiasset_core-cli ../bin
 cd ../bin
 ```
 
