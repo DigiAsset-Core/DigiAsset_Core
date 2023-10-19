@@ -2,19 +2,31 @@
 // Created by mctrivia on 11/09/23.
 //
 
+#include "BitcoinRpcServer.h"
+#include "Config.h"
+#include "DigiByteCore.h"
+#include "DigiByteDomain.h"
+#include "DigiByteTransaction.h"
+#include "Log.h"
+#include <iostream>
 #include <jsonrpccpp/client.h>
 #include <jsonrpccpp/client/connectors/httpclient.h>
-#include <iostream>
-#include "BitcoinRpcServer.h"
-#include "DigiByteCore.h"
-#include "Config.h"
-#include "DigiByteTransaction.h"
 #include <openssl/bio.h>
 #include <openssl/evp.h>
-#include "DigiByteDomain.h"
 
 
 using namespace std;
+
+/**
+ * Small class that allows easy forcing close socket when it goes out of scope
+ */
+class SocketRAII {
+public:
+    explicit SocketRAII(tcp::socket& s) : socket(s) {}
+    ~SocketRAII() { socket.close(); }
+private:
+    tcp::socket& socket;
+};
 
 /*
 ███████╗███████╗████████╗██╗   ██╗██████╗
@@ -55,31 +67,33 @@ void BitcoinRpcServer::start() {
  ╚═════╝ ╚══════╝╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝╚═╝ ╚═════╝
  */
 
-void BitcoinRpcServer::accept() {
-    //get the socket
-    tcp::socket socket(_io);
-    _acceptor.accept(socket);
+[[noreturn]] void BitcoinRpcServer::accept() {
+    while (true) {
+        try {
+            //get the socket
+            tcp::socket socket(_io);
+            SocketRAII socketGuard(socket); //make sure socket always gets closed
+            _acceptor.accept(socket);
 
+            // Handle the request and send the response
+            Value response;
+            Value request;
+            try {
+                request = parseRequest(socket);
+                response = handleRpcRequest(request);
+            } catch (const DigiByteException& e) {
+                response = createErrorResponse(e.getCode(), e.getMessage(), request);
+            } catch (const out_of_range& e) {
+                string text = e.what();
+                response = createErrorResponse(-32601, "Unauthorized", request);
+            }
 
-    // Handle the request and send the response
-    Value response;
-    Value request;
-    try {
-        request = parseRequest(socket);
-        response = handleRpcRequest(request);
-    } catch (const DigiByteException& e) {
-        response = createErrorResponse(e.getCode(), e.getMessage(), request);
-    } catch (const out_of_range& e) {
-        string text = e.what();
-        response = createErrorResponse(-32601, "Unauthorized", request);
+            sendResponse(socket, response);
+        } catch (...) {
+            Log* log = Log::GetInstance();
+            log->addMessage("Unexpected exception caught",Log::DEBUG);
+        }
     }
-
-    sendResponse(socket, response);
-
-    socket.close();
-
-    // Continue accepting new connections
-    accept();
 }
 
 

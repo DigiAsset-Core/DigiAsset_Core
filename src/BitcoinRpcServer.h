@@ -46,7 +46,7 @@ class BitcoinRpcServer {
 
     //functions to handle requests
     Value parseRequest(tcp::socket& socket);
-    void accept();
+    [[noreturn]] void accept();
     Value handleRpcRequest(const Value& request);
     Value createErrorResponse(int code, const std::string& message, const Value& request);
     void sendResponse(tcp::socket& socket, const Value& response);

@@ -252,6 +252,7 @@ void ChainAnalyzer::phaseRewind() {
 
     Log* log = Log::GetInstance();
     log->addMessage("Rewinding");
+    log->addMessage("Rewind start height: "+ to_string(_height),Log::DEBUG);
     Database* db = Database::GetInstance();
 
 ///should start at what ever number left off at since blocks is set only after finishing
@@ -278,11 +279,13 @@ void ChainAnalyzer::phaseRewind() {
         //delete all data above & including _height
         db->clearBlocksAboveHeight(_height);
     }
+    log->addMessage("Rewind end height: "+ to_string(_height),Log::DEBUG);
 }
 
 void ChainAnalyzer::phaseSync() {
     Database* db = Database::GetInstance();
     Log* log = Log::GetInstance();
+    log->addMessage("Starting sync phase at height: "+ to_string(_height),Log::DEBUG);
 
     //start syncing
     string hash = _dgb->getBlockHash(_height);

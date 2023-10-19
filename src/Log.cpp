@@ -44,6 +44,9 @@ void Log::addMessage(const string& message, LogLevel level) {
 
     string logLevelStr;
     switch (level) {
+        case DEBUG:
+            logLevelStr = "DEBUG";
+            break;
         case INFO:
             logLevelStr = "INFO";
             break;
