@@ -36,8 +36,10 @@ private:
 ███████║███████╗   ██║   ╚██████╔╝██║
 ╚══════╝╚══════╝   ╚═╝    ╚═════╝ ╚═╝
  */
-BitcoinRpcServer::BitcoinRpcServer(DigiByteCore& api, const string& fileName) {
+BitcoinRpcServer::BitcoinRpcServer(DigiByteCore& api, ChainAnalyzer& analyzer, const string& fileName) {
     _api = &api;
+    _analyzer= &analyzer;
+
     Config config = Config(fileName);
     _username = config.getString("rpcuser");
     _password = config.getString("rpcpassword");
@@ -446,6 +448,36 @@ void BitcoinRpcServer::defineMethods() {
                         if (params.size() != 1) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
                         if (!params[0].isString()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
                         return DigiByteDomain::getAddress(params[0].asString());
+                    }
+            }, Method{
+                    /**
+                     * pins all ipfs meta data
+                     * returns true - does not mean they are all downloaded yet.  Will likely take a while to finish
+                     */
+                    .name="resyncmetadata",
+                    .func=[this](const Json::Value& params) -> Value {
+                        Database* db = Database::GetInstance();
+                        db->repinPermanent();
+                        return true;
+                    }
+            }, Method{
+                    /**
+                     * Returns the current DigiByte block height and state of DigiAsset Sync
+                     * {
+                     *      count (unsigned int) - height DigiByte Core is currently synced to
+                     *      sync (int) - negative numbers mean how many blocks behind DigiAsset processing is anything over 120 is unsafe to use
+                     *                   0 = fully synced
+                     *                   1 = stopped
+                     *                   2 = initializing
+                     *                   3 = rewinding
+                     * }
+                     */
+                    .name="syncstate",
+                    .func=[this](const Json::Value& params) -> Value {
+                        Value result=Value(Json::objectValue);
+                        result["count"]=_api->getBlockCount();
+                        result["sync"]=_analyzer->getSync();
+                        return result;
                     }
             }
     };

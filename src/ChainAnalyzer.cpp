@@ -449,10 +449,13 @@ void ChainAnalyzer::_callbackNewMetadata(const string& cid, const string& extra,
 
         //If space in permanent space, use that first
         if (permanentSpace > 0) {
-            unsigned int fileSize = ipfs->getSize(url.substr(7));
+            string newCID=url.substr(7);
+            unsigned int fileSize = ipfs->getSize(newCID);
             if (permanentSpace > fileSize) {
                 permanentSpace -= fileSize;
-                ipfs->pin(url.substr(7));
+                ipfs->pin(newCID);
+                Database* db = Database::GetInstance();
+                db->addToPermanent(newCID);
                 continue;
             }
         }
@@ -515,4 +518,11 @@ unsigned int ChainAnalyzer::extraFileLengthByMimeType(const string& mimeType) {
 
     // If no matches found, return the default value _pinAssetExtra
     return _pinAssetExtra;
+}
+
+/**
+ * Gets the current sync state
+ */
+int ChainAnalyzer::getSync() const {
+    return _state;
 }

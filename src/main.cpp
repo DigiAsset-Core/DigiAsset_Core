@@ -55,7 +55,7 @@ int main() {
 
     try {
         // Create and start the Bitcoin RPC server
-        BitcoinRpcServer server(api);
+        BitcoinRpcServer server(api,analyzer);
         server.start();
 
     } catch (const std::exception& e) {

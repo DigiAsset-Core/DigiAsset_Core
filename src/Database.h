@@ -18,9 +18,6 @@
 
 #define DIGIBYTECORE_DATABASE_CHAIN_WATCH_MAX 20
 
-//if any structure changes are made to database this must be incremented as well as code added to update old version to new
-#define DIGIASSETCORE_DATABASE_VERSION_NUMBER 1
-#define DIGIASSETCORE_DATABASE_VERSION_STR STRINGIZE_VALUE_OF(DIGIASSETCORE_DATABASE_VERSION_NUMBER)
 
 #include <sqlite3.h>
 #include <string>
@@ -117,8 +114,11 @@ private:
     sqlite3_stmt* _stmtRevokeDomain = nullptr;
     sqlite3_stmt* _stmtSetDomainMasterAssetId_a = nullptr;
     sqlite3_stmt* _stmtSetDomainMasterAssetId_b = nullptr;
-    sqlite3_stmt* _stmtGetPermanentPaid;
-    sqlite3_stmt* _stmtRemoveNonReachable;
+    sqlite3_stmt* _stmtGetPermanentPaid = nullptr;
+    sqlite3_stmt* _stmtRemoveNonReachable = nullptr;
+    sqlite3_stmt* _stmtInsertPermanent = nullptr;
+    sqlite3_stmt* _stmtRepinAssets = nullptr;
+    sqlite3_stmt* _stmtRepinPermanent = nullptr;
 
     //core wallet pointer
     DigiByteCore* _dgb = nullptr;
@@ -126,7 +126,7 @@ private:
     //locks
     std::mutex _mutexGetNextIPFSJob;
 
-    void buildTables();
+    void buildTables(unsigned int dbVersionNumber=0);
     void initializeClassValues();
 
     //flag table
@@ -248,6 +248,10 @@ public:
     void setMasterDomainAssetId(const std::string& assetId);
     void setDomainCompromised();
     bool isDomainCompromised() const;
+
+    //Permanent table
+    void addToPermanent(const string& cid);
+    void repinPermanent();
 
     /*
     ███████╗██████╗ ██████╗  ██████╗ ██████╗ ███████╗

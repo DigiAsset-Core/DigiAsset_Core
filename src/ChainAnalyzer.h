@@ -51,10 +51,8 @@ public:
     static const int INITIALIZING = 2;
     static const int REWINDING = 3;
 
-
-    void startupFunction() override;
-    void mainFunction() override;
-    void shutdownFunction() override;
+    //get state
+    int getSync() const;
 
     ///public because needs to be but should only be used by DigiByteDomain.cpp
     static void
@@ -63,6 +61,11 @@ public:
 private:
     DigiByteCore* _dgb;
     std::string _configFileName = "config.cfg";
+
+    //thread overrides
+    void startupFunction() override;
+    void mainFunction() override;
+    void shutdownFunction() override;
 
     //config functions
     void resetConfig();

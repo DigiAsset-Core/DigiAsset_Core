@@ -31,60 +31,94 @@ using namespace std;
  *  exceptionFailedInsert,
  *  exceptionFailedToCreateTable
  */
-void Database::buildTables() {
+void Database::buildTables(unsigned int dbVersionNumber) {
+    vector<function<void()>> lambdaFunctions = {
 
-    char* zErrMsg = 0;
-    int rc;
+        //Define Version 1 table setup
+        [&]() {
+            char* zErrMsg = 0;
+            int rc;
+            const char* sql =
+                    //chain data tables
+                    "CREATE TABLE \"assets\" (\"assetIndex\" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, \"assetId\" TEXT NOT NULL, \"cid\" TEXT, \"issueAddress\" TEXT NOT NULL, \"rules\" BLOB, \"heightCreated\" INTEGER NOT NULL, \"heightUpdated\" INTEGER NOT NULL, \"expires\" INTEGER, \"bad\" BOOL);"
+                    "INSERT INTO \"assets\" VALUES (1,'DigiByte','QmfSVLAntanDUKrEHUnTXRh53GLUBHFfxk5x6LH4zz9PM4','STANDARD','{}',1,1,NULL,false);"
+
+                    "CREATE TABLE \"blocks\" (\"height\" INTEGER NOT NULL, \"hash\" BLOB NOT NULL, PRIMARY KEY(\"height\"));"
+                    "INSERT INTO \"blocks\" VALUES (1,X'4da631f2ac1bed857bd968c67c913978274d8aabed64ab2bcebc1665d7f4d3a0');"
+
+                    "CREATE TABLE \"exchange\" (\"address\" TEXT NOT NULL, \"index\" INTEGER NOT NULL, \"height\" INTEGER NOT NULL, \"value\" REAL NOT NULL, PRIMARY KEY(\"address\",\"index\",\"height\"));"
+
+                    "CREATE TABLE \"exchangeWatch\" (\"address\" TEXT NOT NULL, PRIMARY KEY(\"address\"));"
+                    "INSERT INTO \"exchangeWatch\" VALUES (\"dgb1qunxh378eltj2jrwza5sj9grvu5xud43vqvudwh\");"
+                    "INSERT INTO \"exchangeWatch\" VALUES (\"dgb1qlk3hldeynl3prqw259u8gv0jh7w5nwppxlvt3v\");"
+
+                    "CREATE TABLE \"flags\" (\"key\" TEXT NOT NULL, \"value\" INTEGER NOT NULL, PRIMARY KEY(\"key\"));"
+                    "INSERT INTO \"flags\" VALUES (\"wasPrunedExchangeHistory\",-1);"
+                    "INSERT INTO \"flags\" VALUES (\"wasPrunedUTXOHistory\",-1);"
+                    "INSERT INTO \"flags\" VALUES (\"wasPrunedVoteHistory\",-1);"
+                    "INSERT INTO \"flags\" VALUES (\"wasPrunedNonAssetUTXOHistory\",0);"
+                    "INSERT INTO \"flags\" VALUES (\"dbVersion\",1);"
+
+                    "CREATE TABLE \"kyc\" (\"address\" TEXT NOT NULL, \"country\" TEXT NOT NULL, \"name\" TEXT NOT NULL, \"hash\" BLOB NOT NULL, \"height\" INTEGER NOT NULL, \"revoked\" INTEGER, PRIMARY KEY(\"address\"));"
+                    "CREATE INDEX kyc_height_index ON kyc(height);"
+
+                    "CREATE TABLE \"utxos\" (\"address\" TEXT NOT NULL, \"txid\" BLOB NOT NULL, \"vout\" INTEGER NOT NULL, \"aout\" INTEGER, \"assetIndex\" Integer NOT NULL, \"amount\" INTEGER NOT NULL, \"heightCreated\" INTEGER NOT NULL, \"heightDestroyed\" INTEGER, PRIMARY KEY(\"address\",\"txid\",\"vout\",\"aout\"));"
+
+                    "CREATE TABLE \"votes\" (\"assetIndex\" Integer NOT NULL, \"address\" TEXT NOT NULL, \"height\" INTEGER NOT NULL, \"count\" INTEGER NOT NULL, PRIMARY KEY(\"assetIndex\",\"address\",\"height\"));"
+
+                    //IPFS job tables
+                    "CREATE TABLE \"ipfs\" (\"jobIndex\" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, \"sync\" TEXT NOT NULL, \"lock\" BOOL NOT NULL, \"cid\" TEXT NOT NULL, \"extra\" TEXT, \"callback\" TEXT NOT NULL, \"pause\" INTEGER, \"maxTime\" INTEGER);"
+                    "INSERT INTO \"ipfs\" VALUES (1,'pin',false,'QmfSVLAntanDUKrEHUnTXRh53GLUBHFfxk5x6LH4zz9PM4','','',NULL,NULL);"
+                    "INSERT INTO \"ipfs\" VALUES (2,'pin',false,'QmSAcz2H7veyeuuSyACLkSj9ts9EWm1c9v7uTqbHynsVbj','','',NULL,NULL);"
+
+                    //DigiByte Domain tables
+                    "CREATE TABLE \"domains\" (\"domain\" TEXT NOT NULL, \"assetId\" TEXT NOT NULL, \"revoked\" BOOL NOT NULL);"
+                    "CREATE TABLE \"domainsMasters\" (\"assetId\" TEXT NOT NULL, \"active\" BOOL NOT NULL);"
+                    "INSERT INTO \"domainsMasters\" VALUES (\"Ua7Bd7UVtrzavSHhpHxHZ2nzS2hGaHXRMT9sqy\",true);";
+            rc = sqlite3_exec(_db, sql, Database::defaultCallback, 0, &zErrMsg);
+
+            if (rc != SQLITE_OK) {
+                sqlite3_free(zErrMsg);
+                throw exceptionFailedToCreateTable();
+            }
+        },
 
 
+        //Define what is changed from version 1 to version 2
+        [&]() {
+            char* zErrMsg = 0;
+            int rc;
+            const char* sql =
+                    //chain data tables
+                    "CREATE TABLE \"permanent\" (\"cid\" TEXT NOT NUll UNIQUE);"
+                    "UPDATE \"flags\" set \"value\"=2 WHERE \"key\"=\"dbVersion\";";
 
+            rc = sqlite3_exec(_db, sql, Database::defaultCallback, 0, &zErrMsg);
 
-    // create exchange table
-    const char* sql =
-            //chain data tables
-            "CREATE TABLE \"assets\" (\"assetIndex\" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, \"assetId\" TEXT NOT NULL, \"cid\" TEXT, \"issueAddress\" TEXT NOT NULL, \"rules\" BLOB, \"heightCreated\" INTEGER NOT NULL, \"heightUpdated\" INTEGER NOT NULL, \"expires\" INTEGER, \"bad\" BOOL);"
-            "INSERT INTO \"assets\" VALUES (1,'DigiByte','QmfSVLAntanDUKrEHUnTXRh53GLUBHFfxk5x6LH4zz9PM4','STANDARD','{}',1,1,NULL,false);"
+            if (rc != SQLITE_OK) {
+                sqlite3_free(zErrMsg);
+                throw exceptionFailedToCreateTable();
+            }
+        }
 
-            "CREATE TABLE \"blocks\" (\"height\" INTEGER NOT NULL, \"hash\" BLOB NOT NULL, PRIMARY KEY(\"height\"));"
-            "INSERT INTO \"blocks\" VALUES (1,X'4da631f2ac1bed857bd968c67c913978274d8aabed64ab2bcebc1665d7f4d3a0');"
-
-            "CREATE TABLE \"exchange\" (\"address\" TEXT NOT NULL, \"index\" INTEGER NOT NULL, \"height\" INTEGER NOT NULL, \"value\" REAL NOT NULL, PRIMARY KEY(\"address\",\"index\",\"height\"));"
-
-            "CREATE TABLE \"exchangeWatch\" (\"address\" TEXT NOT NULL, PRIMARY KEY(\"address\"));"
-            "INSERT INTO \"exchangeWatch\" VALUES (\"dgb1qunxh378eltj2jrwza5sj9grvu5xud43vqvudwh\");"
-            "INSERT INTO \"exchangeWatch\" VALUES (\"dgb1qlk3hldeynl3prqw259u8gv0jh7w5nwppxlvt3v\");"
-
-            "CREATE TABLE \"flags\" (\"key\" TEXT NOT NULL, \"value\" INTEGER NOT NULL, PRIMARY KEY(\"key\"));"
-            "INSERT INTO \"flags\" VALUES (\"wasPrunedExchangeHistory\",-1);"
-            "INSERT INTO \"flags\" VALUES (\"wasPrunedUTXOHistory\",-1);"
-            "INSERT INTO \"flags\" VALUES (\"wasPrunedVoteHistory\",-1);"
-            "INSERT INTO \"flags\" VALUES (\"wasPrunedNonAssetUTXOHistory\",0);"
-            "INSERT INTO \"flags\" VALUES (\"dbVersion\"," DIGIASSETCORE_DATABASE_VERSION_STR ");"
-
-            "CREATE TABLE \"kyc\" (\"address\" TEXT NOT NULL, \"country\" TEXT NOT NULL, \"name\" TEXT NOT NULL, \"hash\" BLOB NOT NULL, \"height\" INTEGER NOT NULL, \"revoked\" INTEGER, PRIMARY KEY(\"address\"));"
-            "CREATE INDEX kyc_height_index ON kyc(height);"
-
-            "CREATE TABLE \"utxos\" (\"address\" TEXT NOT NULL, \"txid\" BLOB NOT NULL, \"vout\" INTEGER NOT NULL, \"aout\" INTEGER, \"assetIndex\" Integer NOT NULL, \"amount\" INTEGER NOT NULL, \"heightCreated\" INTEGER NOT NULL, \"heightDestroyed\" INTEGER, PRIMARY KEY(\"address\",\"txid\",\"vout\",\"aout\"));"
-
-            "CREATE TABLE \"votes\" (\"assetIndex\" Integer NOT NULL, \"address\" TEXT NOT NULL, \"height\" INTEGER NOT NULL, \"count\" INTEGER NOT NULL, PRIMARY KEY(\"assetIndex\",\"address\",\"height\"));"
-
-            //IPFS job tables
-            "CREATE TABLE \"ipfs\" (\"jobIndex\" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, \"sync\" TEXT NOT NULL, \"lock\" BOOL NOT NULL, \"cid\" TEXT NOT NULL, \"extra\" TEXT, \"callback\" TEXT NOT NULL, \"pause\" INTEGER, \"maxTime\" INTEGER);"
-            "INSERT INTO \"ipfs\" VALUES (1,'pin',false,'QmfSVLAntanDUKrEHUnTXRh53GLUBHFfxk5x6LH4zz9PM4','','',NULL,NULL);"
-            "INSERT INTO \"ipfs\" VALUES (2,'pin',false,'QmSAcz2H7veyeuuSyACLkSj9ts9EWm1c9v7uTqbHynsVbj','','',NULL,NULL);"
-
-            //DigiByte Domain tables
-            "CREATE TABLE \"domains\" (\"domain\" TEXT NOT NULL, \"assetId\" TEXT NOT NULL, \"revoked\" BOOL NOT NULL);"
-            "CREATE TABLE \"domainsMasters\" (\"assetId\" TEXT NOT NULL, \"active\" BOOL NOT NULL);"
-            "INSERT INTO \"domainsMasters\" VALUES (\"Ua7Bd7UVtrzavSHhpHxHZ2nzS2hGaHXRMT9sqy\",true);";
-    rc = sqlite3_exec(_db, sql, Database::defaultCallback, 0, &zErrMsg);
-
-    if (rc != SQLITE_OK) {
-        sqlite3_free(zErrMsg);
-        throw exceptionFailedToCreateTable();
-    }
+        /*  To modify table structure place a comma after the last } above and then place the bellow code.
+         *
+            //Define what is changed from version x to version x+1
+            [&]() {
+                //put all code needed to modify table structure.
+                //dont forget to include at the end
+                //"UPDATE \"flags\" set \"value\"=x+1 WHERE \"key\"=\"dbVersion\";"
+                //x+1 above is equal to the value in comment above and should be replaced with actual integer value
+            }
+         */
+    };
 
     ///IF ADDING ANY MORE TABLES MAKE SURE YOU UPDATE reset();
+
+    //make any necessary changes to database structure to bring up to current version
+    for (unsigned int i = dbVersionNumber; i < lambdaFunctions.size(); ++i) {
+        lambdaFunctions[i]();
+    }
 }
 
 
@@ -350,6 +384,21 @@ void Database::initializeClassValues() {
     rc = sqlite3_prepare_v2(_db, sql114b, strlen(sql114b), &_stmtSetDomainMasterAssetId_b, nullptr);
     if (rc != SQLITE_OK) throw exceptionCreatingStatement();
 
+    //IPFS Permanent statements
+    const char* sql120 = "INSERT INTO permanent VALUES (?)";
+    rc = sqlite3_prepare_v2(_db, sql120, strlen(sql120), &_stmtInsertPermanent, nullptr);
+    if (rc != SQLITE_OK) throw exceptionCreatingStatement();
+
+    const char* sql121 = "INSERT INTO ipfs (sync, lock, cid, extra, callback, pause, maxTime) SELECT 'pin', 0, cid, '', '', NULL, NULL FROM assets WHERE cid != '';";
+    rc = sqlite3_prepare_v2(_db, sql121, strlen(sql121), &_stmtRepinAssets, nullptr);
+    if (rc != SQLITE_OK) throw exceptionCreatingStatement();
+
+    const char* sql122 = "INSERT INTO ipfs (sync, lock, cid, extra, callback, pause, maxTime) SELECT 'pin', 0, cid, '', '', NULL, NULL FROM permanent;";
+    rc = sqlite3_prepare_v2(_db, sql122, strlen(sql122), &_stmtRepinPermanent, nullptr);
+    if (rc != SQLITE_OK) throw exceptionCreatingStatement();
+
+
+
 
 
     //initialize exchange address watch list
@@ -479,10 +528,20 @@ void Database::load(const string& newFileName) {
     if (rc) throw exceptionFailedToOpen();
 
     //create needed tables
-    if (firstRun) buildTables();
+    if (firstRun) {
+        buildTables();
+    } else {
+        //get database version number
+        sqlite3_stmt* stmt;
+        const char* sql = "SELECT `value` FROM `flags` WHERE `key`=\"dbVersion\";";
+        rc = sqlite3_prepare_v2(_db, sql, -1, &stmt, NULL);
+        if (rc != SQLITE_OK) throw exceptionCreatingStatement();
+        if (sqlite3_step(stmt) != SQLITE_ROW) throw exceptionFailedSelect();
+        unsigned int dbVersion= sqlite3_column_int(stmt,0);
 
-    //upgrade table if needed
-    //todo
+        //make sure tables are in the newest format
+        buildTables(dbVersion);
+    }
 
     //create needed statements
     initializeClassValues();
@@ -1900,7 +1959,32 @@ void Database::setDigiByteCore(DigiByteCore& core) {
     _dgb = &core;
 }
 
+void Database::repinPermanent() {
+    sqlite3_reset(_stmtRepinAssets);
+    int rc = sqlite3_step(_stmtRepinAssets);
+    if (rc != SQLITE_DONE) {
+        string tempErrorMessage = sqlite3_errmsg(_db);
+        throw exceptionFailedInsert();
+    }
+    sqlite3_reset(_stmtRepinPermanent);
+    rc = sqlite3_step(_stmtRepinPermanent);
+    if (rc != SQLITE_DONE) {
+        string tempErrorMessage = sqlite3_errmsg(_db);
+        throw exceptionFailedInsert();
+    }
+}
 
-
-
-
+/**
+ * Adds a cid to permanent list
+ * @param cid
+ */
+void Database::addToPermanent(const string& cid) {
+    if (cid.empty()) return;
+    sqlite3_reset(_stmtInsertPermanent);
+    sqlite3_bind_text(_stmtInsertPermanent, 1, cid.c_str(), cid.length(), SQLITE_STATIC);
+    int rc = sqlite3_step(_stmtInsertPermanent);
+    if (rc != SQLITE_DONE) {
+        string tempErrorMessage = sqlite3_errmsg(_db);
+        throw exceptionFailedInsert();
+    }
+}
