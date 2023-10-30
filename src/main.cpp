@@ -29,15 +29,26 @@ int main() {
      */
 
     DigiByteCore api = DigiByteCore();
+    log->addMessage("Checking for DigiByte Core");
     api.setFileName("config.cfg");
-    api.makeConnection();
-
+    bool online=false;
+    while (!online) {
+        try {
+            api.makeConnection();
+            log->addMessage("DigiByte Core Online");
+            online=true;
+        } catch (const DigiByteCore::exceptionCoreOffline& e) {
+            log->addMessage("DigiByte Core Offline try again in 30 sec");
+            online=false;
+            this_thread::sleep_for(chrono::seconds(30));  //Don't hammer wallet
+        }
+    }
 
     /**
      * Connect to Database
      * Make sure it is initialized with correct database
      */
-    Database* db = Database::GetInstance("chain.db");
+    Database::GetInstance("chain.db",&api);
 
 
     /**

@@ -1079,6 +1079,7 @@ blockinfo_t DigiByteCore::getblock(const string& blockhash) {
     ret.weight = result["weight"].asInt();
     ret.height = result["height"].asInt();
     ret.version = result["version"].asInt();
+    ret.algo=result["pow_algo_id"].asUInt();
     ret.merkleroot = result["merkleroot"].asString();
 
     for (ValueIterator it = result["tx"].begin(); it != result["tx"].end(); it++) {

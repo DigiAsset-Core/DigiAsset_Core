@@ -99,6 +99,62 @@ void Database::buildTables(unsigned int dbVersionNumber) {
                 sqlite3_free(zErrMsg);
                 throw exceptionFailedToCreateTable();
             }
+        },
+
+
+        //Define what is changed from version 2 to version 3
+        [&]() {
+            char* zErrMsg = 0;
+            int rc;
+
+            //alter blocks table
+            const char* sql =
+                    //chain data tables
+                    "ALTER TABLE blocks ADD COLUMN time INTEGER NOT NULL DEFAULT 0;"
+                    "ALTER TABLE blocks ADD COLUMN algo INTEGER NOT NULL DEFAULT 0;"
+                    "ALTER TABLE blocks ADD COLUMN difficulty REAL NOT NULL DEFAULT 0;"
+                    "UPDATE \"blocks\" set time=1389392876, algo=1, difficulty=0.000244140625 WHERE height=1;"
+                    "UPDATE \"flags\" set \"value\"=3 WHERE \"key\"=\"dbVersion\";";
+            rc = sqlite3_exec(_db, sql, Database::defaultCallback, 0, &zErrMsg);
+            if (rc != SQLITE_OK) {
+                sqlite3_free(zErrMsg);
+                throw exceptionFailedToCreateTable();
+            }
+            if (dbVersionNumber==0) return; //no data in tables yet so no need to rebuild
+
+            //reconstruct old blocks entries
+            if (_dgb == nullptr) throw std::exception(); //should never throw because test files shouldn't be version 0 and only tests might have _dgb==nullptr
+
+            //re go over all old blocks and fill in missing data
+            sqlite3_stmt* stmt;
+            const char* sqlSelect = "SELECT hash FROM blocks";
+            if (sqlite3_prepare_v2(_db, sqlSelect, -1, &stmt, 0) != SQLITE_OK) throw exceptionCreatingStatement();
+
+            const char* sqlUpdate = "UPDATE blocks SET time = ?, algo = ?, difficulty = ? WHERE hash = ?";
+            sqlite3_stmt* updateStmt;
+            if (sqlite3_prepare_v2(_db, sqlUpdate, -1, &updateStmt, 0) != SQLITE_OK) throw exceptionCreatingStatement();
+
+            while (executeSqliteStepWithRetry(stmt) == SQLITE_ROW) {
+                sqlite3_reset(updateStmt);
+
+                //get hash of block
+                const void* hashBlob = sqlite3_column_blob(stmt, 0);
+                Blob hash = Blob(hashBlob,SHA256_LENGTH);
+
+                //lookup block on chain
+                blockinfo_t blockInfo = _dgb->getBlock(hash.toHex());
+
+                //update row
+                sqlite3_bind_int(updateStmt, 1, blockInfo.time);
+                sqlite3_bind_int(updateStmt, 2, blockInfo.algo);
+                sqlite3_bind_double(updateStmt, 3, blockInfo.difficulty);
+                sqlite3_bind_blob(updateStmt, 4, hashBlob, SHA256_LENGTH, SQLITE_STATIC);
+                if (executeSqliteStepWithRetry(updateStmt) != SQLITE_DONE) throw exceptionFailedUpdate();
+            }
+
+            //finalize statements
+            sqlite3_finalize(updateStmt);
+            sqlite3_finalize(stmt);
         }
 
         /*  To modify table structure place a comma after the last } above and then place the bellow code.
@@ -153,8 +209,8 @@ void Database::initializeClassValues() {
     if (rc != SQLITE_OK) throw exceptionCreatingStatement();
 
     //statement to set block height
-    const char* sql21 = "INSERT INTO blocks VALUES (?,?);";
-    rc = sqlite3_prepare_v2(_db, sql21, strlen(sql21), &_stmtSetBlockHash, nullptr);
+    const char* sql21 = "INSERT INTO blocks VALUES (?,?,?,?,?);";
+    rc = sqlite3_prepare_v2(_db, sql21, strlen(sql21), &_stmtInsertBlock, nullptr);
     if (rc != SQLITE_OK) throw exceptionCreatingStatement();
 
     //statement to get block hash
@@ -407,7 +463,7 @@ void Database::initializeClassValues() {
     rc = sqlite3_prepare_v2(_db, sqlInt10, -1, &stmt1, NULL);
     if (rc != SQLITE_OK) throw exceptionCreatingStatement();
     for (;;) {
-        rc = sqlite3_step(stmt1);
+        rc = executeSqliteStepWithRetry(stmt1);
         if (rc == SQLITE_DONE) {
             break;
         }
@@ -449,7 +505,7 @@ void Database::initializeClassValues() {
     rc = sqlite3_prepare_v2(_db, sqlInt12, -1, &stmt3, NULL);
     if (rc != SQLITE_OK) throw exceptionCreatingStatement();
     string last;
-    while (sqlite3_step(stmt3) == SQLITE_ROW) {
+    while (executeSqliteStepWithRetry(stmt3) == SQLITE_ROW) {
         string assetId = reinterpret_cast<const char*>(sqlite3_column_text(stmt3, 0));
         bool active = sqlite3_column_int(stmt3, 1);
         if (active) {
@@ -474,19 +530,21 @@ void Database::initializeClassValues() {
 Database* Database::_pinstance = nullptr;
 mutex Database::_mutex;
 
-Database* Database::GetInstance() {
+Database* Database::GetInstance(DigiByteCore* dgb) {
     std::lock_guard<std::mutex> lock(_mutex);
     if (_pinstance == nullptr) {
-        _pinstance = new Database();
+        _pinstance = new Database(dgb);
     }
+    if (dgb!= nullptr) _pinstance->setDigiByteCore(*dgb);
     return _pinstance;
 }
 
-Database* Database::GetInstance(const string& fileName) {
+Database* Database::GetInstance(const string& fileName, DigiByteCore* dgb) {
     std::lock_guard<std::mutex> lock(_mutex);
     if (_pinstance == nullptr) {
-        _pinstance = new Database();
+        _pinstance = new Database(dgb);
     }
+    if (dgb!= nullptr) _pinstance->setDigiByteCore(*dgb);
     _pinstance->load(fileName);
     return _pinstance;
 }
@@ -524,7 +582,7 @@ void Database::load(const string& newFileName) {
 
     //open database
     int rc;
-    rc = sqlite3_open(newFileName.c_str(), &_db);
+    rc = sqlite3_open_v2(newFileName.c_str(), &_db, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX, NULL);
     if (rc) throw exceptionFailedToOpen();
 
     //create needed tables
@@ -536,7 +594,7 @@ void Database::load(const string& newFileName) {
         const char* sql = "SELECT `value` FROM `flags` WHERE `key`=\"dbVersion\";";
         rc = sqlite3_prepare_v2(_db, sql, -1, &stmt, NULL);
         if (rc != SQLITE_OK) throw exceptionCreatingStatement();
-        if (sqlite3_step(stmt) != SQLITE_ROW) throw exceptionFailedSelect();
+        if (executeSqliteStepWithRetry(stmt) != SQLITE_ROW) throw exceptionFailedSelect();
         unsigned int dbVersion= sqlite3_column_int(stmt,0);
 
         //make sure tables are in the newest format
@@ -547,6 +605,9 @@ void Database::load(const string& newFileName) {
     initializeClassValues();
 }
 
+Database::Database(DigiByteCore* dgb) {
+    _dgb=dgb;
+}
 
 Database::~Database() {
     sqlite3_close(_db);
@@ -649,7 +710,7 @@ uint64_t Database::addAsset(const DigiAsset& asset) {
             //get the assetIndex if the asset already exists
             sqlite3_reset(_stmtGetAssetIndex);
             sqlite3_bind_text(_stmtGetAssetIndex, 1, assetId.c_str(), assetId.length(), SQLITE_STATIC);
-            rc = sqlite3_step(_stmtGetAssetIndex);
+            rc = executeSqliteStepWithRetry(_stmtGetAssetIndex);
             if (rc == SQLITE_ROW) {    //if not found its new so leave assetIndex 0
                 assetIndex = sqlite3_column_int(_stmtGetAssetIndex, 0);
             }
@@ -669,7 +730,7 @@ uint64_t Database::addAsset(const DigiAsset& asset) {
             sqlite3_bind_int64(_stmtUpdateAsset, 4, asset.getExpiry());
             sqlite3_bind_int(_stmtUpdateAsset, 5, asset.isBad());
             sqlite3_bind_int64(_stmtUpdateAsset, 6, assetIndex);
-            rc = sqlite3_step(_stmtUpdateAsset);
+            rc = executeSqliteStepWithRetry(_stmtUpdateAsset);
             if (rc != SQLITE_DONE) {
                 string tempErrorMessage = sqlite3_errmsg(_db);
                 throw exceptionFailedUpdate();
@@ -693,7 +754,7 @@ uint64_t Database::addAsset(const DigiAsset& asset) {
     sqlite3_bind_int(_stmtAddAsset, 6, asset.getHeightUpdated());   //will be same as created
     sqlite3_bind_int64(_stmtAddAsset, 7, asset.getExpiry());
     sqlite3_bind_int(_stmtAddAsset, 8, asset.isBad());
-    rc = sqlite3_step(_stmtAddAsset);
+    rc = executeSqliteStepWithRetry(_stmtAddAsset);
     if (rc != SQLITE_DONE) {
         string tempErrorMessage = sqlite3_errmsg(_db);
         throw exceptionFailedInsert();
@@ -711,7 +772,7 @@ DigiAssetRules Database::getRules(const string& assetId) const {
     int rc;
     sqlite3_reset(_stmtGetAssetRules);
     sqlite3_bind_text(_stmtGetAssetRules, 1, assetId.c_str(), assetId.length(), SQLITE_STATIC);
-    rc = sqlite3_step(_stmtGetAssetRules);
+    rc = executeSqliteStepWithRetry(_stmtGetAssetRules);
     if (rc != SQLITE_ROW) return DigiAssetRules();
 
     vector<uint8_t> serializedRules = Blob(sqlite3_column_blob(_stmtGetAssetRules, 0),
@@ -731,7 +792,7 @@ Database::getAssetHeightCreated(const string& assetId, unsigned int backupHeight
     int rc;
     sqlite3_reset(_stmtGetHeightAssetCreated);
     sqlite3_bind_text(_stmtGetHeightAssetCreated, 1, assetId.c_str(), assetId.length(), SQLITE_STATIC);
-    rc = sqlite3_step(_stmtGetHeightAssetCreated);
+    rc = executeSqliteStepWithRetry(_stmtGetHeightAssetCreated);
     if (rc == SQLITE_ROW) {    //if not found its new so leave assetIndex 0
         assetIndex = sqlite3_column_int(_stmtGetHeightAssetCreated, 0);
         return sqlite3_column_int(_stmtGetHeightAssetCreated, 1);
@@ -750,7 +811,7 @@ DigiAsset Database::getAsset(uint64_t assetIndex, uint64_t amount) const {
     int rc;
     sqlite3_reset(_stmtGetAsset);
     sqlite3_bind_int64(_stmtGetAsset, 1, assetIndex);
-    rc = sqlite3_step(_stmtGetAsset);
+    rc = executeSqliteStepWithRetry(_stmtGetAsset);
     if (rc != SQLITE_ROW) {
         string tempErrorMessage = sqlite3_errmsg(_db);
         throw exceptionFailedSelect();
@@ -778,14 +839,14 @@ uint64_t Database::getAssetIndex(const string& assetId, const string& txid, unsi
     //see if the asset exists and if only 1 index
     sqlite3_reset(_stmtGetAssetIndex);
     sqlite3_bind_text(_stmtGetAssetIndex, 1, assetId.c_str(), assetId.length(), SQLITE_STATIC);
-    int rc = sqlite3_step(_stmtGetAssetIndex);
+    int rc = executeSqliteStepWithRetry(_stmtGetAssetIndex);
     if (rc != SQLITE_ROW) {
         throw out_of_range("assetIndex does not exist");
     }
     uint64_t assetIndex = sqlite3_column_int(_stmtGetAssetIndex, 0);
 
     //check if more than 1
-    rc = sqlite3_step(_stmtGetAssetIndex);
+    rc = executeSqliteStepWithRetry(_stmtGetAssetIndex);
     if (rc != SQLITE_ROW) return assetIndex;    //there was only 1
 
     //more than 1 so see if the txid and vout provided match a utxo
@@ -795,7 +856,7 @@ uint64_t Database::getAssetIndex(const string& assetId, const string& txid, unsi
     sqlite3_bind_text(_stmtGetAssetIndexOnUTXO, 1, assetId.c_str(), assetId.length(), SQLITE_STATIC);
     sqlite3_bind_text(_stmtGetAssetIndexOnUTXO, 2, txid.c_str(), txid.length(), SQLITE_STATIC);
     sqlite3_bind_int(_stmtGetAssetIndexOnUTXO, 3, vout);
-    while (sqlite3_step(_stmtGetAssetIndexOnUTXO) == SQLITE_ROW) {
+    while (executeSqliteStepWithRetry(_stmtGetAssetIndexOnUTXO) == SQLITE_ROW) {
         assetIndexPossibilities.push_back(sqlite3_column_int(_stmtGetAssetIndexOnUTXO, 0));
     }
 
@@ -832,7 +893,7 @@ int Database::getFlagInt(const string& flag) {
     int rc;
     sqlite3_reset(_stmtCheckFlag);
     sqlite3_bind_text(_stmtCheckFlag, 1, flag.c_str(), flag.length(), SQLITE_STATIC);
-    rc = sqlite3_step(_stmtCheckFlag);
+    rc = executeSqliteStepWithRetry(_stmtCheckFlag);
     if (rc != SQLITE_ROW) {    //there should always be one
         string tempErrorMessage = sqlite3_errmsg(_db);
         throw exceptionFailedSelect();  //failed to check database
@@ -888,7 +949,7 @@ void Database::setFlagInt(const std::string& flag, int state) {
     sqlite3_reset(_stmtSetFlag);
     sqlite3_bind_int(_stmtSetFlag, 1, state);
     sqlite3_bind_text(_stmtSetFlag, 2, flag.c_str(), flag.length(), nullptr);
-    rc = sqlite3_step(_stmtSetFlag);
+    rc = executeSqliteStepWithRetry(_stmtSetFlag);
     if (rc != SQLITE_DONE) {    //there should always be one
         string tempErrorMessage = sqlite3_errmsg(_db);
         throw exceptionFailedUpdate();  //failed to check database
@@ -946,14 +1007,17 @@ void Database::setBeenPrunedNonAssetUTXOHistory(bool state) {
  * @param height
  * @param hash
  */
-void Database::setBlockHash(uint height, const std::string& hash) {
+void Database::insertBlock(uint height, const std::string& hash, unsigned int time, unsigned char algo, double difficulty) {
     int rc;
-    sqlite3_reset(_stmtSetBlockHash);
-    sqlite3_bind_int(_stmtSetBlockHash, 1, height);
+    sqlite3_reset(_stmtInsertBlock);
+    sqlite3_bind_int(_stmtInsertBlock, 1, height);
     Blob hashBlob = Blob(hash);
-    sqlite3_bind_blob(_stmtSetBlockHash, 2, hashBlob.data(), SHA256_LENGTH,
+    sqlite3_bind_blob(_stmtInsertBlock, 2, hashBlob.data(), SHA256_LENGTH,
                       SQLITE_STATIC);//could use hashBlob.length() but always SHA256_LENGTH
-    rc = sqlite3_step(_stmtSetBlockHash);
+    sqlite3_bind_int(_stmtInsertBlock, 3, time);
+    sqlite3_bind_int(_stmtInsertBlock, 4, algo);
+    sqlite3_bind_double(_stmtInsertBlock, 5, difficulty);
+    rc = executeSqliteStepWithRetry(_stmtInsertBlock);
     if (rc != SQLITE_DONE) {    //there should always be one
         string tempErrorMessage = sqlite3_errmsg(_db);
         throw exceptionFailedInsert();  //failed to check database
@@ -971,7 +1035,7 @@ std::string Database::getBlockHash(uint height) const {
     int rc;
     sqlite3_reset(_stmtGetBlockHash);
     sqlite3_bind_int(_stmtGetBlockHash, 1, height);
-    rc = sqlite3_step(_stmtGetBlockHash);
+    rc = executeSqliteStepWithRetry(_stmtGetBlockHash);
     if (rc != SQLITE_ROW) {
         throw exceptionDataPruned();
     }
@@ -988,7 +1052,7 @@ std::string Database::getBlockHash(uint height) const {
 uint Database::getBlockHeight() const {
     int rc;
     sqlite3_reset(_stmtGetBlockHeight);
-    rc = sqlite3_step(_stmtGetBlockHeight);
+    rc = executeSqliteStepWithRetry(_stmtGetBlockHeight);
     if (rc != SQLITE_ROW) {    //there should always be one
         throw exceptionFailedSelect();
     }
@@ -1058,7 +1122,7 @@ void Database::createUTXO(const AssetUTXO& value, unsigned int heightCreated) {
     sqlite3_bind_int(_stmtCreateUTXO, 5, 1);
     sqlite3_bind_int64(_stmtCreateUTXO, 6, value.digibyte);
     sqlite3_bind_int(_stmtCreateUTXO, 7, heightCreated);
-    rc = sqlite3_step(_stmtCreateUTXO);
+    rc = executeSqliteStepWithRetry(_stmtCreateUTXO);
     if (rc != SQLITE_DONE) {
         string tempErrorMessage = sqlite3_errmsg(_db);
         throw exceptionFailedInsert();
@@ -1076,7 +1140,7 @@ void Database::createUTXO(const AssetUTXO& value, unsigned int heightCreated) {
         sqlite3_bind_int64(_stmtCreateUTXO, 5, value.assets[aout].getAssetIndex());
         sqlite3_bind_int64(_stmtCreateUTXO, 6, value.assets[aout].getCount());
         sqlite3_bind_int(_stmtCreateUTXO, 7, heightCreated);
-        rc = sqlite3_step(_stmtCreateUTXO);
+        rc = executeSqliteStepWithRetry(_stmtCreateUTXO);
         if (rc != SQLITE_DONE) {
             string errorMessage = sqlite3_errmsg(_db);
             throw exceptionFailedInsert();
@@ -1096,7 +1160,7 @@ void Database::spendUTXO(const std::string& txid, unsigned int vout, unsigned in
     sqlite3_bind_int(_stmtSpendUTXO, 1, heightSpent);
     sqlite3_bind_blob(_stmtSpendUTXO, 2, blobTXID.data(), SHA256_LENGTH, SQLITE_STATIC);
     sqlite3_bind_int(_stmtSpendUTXO, 3, vout);
-    rc = sqlite3_step(_stmtSpendUTXO);
+    rc = executeSqliteStepWithRetry(_stmtSpendUTXO);
     if (rc != SQLITE_DONE) {
         string tempErrorMessage = sqlite3_errmsg(_db);
         throw exceptionFailedUpdate();
@@ -1109,7 +1173,7 @@ std::string Database::getSendingAddress(const string& txid, unsigned int vout) {
     Blob blobTXID = Blob(txid);
     sqlite3_bind_blob(_stmtGetSpendingAddress, 1, blobTXID.data(), SHA256_LENGTH, SQLITE_STATIC);
     sqlite3_bind_int(_stmtGetSpendingAddress, 2, vout);
-    rc = sqlite3_step(_stmtGetSpendingAddress);
+    rc = executeSqliteStepWithRetry(_stmtGetSpendingAddress);
     if (rc != SQLITE_ROW) {
         //try checking wallet
         if ((_dgb != nullptr) && (getBeenPrunedNonAssetUTXOHistory())) {
@@ -1134,7 +1198,7 @@ void Database::pruneUTXO(unsigned int height) {
     int rc;
     sqlite3_reset(_stmtPruneUTXOs);
     sqlite3_bind_int(_stmtPruneUTXOs, 1, height);
-    rc = sqlite3_step(_stmtPruneUTXOs);
+    rc = executeSqliteStepWithRetry(_stmtPruneUTXOs);
     if (rc != SQLITE_DONE) {
         string tempErrorMessage = sqlite3_errmsg(_db);
         throw exceptionFailedDelete();
@@ -1143,7 +1207,7 @@ void Database::pruneUTXO(unsigned int height) {
     //mark blocks that can't be rolled back anymore
     sqlite3_reset(_stmtRemoveNonReachable);
     sqlite3_bind_int(_stmtRemoveNonReachable, 1, height);
-    rc = sqlite3_step(_stmtRemoveNonReachable);
+    rc = executeSqliteStepWithRetry(_stmtRemoveNonReachable);
     if (rc != SQLITE_DONE) {
         string tempErrorMessage = sqlite3_errmsg(_db);
         throw exceptionFailedUpdate();
@@ -1172,7 +1236,7 @@ AssetUTXO Database::getAssetUTXO(const string& txid, unsigned int vout) {
         result.txid = txid;
         result.vout = vout;
         bool exists = false;
-        while (sqlite3_step(_stmtGetAssetUTXO) == SQLITE_ROW) {
+        while (executeSqliteStepWithRetry(_stmtGetAssetUTXO) == SQLITE_ROW) {
             exists = true;
             unsigned int assetIndex = sqlite3_column_int(_stmtGetAssetUTXO, 2);
             uint64_t amount = sqlite3_column_int64(_stmtGetAssetUTXO, 3);
@@ -1205,7 +1269,7 @@ std::vector<AssetHolder> Database::getAssetHolders(uint64_t assetIndex) const {
     sqlite3_reset(_stmtGetAssetHolders);
     sqlite3_bind_int64(_stmtGetAssetHolders, 1, assetIndex);
     vector<AssetHolder> result;
-    while (sqlite3_step(_stmtGetAssetHolders) == SQLITE_ROW) {
+    while (executeSqliteStepWithRetry(_stmtGetAssetHolders) == SQLITE_ROW) {
         string address = reinterpret_cast<const char*>(sqlite3_column_text(_stmtGetAssetHolders, 0));
         uint64_t count = sqlite3_column_int64(_stmtGetAssetHolders, 1);
         result.emplace_back(AssetHolder{
@@ -1246,7 +1310,7 @@ unsigned int Database::getPermanentSize(const string& txid) {
         Blob blobTXID = Blob(txid);
         sqlite3_bind_blob(_stmtGetPermanentPaid, 1, blobTXID.data(), SHA256_LENGTH, SQLITE_STATIC);
         sqlite3_bind_text(_stmtGetPermanentPaid, 2, address.c_str(), address.length(), nullptr);
-        while (sqlite3_step(_stmtGetPermanentPaid) == SQLITE_ROW) {
+        while (executeSqliteStepWithRetry(_stmtGetPermanentPaid) == SQLITE_ROW) {
             uint64_t paidPart = sqlite3_column_int64(_stmtGetPermanentPaid, 0);
             height = sqlite3_column_int(_stmtGetPermanentPaid, 1);
             if (paidPart > paid) paid = paidPart;//only use biggest, if more than 1
@@ -1299,7 +1363,7 @@ bool Database::isWatchAddress(const string& address) const {
         int rc;
         sqlite3_reset(_stmtIsWatchAddress);
         sqlite3_bind_text(_stmtIsWatchAddress, 1, address.c_str(), address.length(), nullptr);
-        rc = sqlite3_step(_stmtIsWatchAddress);
+        rc = executeSqliteStepWithRetry(_stmtIsWatchAddress);
         return (rc == SQLITE_ROW);
     }
 
@@ -1318,7 +1382,7 @@ void Database::addWatchAddress(const string& address) {
     int rc;
     sqlite3_reset(_stmtAddWatchAddress);
     sqlite3_bind_text(_stmtAddWatchAddress, 1, address.c_str(), address.length(), nullptr);
-    rc = sqlite3_step(_stmtAddWatchAddress);
+    rc = executeSqliteStepWithRetry(_stmtAddWatchAddress);
     if (rc != SQLITE_OK) {
         string tempErrorMessage = sqlite3_errmsg(_db);
         throw exceptionFailedInsert();
@@ -1353,7 +1417,7 @@ Database::addExchangeRate(const string& address, unsigned int index, unsigned in
     sqlite3_bind_int(_stmtAddExchangeRate, 2, index);
     sqlite3_bind_int(_stmtAddExchangeRate, 3, height);
     sqlite3_bind_double(_stmtAddExchangeRate, 4, exchangeRate);
-    rc = sqlite3_step(_stmtAddExchangeRate);
+    rc = executeSqliteStepWithRetry(_stmtAddExchangeRate);
     if (rc != SQLITE_DONE) {
         string tempErrorMessage = sqlite3_errmsg(_db);
         throw exceptionFailedUpdate();
@@ -1377,7 +1441,7 @@ void Database::pruneExchange(unsigned int pruneHeight) {
     vector<entry> firstEntry;
     sqlite3_reset(_stmtExchangeRatesAtHeight);
     sqlite3_bind_int(_stmtExchangeRatesAtHeight, 1, pruneHeight - 1);
-    while (sqlite3_step(_stmtExchangeRatesAtHeight) == SQLITE_ROW) {
+    while (executeSqliteStepWithRetry(_stmtExchangeRatesAtHeight) == SQLITE_ROW) {
         firstEntry.push_back(entry{
                 .height=(unsigned int) sqlite3_column_int(_stmtExchangeRatesAtHeight, 0),
                 .address=reinterpret_cast<const char*>(sqlite3_column_text(_stmtExchangeRatesAtHeight, 1)),
@@ -1389,7 +1453,7 @@ void Database::pruneExchange(unsigned int pruneHeight) {
     //delete from exchange where pruneHeight<pruneHeight;
     sqlite3_reset(_stmtPruneExchangeRate);
     sqlite3_bind_int(_stmtPruneExchangeRate, 1, pruneHeight);
-    int rc = sqlite3_step(_stmtPruneExchangeRate);
+    int rc = executeSqliteStepWithRetry(_stmtPruneExchangeRate);
     if (rc != SQLITE_DONE) {
         string tempErrorMessage = sqlite3_errmsg(_db);
         throw exceptionFailedDelete();
@@ -1398,7 +1462,7 @@ void Database::pruneExchange(unsigned int pruneHeight) {
     //mark blocks that can't be rolled back anymore
     sqlite3_reset(_stmtRemoveNonReachable);
     sqlite3_bind_int(_stmtRemoveNonReachable, 1, pruneHeight);
-    rc = sqlite3_step(_stmtRemoveNonReachable);
+    rc = executeSqliteStepWithRetry(_stmtRemoveNonReachable);
     if (rc != SQLITE_DONE) {
         string tempErrorMessage = sqlite3_errmsg(_db);
         throw exceptionFailedUpdate();
@@ -1435,7 +1499,7 @@ double Database::getAcceptedExchangeRate(const ExchangeRate& rate, unsigned int 
     sqlite3_bind_text(_stmtGetValidExchangeRate, 2, rate.address.c_str(), rate.address.length(), SQLITE_STATIC);
     sqlite3_bind_int(_stmtGetValidExchangeRate, 3, rate.index);
     double min = numeric_limits<double>::infinity();
-    while (sqlite3_step(_stmtGetValidExchangeRate) == SQLITE_ROW) {
+    while (executeSqliteStepWithRetry(_stmtGetValidExchangeRate) == SQLITE_ROW) {
         //check if smallest
         double currentRate = sqlite3_column_double(_stmtGetValidExchangeRate, 0);
         if (currentRate < min) min = currentRate;
@@ -1452,7 +1516,7 @@ double Database::getCurrentExchangeRate(const ExchangeRate& rate) const {
     sqlite3_reset(_stmtGetCurrentExchangeRate);
     sqlite3_bind_text(_stmtGetCurrentExchangeRate, 1, rate.address.c_str(), rate.address.length(), SQLITE_STATIC);
     sqlite3_bind_int(_stmtGetCurrentExchangeRate, 2, rate.index);
-    if (sqlite3_step(_stmtGetCurrentExchangeRate) != SQLITE_ROW) throw out_of_range("Unknown Exchange Rate");
+    if (executeSqliteStepWithRetry(_stmtGetCurrentExchangeRate) != SQLITE_ROW) throw out_of_range("Unknown Exchange Rate");
     return sqlite3_column_double(_stmtGetCurrentExchangeRate, 0);
 }
 
@@ -1475,7 +1539,7 @@ void Database::addKYC(const string& address, const string& country, const string
     sqlite3_bind_text(_stmtAddKYC, 3, name.c_str(), name.length(), SQLITE_STATIC);
     sqlite3_bind_blob(_stmtAddKYC, 4, blobTXID.data(), SHA256_LENGTH, SQLITE_STATIC);
     sqlite3_bind_int(_stmtAddKYC, 5, height);
-    rc = sqlite3_step(_stmtAddKYC);
+    rc = executeSqliteStepWithRetry(_stmtAddKYC);
     if (rc != SQLITE_DONE) {
         string tempErrorMessage = sqlite3_errmsg(_db);
         throw exceptionFailedUpdate();
@@ -1488,7 +1552,7 @@ void Database::revokeKYC(const string& address, unsigned int height) {
     sqlite3_reset(_stmtRevokeKYC);
     sqlite3_bind_int(_stmtRevokeKYC, 1, height);
     sqlite3_bind_text(_stmtRevokeKYC, 2, address.c_str(), address.length(), SQLITE_STATIC);
-    rc = sqlite3_step(_stmtRevokeKYC);
+    rc = executeSqliteStepWithRetry(_stmtRevokeKYC);
     if (rc != SQLITE_DONE) {
         string tempErrorMessage = sqlite3_errmsg(_db);
         throw exceptionFailedUpdate();
@@ -1499,7 +1563,7 @@ KYC Database::getAddressKYC(const string& address) const {
     int rc;
     sqlite3_reset(_stmtGetKYC);
     sqlite3_bind_text(_stmtGetKYC, 1, address.c_str(), address.length(), SQLITE_STATIC);
-    rc = sqlite3_step(_stmtGetKYC);
+    rc = executeSqliteStepWithRetry(_stmtGetKYC);
     if (rc != SQLITE_ROW) {
         return {
                 address
@@ -1536,7 +1600,7 @@ void Database::addVote(const string& address, unsigned int assetIndex, uint64_t 
     sqlite3_bind_int(_stmtAddVote, 3, height);
     sqlite3_bind_int64(_stmtAddVote, 4, count);
     sqlite3_bind_int64(_stmtAddVote, 5, count);
-    rc = sqlite3_step(_stmtAddVote);
+    rc = executeSqliteStepWithRetry(_stmtAddVote);
     if (rc != SQLITE_DONE) {
         string tempErrorMessage = sqlite3_errmsg(_db);
         throw exceptionFailedInsert();
@@ -1560,7 +1624,7 @@ void Database::pruneVote(unsigned int height) {
     sqlite3_reset(_stmtGetVoteCount);
     sqlite3_bind_int(_stmtGetVoteCount, 1, height);
     vector<entries> keep;
-    while (sqlite3_step(_stmtGetVoteCount) == SQLITE_ROW) {
+    while (executeSqliteStepWithRetry(_stmtGetVoteCount) == SQLITE_ROW) {
         keep.emplace_back(entries{
                 static_cast<unsigned int>(sqlite3_column_int(_stmtGetVoteCount, 0)),
                 reinterpret_cast<const char*>(sqlite3_column_text(_stmtGetVoteCount, 1)),
@@ -1572,7 +1636,7 @@ void Database::pruneVote(unsigned int height) {
     //delete from votes where height<pruneHeight
     sqlite3_reset(_stmtPruneVote);
     sqlite3_bind_int(_stmtPruneVote, 1, height);
-    rc = sqlite3_step(_stmtPruneVote);
+    rc = executeSqliteStepWithRetry(_stmtPruneVote);
     if (rc != SQLITE_DONE) {
         string tempErrorMessage = sqlite3_errmsg(_db);
         throw exceptionFailedDelete();
@@ -1581,7 +1645,7 @@ void Database::pruneVote(unsigned int height) {
     //mark blocks that can't be rolled back anymore
     sqlite3_reset(_stmtRemoveNonReachable);
     sqlite3_bind_int(_stmtRemoveNonReachable, 1, height);
-    rc = sqlite3_step(_stmtRemoveNonReachable);
+    rc = executeSqliteStepWithRetry(_stmtRemoveNonReachable);
     if (rc != SQLITE_DONE) {
         string tempErrorMessage = sqlite3_errmsg(_db);
         throw exceptionFailedUpdate();
@@ -1665,14 +1729,14 @@ void Database::getNextIPFSJob(unsigned int& jobIndex, string& cid, string& sync,
         if (removed) {
             sqlite3_reset(_stmtClearIPFSPause);
             sqlite3_bind_int64(_stmtClearIPFSPause, 1, currentTime);
-            int rc = sqlite3_step(_stmtClearIPFSPause);
+            int rc = executeSqliteStepWithRetry(_stmtClearIPFSPause);
             if (rc != SQLITE_DONE) throw exceptionFailedUpdate();
         }
     }
 
     //lookup the next job(if there is one)
     sqlite3_reset(_stmtGetNextIPFSJob);
-    int rc = sqlite3_step(_stmtGetNextIPFSJob);
+    int rc = executeSqliteStepWithRetry(_stmtGetNextIPFSJob);
     if (rc != SQLITE_ROW) {
         jobIndex = 0;//signal there are no new jobs
         return;
@@ -1709,11 +1773,11 @@ void Database::getNextIPFSJob(unsigned int& jobIndex, string& cid, string& sync,
     if ((sync == "pin") || (sync == "_") || (sync.empty())) {
         sqlite3_reset(_stmtSetIPFSLockJob);
         sqlite3_bind_int(_stmtSetIPFSLockJob, 1, jobIndex);
-        rc = sqlite3_step(_stmtSetIPFSLockJob);
+        rc = executeSqliteStepWithRetry(_stmtSetIPFSLockJob);
     } else {
         sqlite3_reset(_stmtSetIPFSLockSync);
         sqlite3_bind_text(_stmtSetIPFSLockSync, 1, sync.c_str(), sync.length(), SQLITE_STATIC);
-        rc = sqlite3_step(_stmtSetIPFSLockSync);
+        rc = executeSqliteStepWithRetry(_stmtSetIPFSLockSync);
     }
     if (rc != SQLITE_DONE) throw exceptionFailedUpdate();
 }
@@ -1730,12 +1794,12 @@ void Database::pauseIPFSSync(unsigned int jobIndex, const string& sync, unsigned
         sqlite3_reset(_stmtSetIPFSPauseJob);
         sqlite3_bind_int64(_stmtSetIPFSPauseJob, 1, unpauseTime);
         sqlite3_bind_int(_stmtSetIPFSPauseJob, 2, jobIndex);
-        rc = sqlite3_step(_stmtSetIPFSPauseJob);
+        rc = executeSqliteStepWithRetry(_stmtSetIPFSPauseJob);
     } else {
         sqlite3_reset(_stmtSetIPFSPauseSync);
         sqlite3_bind_int64(_stmtSetIPFSPauseSync, 1, unpauseTime);
         sqlite3_bind_text(_stmtSetIPFSPauseSync, 2, sync.c_str(), sync.length(), SQLITE_STATIC);
-        rc = sqlite3_step(_stmtSetIPFSPauseSync);
+        rc = executeSqliteStepWithRetry(_stmtSetIPFSPauseSync);
 
         //update ram
         if (rc == SQLITE_DONE) _ipfsCurrentlyPaused.emplace_back(sync, unpauseTime);
@@ -1754,14 +1818,14 @@ void Database::removeIPFSJob(unsigned int jobIndex, const string& sync) {
     //remove from database
     sqlite3_reset(_stmtClearNextIPFSJob_a);
     sqlite3_bind_int(_stmtClearNextIPFSJob_a, 1, jobIndex);
-    int rc = sqlite3_step(_stmtClearNextIPFSJob_a);
+    int rc = executeSqliteStepWithRetry(_stmtClearNextIPFSJob_a);
     if (rc != SQLITE_DONE) {    //there should always be one
         string tempErrorMessage = sqlite3_errmsg(_db);
         throw exceptionFailedSQLCommand();  //failed to delete or unlock
     }
     sqlite3_reset(_stmtClearNextIPFSJob_b);
     sqlite3_bind_text(_stmtClearNextIPFSJob_b, 1, sync.c_str(), sync.length(), SQLITE_STATIC);
-    rc = sqlite3_step(_stmtClearNextIPFSJob_b);
+    rc = executeSqliteStepWithRetry(_stmtClearNextIPFSJob_b);
     if (rc != SQLITE_DONE) {    //there should always be one
         string tempErrorMessage = sqlite3_errmsg(_db);
         throw exceptionFailedSQLCommand();  //failed to delete or unlock
@@ -1817,7 +1881,7 @@ Database::addIPFSJob(const string& cid, const string& sync, const string& extra,
         sqlite3_bind_int64(_stmtInsertIPFSJob, 6, currentTime + maxSleep);
     }
 
-    int rc = sqlite3_step(_stmtInsertIPFSJob);
+    int rc = executeSqliteStepWithRetry(_stmtInsertIPFSJob);
     if (rc != SQLITE_DONE) {
         string tempErrorMessage = sqlite3_errmsg(_db);
         throw exceptionFailedInsert();
@@ -1860,7 +1924,7 @@ promise<string> Database::addIPFSJobPromise(const string& cid, const string& syn
 void Database::revokeDomain(const string& domain) {
     sqlite3_reset(_stmtRevokeDomain);
     sqlite3_bind_text(_stmtRevokeDomain, 1, domain.c_str(), domain.length(), SQLITE_STATIC);
-    int rc = sqlite3_step(_stmtRevokeDomain);
+    int rc = executeSqliteStepWithRetry(_stmtRevokeDomain);
     if (rc != SQLITE_DONE) {
         string tempErrorMessage = sqlite3_errmsg(_db);
         throw exceptionFailedUpdate();
@@ -1871,7 +1935,7 @@ void Database::addDomain(const string& domain, const string& assetId) {
     sqlite3_reset(_stmtAddDomain);
     sqlite3_bind_text(_stmtAddDomain, 1, domain.c_str(), domain.length(), SQLITE_STATIC);
     sqlite3_bind_text(_stmtAddDomain, 2, assetId.c_str(), assetId.length(), SQLITE_STATIC);
-    int rc = sqlite3_step(_stmtAddDomain);
+    int rc = executeSqliteStepWithRetry(_stmtAddDomain);
     if (rc != SQLITE_DONE) {
         string tempErrorMessage = sqlite3_errmsg(_db);
         throw exceptionFailedUpdate();
@@ -1881,7 +1945,7 @@ void Database::addDomain(const string& domain, const string& assetId) {
 string Database::getDomainAssetId(const std::string& domain, bool returnErrorIfRevoked) const {
     sqlite3_reset(_stmtGetDomainAssetId);
     sqlite3_bind_text(_stmtGetDomainAssetId, 1, domain.c_str(), domain.length(), SQLITE_STATIC);
-    int rc = sqlite3_step(_stmtGetDomainAssetId);
+    int rc = executeSqliteStepWithRetry(_stmtGetDomainAssetId);
 
     if (rc != SQLITE_ROW) throw DigiByteDomain::exceptionUnknownDomain();
     if (returnErrorIfRevoked && (sqlite3_column_int(_stmtGetDomainAssetId, 1) == true)) {
@@ -1905,14 +1969,14 @@ void Database::setMasterDomainAssetId(const string& assetId) {
     sqlite3_reset(_stmtSetDomainMasterAssetId_a);
     string lastDomain = _masterDomainAssetId.back();
     sqlite3_bind_text(_stmtSetDomainMasterAssetId_a, 1, lastDomain.c_str(), lastDomain.length(), SQLITE_STATIC);
-    int rc = sqlite3_step(_stmtSetDomainMasterAssetId_a);
+    int rc = executeSqliteStepWithRetry(_stmtSetDomainMasterAssetId_a);
     if (rc != SQLITE_DONE) {
         string tempErrorMessage = sqlite3_errmsg(_db);
         throw exceptionFailedUpdate();
     }
     sqlite3_reset(_stmtSetDomainMasterAssetId_b);
     sqlite3_bind_text(_stmtSetDomainMasterAssetId_b, 1, assetId.c_str(), assetId.length(), SQLITE_STATIC);
-    rc = sqlite3_step(_stmtSetDomainMasterAssetId_b);
+    rc = executeSqliteStepWithRetry(_stmtSetDomainMasterAssetId_b);
     if (rc != SQLITE_DONE) {
         string tempErrorMessage = sqlite3_errmsg(_db);
         throw exceptionFailedInsert();
@@ -1961,13 +2025,13 @@ void Database::setDigiByteCore(DigiByteCore& core) {
 
 void Database::repinPermanent() {
     sqlite3_reset(_stmtRepinAssets);
-    int rc = sqlite3_step(_stmtRepinAssets);
+    int rc = executeSqliteStepWithRetry(_stmtRepinAssets);
     if (rc != SQLITE_DONE) {
         string tempErrorMessage = sqlite3_errmsg(_db);
         throw exceptionFailedInsert();
     }
     sqlite3_reset(_stmtRepinPermanent);
-    rc = sqlite3_step(_stmtRepinPermanent);
+    rc = executeSqliteStepWithRetry(_stmtRepinPermanent);
     if (rc != SQLITE_DONE) {
         string tempErrorMessage = sqlite3_errmsg(_db);
         throw exceptionFailedInsert();
@@ -1982,9 +2046,369 @@ void Database::addToPermanent(const string& cid) {
     if (cid.empty()) return;
     sqlite3_reset(_stmtInsertPermanent);
     sqlite3_bind_text(_stmtInsertPermanent, 1, cid.c_str(), cid.length(), SQLITE_STATIC);
-    int rc = sqlite3_step(_stmtInsertPermanent);
+    int rc = executeSqliteStepWithRetry(_stmtInsertPermanent);
     if (rc != SQLITE_DONE) {
         string tempErrorMessage = sqlite3_errmsg(_db);
         throw exceptionFailedInsert();
     }
+}
+
+/*
+███████╗████████╗ █████╗ ████████╗███████╗
+██╔════╝╚══██╔══╝██╔══██╗╚══██╔══╝██╔════╝
+███████╗   ██║   ███████║   ██║   ███████╗
+╚════██║   ██║   ██╔══██║   ██║   ╚════██║
+███████║   ██║   ██║  ██║   ██║   ███████║
+╚══════╝   ╚═╝   ╚═╝  ╚═╝   ╚═╝   ╚══════╝
+ */
+bool Database::canGetAlgoStats() {
+    try {
+        getBlockHash(1);
+        return true;
+    } catch(const exceptionDataPruned& e) {
+        return false;
+    }
+}
+bool Database::canGetAddressStats() {
+    if (!canGetAlgoStats()) return false;
+    return !(
+            (getBeenPrunedUTXOHistory()>-1)||
+            (getBeenPrunedNonAssetUTXOHistory())
+        );
+}
+void Database::updateStats(unsigned int timeFrame) {
+    //return if stats are not possible do to pruning being on(no stats are possible if algo stats are not possible)
+    if  (!canGetAlgoStats()) return;
+
+    int rc;
+    char* zErrMsg = 0;
+
+    //prep key variables
+    string sql;
+    string timeStr= to_string(timeFrame);
+    sqlite3_stmt* stmt;
+
+    //find what height we need to start update from
+    unsigned int startTime =0;
+    unsigned int beginHeight=1;
+    sql="SELECT end_time,begin_height FROM StatsCutOffHeights_"+timeStr+" ORDER BY end_time DESC LIMIT 1;";
+    rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, 0);
+    if (rc==SQLITE_OK) {
+        //table exists so get the highest value
+        rc = executeSqliteStepWithRetry(stmt);
+        if (rc != SQLITE_ROW) throw exceptionFailedSelect();
+        startTime = sqlite3_column_int(stmt, 0);
+        beginHeight= sqlite3_column_int(stmt,1);
+    }
+    sqlite3_finalize(stmt);
+
+    //create fresh new cutoff table
+    if (startTime >0) {
+        executeSQLStatement(
+            "DELETE FROM StatsCutOffHeights_" + timeStr,
+            exceptionFailedDelete()
+        );
+    } else {
+        executeSQLStatement(
+            "CREATE TABLE StatsCutOffHeights_" + timeStr + " (end_time INTEGER NOT NULL,begin_height INTEGER NOT NULL,end_height INTEGER NOT NULL,PRIMARY KEY(end_time));",
+            exceptionFailedToCreateTable()
+        );
+    }
+
+    //populate cutoff table
+    executeSQLStatement(
+        "INSERT INTO StatsCutOffHeights_" + timeStr + " (end_time, begin_height, end_height) "
+        "SELECT "
+            "end_time, "
+            "MIN(begin_height) AS begin_height, "
+            "MAX(end_height) AS end_height "
+        "FROM ("
+            "SELECT "
+                "CEIL(time / " + timeStr + ".0) * " + timeStr + " AS end_time, "
+                "LEAD(height, 1, height) OVER (ORDER BY time ASC) - 2 AS end_height, "
+                "LAG(height, 1, 1) OVER (ORDER BY time ASC) AS begin_height "
+            "FROM blocks "
+            "WHERE height >= " + to_string(beginHeight) + " "
+        ") AS subquery "
+        "GROUP BY end_time "
+        "HAVING MIN(begin_height) >= " + to_string(beginHeight) + " "
+        "ORDER BY end_time ASC;",
+        exceptionFailedInsert()
+    );
+
+    //create Stats Algo Table
+    if (startTime ==0) {
+        executeSQLStatement(
+            "CREATE TABLE StatsAlgo_" + timeStr + " (end_time INTEGER NOT NULL,algo INTEGER NOT NULL,min_difficulty REAL NOT NULL, max_difficulty REAL NOT NULL, avg_difficulty REAL NOT NULL, num_blocks INTEGER NOT NULL, PRIMARY KEY(end_time, algo));",
+            exceptionFailedToCreateTable()
+        );
+    } else {
+        //table exists delete anything that may have been partial info
+        executeSQLStatement(
+            "DELETE FROM StatsAlgo_" + timeStr + " WHERE end_time >= "+ to_string(startTime),
+            exceptionFailedToCreateTable()
+        );
+    }
+
+    //populate stats algo table
+    executeSQLStatement(
+        "INSERT INTO StatsAlgo_" + timeStr + " (end_time, algo, min_difficulty, max_difficulty, avg_difficulty, num_blocks) "
+        "SELECT "
+            "tch.end_time, "
+            "b.algo, "
+            "MIN(b.difficulty) AS min_difficulty, "
+            "MAX(b.difficulty) AS max_difficulty, "
+            "AVG(b.difficulty) AS avg_difficulty, "
+            "COUNT(*) AS num_blocks "
+        "FROM blocks b "
+        "JOIN StatsCutOffHeights_" + timeStr + " tch ON b.height >= tch.begin_height AND b.height <= tch.end_height "
+        "GROUP BY tch.end_time, b.algo "
+        "HAVING COUNT(*) >0 "
+        "ORDER BY tch.end_time ASC, b.algo ASC;",
+        exceptionFailedInsert()
+    );
+
+    //update if can do address stats
+    if (canGetAddressStats()) {
+
+        //create address stats
+        if (startTime ==0) {
+            executeSQLStatement(
+                "CREATE TABLE StatsAddress_" + timeStr + " ( end_time INTEGER NOT NULL, total INTEGER, Count_Over_0 INTEGER, Count_Over_1 INTEGER, Count_Over_1k INTEGER, Count_Over_1m INTEGER, num_addresses_with_assets INTEGER, num_addresses_created INTEGER, num_addresses_used INTEGER, num_quantum_unsafe INTEGER, PRIMARY KEY(end_time));",
+                exceptionFailedToCreateTable()
+            );
+        } else {
+            //table exists delete anything that may have been partial info
+            executeSQLStatement(
+                "DELETE FROM StatsAddress_" + timeStr + " WHERE end_time >= "+ to_string(startTime),
+                exceptionFailedToCreateTable()
+            );
+        }
+
+        //populate stats address table with funded counts
+        executeSQLStatement(
+            "INSERT INTO StatsAddress_" + timeStr + " (end_time, Count_Over_0, Count_Over_1, Count_Over_1k, Count_Over_1m) "
+                "SELECT "
+                    "sub.end_time, "
+                    "COUNT(CASE WHEN sub.total_amount > 0 THEN 1 ELSE NULL END) AS Count_Over_0, "
+                    "COUNT(CASE WHEN sub.total_amount > 100000000 THEN 1 ELSE NULL END) AS Count_Over_1, "
+                    "COUNT(CASE WHEN sub.total_amount > 100000000000 THEN 1 ELSE NULL END) AS Count_Over_1k, "
+                    "COUNT(CASE WHEN sub.total_amount > 100000000000000 THEN 1 ELSE NULL END) AS Count_Over_1m "
+                "FROM ("
+                    "SELECT "
+                        "tch.end_time, "
+                        "u.address, "
+                        "SUM(u.amount) AS total_amount "
+                    "FROM utxos u "
+                    "JOIN StatsCutOffHeights_" + timeStr + " tch ON u.heightCreated <= tch.end_height AND (u.heightDestroyed IS NULL OR u.heightDestroyed > tch.end_height) "
+                    "WHERE u.assetIndex = 1 "
+                    "GROUP BY tch.end_time, u.address"
+                ") AS sub "
+                "GROUP BY sub.end_time;",
+            exceptionFailedInsert()
+        );
+
+        //populate stats address table with asset counts
+        executeSQLStatement(
+            "UPDATE StatsAddress_" + timeStr + " "
+            "SET num_addresses_with_assets = COALESCE(sub.num_addresses_with_assets, 0) "
+            "FROM ( "
+                "SELECT "
+                    "tch.end_time, "
+                    "COUNT(DISTINCT u.address) AS num_addresses_with_assets "
+                "FROM utxos u "
+                "JOIN StatsCutOffHeights_" + timeStr + " tch ON u.heightCreated <= tch.end_height AND (u.heightDestroyed IS NULL OR u.heightDestroyed > tch.end_height) "
+                "WHERE u.assetIndex > 1 "
+                "GROUP BY tch.end_time "
+            ") AS sub "
+            "WHERE StatsAddress_" + timeStr + ".end_time = sub.end_time;",
+            exceptionFailedUpdate()
+        );
+
+        //populate StatsAddress table with address created counts
+        executeSQLStatement(
+            "UPDATE StatsAddress_" + timeStr + " "
+            "SET num_addresses_created = COALESCE(sub.num_addresses_created, 0) "
+            "FROM ( "
+                "SELECT "
+                    "tch.end_time, "
+                    "COUNT(DISTINCT u.address) AS num_addresses_created "
+                "FROM StatsCutOffHeights_" + timeStr + " tch "
+                "LEFT JOIN ( "
+                    "SELECT "
+                        "address, "
+                        "MIN(heightCreated) AS first_utxo_created "
+                    "FROM utxos "
+                    "GROUP BY address "
+                ") AS u ON u.first_utxo_created >= tch.begin_height AND u.first_utxo_created <= tch.end_height "
+                "GROUP BY tch.end_time "
+            ") AS sub "
+            "WHERE StatsAddress_" + timeStr + ".end_time = sub.end_time;",
+            exceptionFailedUpdate()
+        );
+
+        //populate StatsAddress table with number of addresses used
+        executeSQLStatement(
+            "UPDATE StatsAddress_" + timeStr + " "
+            "SET num_addresses_used = COALESCE(sub.num_addresses_used, 0) "
+            "FROM ( "
+                "SELECT "
+                    "tch.end_time, "
+                    "COUNT(DISTINCT u.address) AS num_addresses_used "
+                "FROM StatsCutOffHeights_" + timeStr + " tch "
+                "LEFT JOIN utxos u ON u.heightDestroyed >= tch.begin_height AND u.heightDestroyed <= tch.end_height "
+                "GROUP BY tch.end_time "
+            ") AS sub "
+            "WHERE StatsAddress_" + timeStr + ".end_time = sub.end_time;",
+            exceptionFailedUpdate()
+        );
+
+        //populate StatsAddress table with number of addresses used
+        executeSQLStatement(
+            "UPDATE StatsAddress_" + timeStr + " "
+            "SET total = COALESCE(sub.total_addresses, 0) "
+            "FROM ( "
+                "SELECT "
+                    "tch.end_time, "
+                    "COUNT(DISTINCT u.address) AS total_addresses "
+                "FROM StatsCutOffHeights_" + timeStr + " tch "
+                "LEFT JOIN utxos u ON u.heightCreated <= tch.end_height "
+                "GROUP BY tch.end_time "
+            ") AS sub "
+            "WHERE StatsAddress_" + timeStr + ".end_time = sub.end_time;",
+            exceptionFailedUpdate()
+        );
+
+        //populate StatsAddress table with number of quantum unsafe addresses
+        executeSQLStatement(
+            "UPDATE StatsAddress_" + timeStr + " "
+            "SET num_quantum_unsafe = COALESCE(sub.num_quantum_unsafe, 0) "
+            "FROM ( "
+                "SELECT "
+                    "tch.end_time, "
+                    "COUNT(DISTINCT u.address) AS num_quantum_unsafe "
+                "FROM StatsCutOffHeights_" + timeStr + " tch "
+                "LEFT JOIN ("
+                    "SELECT u.address, tch_inner.end_height "
+                    "FROM utxos u "
+                    "JOIN StatsCutOffHeights_" + timeStr + " tch_inner ON TRUE "
+                    "GROUP BY u.address, tch_inner.end_height "
+                    "HAVING SUM(CASE WHEN heightDestroyed <= tch_inner.end_height THEN 1 ELSE 0 END) > 0 "
+                    "AND SUM(CASE WHEN heightCreated <= tch_inner.end_height AND (heightDestroyed IS NULL OR heightDestroyed > tch_inner.end_height) THEN 1 ELSE 0 END) > 0 "
+                ") AS u ON tch.end_height = u.end_height "
+                "GROUP BY tch.end_time "
+            ") AS sub "
+            "WHERE StatsAddress_" + timeStr + ".end_time = sub.end_time;",
+            exceptionFailedUpdate()
+        );
+    }
+}
+
+std::vector<AlgoStats> Database::getAlgoStats(unsigned int start, unsigned int end, unsigned int timeFrame) {
+    //make sure stats are upto date
+    if  (!canGetAlgoStats()) throw exceptionDataPruned();
+    updateStats(timeFrame);
+
+    //construct statement to get needed data
+    std::vector<AlgoStats> algoStatsList;
+    sqlite3_stmt* stmt;
+    std::string sql = "SELECT * FROM StatsAlgo_" + std::to_string(timeFrame) + " WHERE end_time >= ? AND end_time <= ? ORDER BY end_time ASC, algo ASC";
+    if (sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, 0) != SQLITE_OK) {
+        throw exceptionCreatingStatement();
+    }
+    sqlite3_bind_int(stmt, 1, start);
+    sqlite3_bind_int64(stmt, 2, end);
+
+    //get all needed data
+    while (executeSqliteStepWithRetry(stmt) == SQLITE_ROW) {
+        AlgoStats algoStats;
+        algoStats.time = sqlite3_column_int(stmt, 0);
+        algoStats.algo = sqlite3_column_int(stmt, 1);
+        algoStats.blocks = sqlite3_column_int(stmt, 5);
+        algoStats.difficultyMin = sqlite3_column_double(stmt, 2);
+        algoStats.difficultyMax = sqlite3_column_double(stmt, 3);
+        algoStats.difficultyAvg = sqlite3_column_double(stmt, 4);
+        algoStatsList.push_back(algoStats);
+    }
+
+    //finalize and return
+    sqlite3_finalize(stmt);
+    return algoStatsList;
+}
+
+std::vector<AddressStats> Database::getAddressStats(unsigned int start, unsigned int end, unsigned int timeFrame) {
+    //make sure stats are upto date
+    if  (!canGetAddressStats()) throw exceptionDataPruned();
+    updateStats(timeFrame);
+
+    //construct statement to get needed data
+    std::vector<AddressStats> addressStatsList;
+    sqlite3_stmt* stmt;
+    std::string sql = "SELECT * FROM StatsAddress_" + std::to_string(timeFrame) + " WHERE end_time >= ? AND end_time <= ? ORDER BY end_time ASC";
+    if (sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, 0) != SQLITE_OK) {
+        throw exceptionCreatingStatement();
+    }
+    sqlite3_bind_int(stmt, 1, start);
+    sqlite3_bind_int64(stmt, 2, end);
+
+    //get all needed data
+    while (executeSqliteStepWithRetry(stmt) == SQLITE_ROW) {
+        AddressStats addressStats;
+        addressStats.time = sqlite3_column_int(stmt, 0);
+        addressStats.created = sqlite3_column_int(stmt, 7);
+        addressStats.used = sqlite3_column_int(stmt, 8);
+        addressStats.withAssets = sqlite3_column_int(stmt, 6);
+        addressStats.over0 = sqlite3_column_int(stmt, 2);
+        addressStats.over1 = sqlite3_column_int(stmt, 3);
+        addressStats.over1k = sqlite3_column_int(stmt, 4);
+        addressStats.over1m = sqlite3_column_int(stmt, 5);
+        addressStats.quantumInsecure = sqlite3_column_int(stmt, 9);
+        addressStats.total = sqlite3_column_int(stmt, 1);
+        addressStatsList.push_back(addressStats);
+    }
+
+    //finalize and return
+    sqlite3_finalize(stmt);
+    return addressStatsList;
+}
+
+
+/**
+ * Helper function to allow retying a command if database busy
+ * @param stmt
+ * @param maxRetries
+ * @param sleepDurationMs
+ * @return
+ */
+int Database::executeSqliteStepWithRetry(sqlite3_stmt* stmt, int maxRetries, int sleepDurationMs) {
+    int rc;
+    for (int i = 0; i < maxRetries; ++i) {
+        rc = sqlite3_step(stmt);
+        if (rc == SQLITE_DONE || rc == SQLITE_OK || rc == SQLITE_ROW) {
+            return rc;  // Successfully executed
+        } else if (rc == SQLITE_LOCKED || rc == SQLITE_BUSY) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(sleepDurationMs));  // Sleep before retrying
+        } else {
+            return rc;  // Some other error occurred, return the error code
+        }
+    }
+    return rc;  // Return the last error code if maxRetries reached
+}
+
+void Database::executeSQLStatement(const string& query, const std::exception& errorToThrowOnFail) {
+    int rc;
+    sqlite3_stmt* stmt;
+    rc = sqlite3_prepare_v2(_db,  query.c_str(), -1, &stmt, 0);
+    if (rc != SQLITE_OK) {
+        string tempErrorMessage = sqlite3_errmsg(_db);
+        sqlite3_finalize(stmt);
+        throw exceptionCreatingStatement();
+    }
+    rc = executeSqliteStepWithRetry(stmt);
+    if (rc != SQLITE_DONE) {
+        string tempErrorMessage = sqlite3_errmsg(_db);
+        sqlite3_finalize(stmt);
+        throw errorToThrowOnFail;
+    }
+    sqlite3_finalize(stmt);
 }

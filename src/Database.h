@@ -32,19 +32,27 @@
 #include <mutex>
 #include <future>
 
-/**
- * commands to run on database
+struct AddressStats {
+    unsigned int time;      //time block start
+    unsigned int created;   //number of addresses created for the first time
+    unsigned int used;      //number of addresses used during time block
+    unsigned int withAssets;//number of addresses with assets
+    unsigned int over0;     //address count with any DGB
+    unsigned int over1;     //address count with at least 1 DGB
+    unsigned int over1k;    //address count with at least 1000 DGB
+    unsigned int over1m;    //address count with at least 1000000 DGB
+    unsigned int quantumInsecure;   //number of addresses a quantum computer could steel from
+    unsigned int total;     //total number of addresses that have ever existed up to this point
+};
 
-CREATE INDEX kyc_height_index ON kyc(height);
-DROP TABLE assetMetaHistory;
-DROP TABLE assets;
-CREATE TABLE "assets" ("assetIndex" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "assetId" TEXT NOT NULL, "cid" TEXT, "issueAddress" TEXT NOT NULL, "rules" BLOB, "heightCreated" INTEGER NOT NULL, "heightUpdated" INTEGER NOT NULL, "expires" INTEGER, "bad" BOOL);
-INSERT INTO "assets" VALUES (1,'DigiByte','QmfSVLAntanDUKrEHUnTXRh53GLUBHFfxk5x6LH4zz9PM4','STANDARD',NULL,1,1,NULL,false);
-
- *
- */
-
-
+struct AlgoStats {
+    unsigned int time;      //time block start
+    unsigned int algo;      //algo number
+    unsigned int blocks;    //number of blocks created with that algo
+    double difficultyMin;
+    double difficultyMax;
+    double difficultyAvg;
+};
 
 class Database {
 /**
@@ -55,14 +63,14 @@ private:
     static std::mutex _mutex;
 
 protected:
-    Database() = default;
+    Database(DigiByteCore* dgb);
     ~Database();
 
 public:
     Database(Database& other) = delete;
     void operator=(const Database&) = delete;
-    static Database* GetInstance();
-    static Database* GetInstance(const std::string& fileName);
+    static Database* GetInstance(DigiByteCore* dgb= nullptr);
+    static Database* GetInstance(const std::string& fileName,DigiByteCore* dgb= nullptr);
 
 /**
  * Singleton End
@@ -72,7 +80,7 @@ private:
     sqlite3_stmt* _stmtCheckFlag = nullptr;
     sqlite3_stmt* _stmtSetFlag = nullptr;
     sqlite3_stmt* _stmtGetBlockHeight = nullptr;
-    sqlite3_stmt* _stmtSetBlockHash = nullptr;
+    sqlite3_stmt* _stmtInsertBlock = nullptr;
     sqlite3_stmt* _stmtGetBlockHash = nullptr;
     sqlite3_stmt* _stmtCreateUTXO = nullptr;
     sqlite3_stmt* _stmtSpendUTXO = nullptr;
@@ -140,6 +148,10 @@ private:
     //TestHelpers
     static int defaultCallback(void* NotUsed, int argc, char** argv, char** azColName);
 
+    //helpers
+    static int executeSqliteStepWithRetry(sqlite3_stmt* stmt, int maxRetries = 3, int sleepDurationMs = 100);
+    void executeSQLStatement(const string& query, const exception& errorToThrowOnFail);
+
     //change database
     void load(const std::string& newFileName = "chain.db"); //used for testing
 
@@ -180,7 +192,7 @@ public:
     unsigned int getAssetHeightCreated(const std::string& assetId, unsigned int backupHeight, uint64_t& assetIndex);
 
     //block table
-    void setBlockHash(uint height, const std::string& hash);
+    void insertBlock(uint height, const std::string& hash, unsigned int time, unsigned char algo, double difficulty);
     std::string getBlockHash(uint height) const;
     uint getBlockHeight() const;
     void clearBlocksAboveHeight(uint height);
@@ -252,6 +264,14 @@ public:
     //Permanent table
     void addToPermanent(const string& cid);
     void repinPermanent();
+
+    //stats table
+    //warning a new stats table is created for every timeFrame.  It is not recommended to allow users direct access to this value
+    void updateStats(unsigned int timeFrame=86400);
+    bool canGetAlgoStats();
+    bool canGetAddressStats();
+    vector<AlgoStats> getAlgoStats(unsigned int start=0,unsigned int end=std::numeric_limits<unsigned int>::max(),unsigned int timeFrame=86400);
+    vector<AddressStats> getAddressStats(unsigned int start=0,unsigned int end=std::numeric_limits<unsigned int>::max(),unsigned int timeFrame=86400);
 
     /*
     ███████╗██████╗ ██████╗  ██████╗ ██████╗ ███████╗

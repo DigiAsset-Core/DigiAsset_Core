@@ -362,7 +362,7 @@ void ChainAnalyzer::phaseSync() {
         //set what block we will work on next
         _nextHash = blockData.nextblockhash;
         _height++;
-        db->setBlockHash(_height, _nextHash);
+        db->insertBlock(_height, _nextHash,blockData.time,blockData.algo,blockData.difficulty);
         hash = _dgb->getBlockHash(_height);
     }
 }

@@ -250,6 +250,7 @@ struct blockinfo_t {
     int weight;
     int height;
     int version;
+    unsigned char algo;
     std::string merkleroot;
     std::vector<std::string> tx;
     unsigned int time;
