@@ -15,11 +15,11 @@ ipfs pin add QmWz1HNwtcuWWNpqCWeDoS33MYiUfYc7Edax678ei2qQjB
 ### For unpruned database:
 
 ```bash 
-ipfs get QmfSc5HNkQNxL5QEv5Q8mRt8HcAY2TwrKPNwpp6WTagsaT -o chain.db
+ipfs get QmZGvBQCgvaxUr1pKc6DpoSP5wL9ADfLoFKtUBJTabuzUK -o chain.db
 ```
 
 and if you wish to help distribute these files use
 
 ```bash
-ipfs pin add QmfSc5HNkQNxL5QEv5Q8mRt8HcAY2TwrKPNwpp6WTagsaT
+ipfs pin add QmZGvBQCgvaxUr1pKc6DpoSP5wL9ADfLoFKtUBJTabuzUK
 ```

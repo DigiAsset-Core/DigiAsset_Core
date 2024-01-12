@@ -392,7 +392,7 @@ void Database::initializeClassValues() {
     rc = sqlite3_prepare_v2(_db, sql101b, strlen(sql101b), &_stmtClearNextIPFSJob_b, nullptr);
     if (rc != SQLITE_OK) throw exceptionCreatingStatement();
 
-    const char* sql102 = "INSERT INTO ipfs VALUES (NULL,?,false,?,?,?,?,?);";
+    const char* sql102 = "INSERT INTO ipfs (sync, lock, cid, extra, callback, pause, maxTime) VALUES (?,false,?,?,?,?,?);";
     rc = sqlite3_prepare_v2(_db, sql102, strlen(sql102), &_stmtInsertIPFSJob, nullptr);
     if (rc != SQLITE_OK) throw exceptionCreatingStatement();
 

@@ -2,12 +2,12 @@
 // Created by mctrivia on 15/06/23.
 //
 
+#include "IPFS.h"
+#include "Config.h"
+#include "Database.h"
+#include <curl/curl.h>
 #include <fstream>
 #include <iostream>
-#include "IPFS.h"
-#include "Database.h"
-#include "Config.h"
-#include <curl/curl.h>
 
 using namespace std;
 using namespace std::chrono;
@@ -25,10 +25,10 @@ mutex IPFS::_mutex;
 
 
 string IPFS::_nodePrefix = "http://localhost:5001/api/v0/";
-unsigned int IPFS::_timeoutPin = 1200; //number of seconds to try and pin a file
-unsigned int IPFS::_timeoutDownload = 3600;    //number of seconds to try and download a file for
+unsigned int IPFS::_timeoutPin = 1200;     //number of seconds to try and pin a file
+unsigned int IPFS::_timeoutDownload = 3600;//number of seconds to try and download a file for
 unsigned int IPFS::_timeoutRetry = 3600;   //on failed download how long to wait before retrying
-unsigned int IPFS::_maxParallel = 10;    //max number of parallel ipfs tasks allowed
+unsigned int IPFS::_maxParallel = 10;      //max number of parallel ipfs tasks allowed
 
 IPFS* IPFS::GetInstance() {
     std::lock_guard<std::mutex> lock(_mutex);
@@ -94,7 +94,7 @@ void IPFS::mainFunction() {
     string cid;
     string sync;
     string extra;
-    unsigned int maxSleep;  //ms
+    unsigned int maxSleep;//ms
     IPFSCallbackFunction callback;
     db->getNextIPFSJob(jobIndex, cid, sync, extra, maxSleep, callback);
     if (jobIndex == 0) {
@@ -111,15 +111,16 @@ void IPFS::mainFunction() {
         try {
             //check if max size exceeded
             if (
-                    extra.empty() ||                            //no restrictions
-                    (getSize(cid) < stoi(extra))            //within restrictions
-                    ) {
+                    extra.empty() ||            //no restrictions
+                    (getSize(cid) < stoi(extra))//within restrictions
+            ) {
                 _command("pin/add/" + cid, {}, _timeoutPin * 1000);
             }
         } catch (const exceptionTimeout& e) {
             //don't worry about failed pin
         }
-    } else {
+    }
+    else {
         //figure out what the max time we should try to download the file for is
         unsigned int timeout = _timeoutDownload * 1000;
         bool lastTry = false;
@@ -134,7 +135,7 @@ void IPFS::mainFunction() {
         } catch (const exceptionTimeout& e) {
             if (!lastTry) {
                 db->pauseIPFSSync(jobIndex, sync, _timeoutRetry * 1000);
-                return; //don't remove job or make callback
+                return;//don't remove job or make callback
             }
             failed = true;
         }
@@ -170,13 +171,13 @@ string IPFS::sha256ToCID(BitIO& hash) {
 
     //encode binary data
     BitIO data;
-    data.appendBits(0x01551220, 32); //header
+    data.appendBits(0x01551220, 32);//header
     data.appendBits(hash);
     data.appendZeros(2);
     data.movePositionToBeginning();
 
     //encode in base 32
-    string output = "b"; //b means base 32
+    string output = "b";//b means base 32
     for (size_t i = 0; i < 58; i++) output.push_back(chars[data.getBits(5)]);
     return output;
 }
@@ -272,10 +273,11 @@ void IPFS::registerCallback(const string& callbackSymbol, const IPFSCallbackFunc
  * Function to download data from IPFS and run a pre registered callback when done.
  * If sync is "" call back may be executed immediately if data already downloaded.
  * Is sync provided will always execute all values with the same sync value in order.
- * @param cid
+ * @param cid - cid of file you want downloaded
  * @param sync - "" to specify order execution does not matter.  all values of same sync value otherwise executed in order added
  * @param extra - any value you want passed to callback
  * @param callbackRegistry - preregistered value with IPFS::registerCallback function
+ * @param maxTime - max time in ms to wait for IPFS data before throwing an exception
  */
 void IPFS::callOnDownload(const string& cid, const std::string& sync, const string& extra,
                           const string& callbackRegistry, unsigned int maxTime) {
@@ -286,8 +288,13 @@ void IPFS::callOnDownload(const string& cid, const std::string& sync, const stri
 
     //check if we can do synchronously quickly
     if (sync.empty() && isPinned(cid)) {
-        string content = _command("cat/" + cid);
-        db->getIPFSCallback(callbackRegistry)(cid, extra, content, false);
+        try {
+            string content = _command("cat/" + cid);
+            db->getIPFSCallback(callbackRegistry)(cid, extra, content, false);
+        } catch (...) {
+            //this function makes the request and does not wait for a response.
+            //If asynchronous exceptions can't be handled, so we will ignore if synchronous, so it responds the same both ways
+        }
         return;
     }
 
@@ -295,12 +302,25 @@ void IPFS::callOnDownload(const string& cid, const std::string& sync, const stri
     db->addIPFSJob(cid, sync, extra, maxTime, callbackRegistry);
 }
 
+
+/**
+ * Downloads a value from IPFS and returns a promise
+ * @param cid - cid of file you want downloaded
+ * @param sync - "" to specify order execution does not matter.  all values of same sync value otherwise executed in order added
+ * @param maxTime - max time in ms to wait for IPFS data before throwing an exception
+ * @return
+ */
 promise<string> IPFS::callOnDownloadPromise(const string& cid, const string& sync, unsigned int maxTime) {
     //check if we can do synchronously quickly
     if (sync.empty() && isPinned(cid)) {
-        string content = _command("cat/" + cid);
         promise<string> result;
-        result.set_value(content);
+        try {
+            string content = _command("cat/" + cid);
+            result.set_value(content);
+        } catch (const std::exception& e) {
+            // If an error occurs, set the exception
+            result.set_exception(std::make_exception_ptr(e));
+        }
         return result;
     }
 
@@ -309,18 +329,15 @@ promise<string> IPFS::callOnDownloadPromise(const string& cid, const string& syn
     return db->addIPFSJobPromise(cid, sync, maxTime);
 }
 
+/**
+ * Downloads a value from IPFS and returns it.  Code execution will stop until download is complete
+ * @param cid - cid of file you want downloaded
+ * @param sync - "" to specify order execution does not matter.  all values of same sync value otherwise executed in order added
+ * @param maxTime - max time in ms to wait for IPFS data before throwing an exception
+ * @return
+ */
 std::string IPFS::callOnDownloadSync(const string& cid, const string& sync, unsigned int maxTime) {
-    //check if we can do synchronously quickly
-    if (sync.empty() && isPinned(cid)) {
-        string content = _command("cat/" + cid);
-        promise<string> result;
-        result.set_value(content);
-        return result.get_future().get();
-    }
-
-    //run asynchronously
-    Database* db = Database::GetInstance();
-    return db->addIPFSJobPromise(cid, sync, maxTime).get_future().get();
+    return callOnDownloadPromise(cid, sync, maxTime).get_future().get();
 }
 
 /**
@@ -331,10 +348,10 @@ std::string IPFS::callOnDownloadSync(const string& cid, const string& sync, unsi
 void IPFS::pin(const string& cid, unsigned int maxSize) {
     //check if no cid
     if (cid.empty()) return;
-    if (maxSize == 0) return;   //skip because set to not pin
+    if (maxSize == 0) return;//skip because set to not pin
 
     //compute extra
-    string extra = (maxSize == 1) ? "" : to_string(maxSize);    //if max size is 1 than we don't process the size
+    string extra = (maxSize == 1) ? "" : to_string(maxSize);//if max size is 1 than we don't process the size
 
     //add type download to database
     Database* db = Database::GetInstance();
