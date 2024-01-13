@@ -24,6 +24,7 @@ class SocketRAII {
 public:
     explicit SocketRAII(tcp::socket& s) : socket(s) {}
     ~SocketRAII() { socket.close(); }
+
 private:
     tcp::socket& socket;
 };
@@ -38,7 +39,7 @@ private:
  */
 BitcoinRpcServer::BitcoinRpcServer(DigiByteCore& api, ChainAnalyzer& analyzer, const string& fileName) {
     _api = &api;
-    _analyzer= &analyzer;
+    _analyzer = &analyzer;
 
     Config config = Config(fileName);
     _username = config.getString("rpcuser");
@@ -74,7 +75,7 @@ void BitcoinRpcServer::start() {
         try {
             //get the socket
             tcp::socket socket(_io);
-            SocketRAII socketGuard(socket); //make sure socket always gets closed
+            SocketRAII socketGuard(socket);//make sure socket always gets closed
             _acceptor.accept(socket);
 
             // Handle the request and send the response
@@ -93,7 +94,7 @@ void BitcoinRpcServer::start() {
             sendResponse(socket, response);
         } catch (...) {
             Log* log = Log::GetInstance();
-            log->addMessage("Unexpected exception caught",Log::DEBUG);
+            log->addMessage("Unexpected exception caught", Log::DEBUG);
         }
     }
 }
@@ -145,7 +146,7 @@ string BitcoinRpcServer::getHeader(const string& headers, const string& wantedHe
     size_t start = headers.find(wantedHeader + ": ");
     if (start == string::npos) throw DigiByteException(HTTP_BAD_REQUEST, wantedHeader + " header not found");
     size_t end = headers.find("\r\n", start);
-    size_t headerLength = wantedHeader.length() + 2;    //+2 for ": "
+    size_t headerLength = wantedHeader.length() + 2;//+2 for ": "
     return headers.substr(start + headerLength, end - start - headerLength);
 }
 
@@ -155,7 +156,7 @@ bool BitcoinRpcServer::basicAuth(const string& headers) {
 
     string decoded;
     // Extract and decode the base64-encoded credentials
-    string base64Credentials = authHeader.substr(6); // Remove "Basic "
+    string base64Credentials = authHeader.substr(6);// Remove "Basic "
     BIO* bio = BIO_new(BIO_f_base64());
     BIO* bioMem = BIO_new_mem_buf(base64Credentials.c_str(), -1);
     bio = BIO_push(bio, bioMem);
@@ -178,7 +179,8 @@ Value BitcoinRpcServer::handleRpcRequest(const Value& request) {
     //lets get the id(user defined value they can use as a reference)
     if (request.isMember("id")) {
         response["id"] = request["id"];
-    } else {
+    }
+    else {
         response["id"] = Value(Json::nullValue);
     }
 
@@ -192,7 +194,7 @@ Value BitcoinRpcServer::handleRpcRequest(const Value& request) {
     if (request.isMember("params") && !request["params"].isArray()) {
         throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
     }
-    const Json::Value& params = request.isMember("params")?request["params"]:Value(Json::nullValue);
+    const Json::Value& params = request.isMember("params") ? request["params"] : Value(Json::nullValue);
 
     //see if method on approved list
     if (!isRPCAllowed(methodName)) throw DigiByteException(RPC_FORBIDDEN_BY_SAFE_MODE, methodName + " is forbidden");
@@ -205,7 +207,7 @@ Value BitcoinRpcServer::handleRpcRequest(const Value& request) {
         methodFound = true;
 
         //get result of this method
-        response["result"] = method.func(params);  //this calls lambda
+        response["result"] = method.func(params);//this calls lambda
 
         //stop checking methods
         break;
@@ -215,7 +217,7 @@ Value BitcoinRpcServer::handleRpcRequest(const Value& request) {
     }
 
     //add the null error value to show no errors and return
-    response["error"] = Json::nullValue; // No error
+    response["error"] = Json::nullValue;// No error
     return response;
 }
 
@@ -270,8 +272,8 @@ void BitcoinRpcServer::defineMethods() {
                      *
                      * Returns same as before but now extra fields form DigiAsset::toJSON are not present
                      */
-                    .name="getrawtransaction",
-                    .func=[this](const Json::Value& params) -> Value {
+                    .name = "getrawtransaction",
+                    .func = [this](const Json::Value& params) -> Value {
                         if (params.size() < 1 || params.size() > 3) {
                             throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
                         }
@@ -288,15 +290,14 @@ void BitcoinRpcServer::defineMethods() {
 
                         //convert to a value and return
                         return tx.toJSON(rawTransactionData);
-                    }
-            },
+                    }},
             Method{
                     /**
                      * params - see https://developer.bitcoin.org/reference/rpc/send.html
                      * only difference is we now accept domains
                      */
-                    .name="send",
-                    .func=[this](const Json::Value& params) -> Value {
+                    .name = "send",
+                    .func = [this](const Json::Value& params) -> Value {
                         if (params.size() < 1 || params.size() > 5) {
                             throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
                         }
@@ -317,15 +318,14 @@ void BitcoinRpcServer::defineMethods() {
 
                         //send modified params to wallet
                         return _api->sendcommand("send", newParams);
-                    }
-            },
+                    }},
             Method{
                     /**
                      * params - see https://developer.bitcoin.org/reference/rpc/sendmany.html
                      * only difference is we now accept domains
                      */
-                    .name="sendmany",
-                    .func=[this](const Json::Value& params) -> Value {
+                    .name = "sendmany",
+                    .func = [this](const Json::Value& params) -> Value {
                         if (params.size() < 2 || params.size() > 9) {
                             throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
                         }
@@ -343,7 +343,8 @@ void BitcoinRpcServer::defineMethods() {
                                 string newKey = DigiByteDomain::getAddress(key);
                                 if (newParams[1].isMember(newKey)) {
                                     newParams[1][newKey] = newParams[1][newKey].asDouble() + value.asDouble();
-                                } else {
+                                }
+                                else {
                                     newParams[1][newKey] = value;
                                 }
 
@@ -359,15 +360,14 @@ void BitcoinRpcServer::defineMethods() {
 
                         //send modified params to wallet
                         return _api->sendcommand("sendmany", newParams);
-                    }
-            },
+                    }},
             Method{
                     /**
                      * params - see https://developer.bitcoin.org/reference/rpc/sendtoaddress.html
                      * only difference is we now accept domains
                      */
-                    .name="sendtoaddress",
-                    .func=[this](const Json::Value& params) -> Value {
+                    .name = "sendtoaddress",
+                    .func = [this](const Json::Value& params) -> Value {
                         if (params.size() < 2 || params.size() > 9) {
                             throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
                         }
@@ -383,12 +383,20 @@ void BitcoinRpcServer::defineMethods() {
 
                         //send modified params to wallet
                         return _api->sendcommand("sendtoaddress", newParams);
-                    }
-            },
+                    }},
 
 
 
             //new methods
+            Method{
+                    .name = "shutdown",
+                    .func = [this](const Json::Value& params) -> Value {
+                        _analyzer->stop();
+                        IPFS::GetInstance()->stop();
+                        Log* log = Log::GetInstance();
+                        log->addMessage("Safe to shut down", Log::CRITICAL);
+                        return true;
+                    }},
             Method{
                     /**
                      * Returns data about a specific asset
@@ -406,8 +414,8 @@ void BitcoinRpcServer::defineMethods() {
                      * @return Json::Value - Returns a Json::Value object that represents the DigiAsset in JSON format.
                      *                       Refer to DigiAsset::toJSON for the format of the returned JSON object.
                      */
-                    .name="getassetdata",
-                    .func=[this](const Json::Value& params) -> Value {
+                    .name = "getassetdata",
+                    .func = [this](const Json::Value& params) -> Value {
                         if (params.size() < 1 || params.size() > 3) {
                             throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
                         }
@@ -423,44 +431,46 @@ void BitcoinRpcServer::defineMethods() {
                             asset = db->getAsset(db->getAssetIndex(
                                     params[0].asString(),
                                     params[1].asString(),
-                                    params[2].asInt()
-                            ));
-
-                        } else if (params.size() == 2) {
+                                    params[2].asInt()));
+                        }
+                        else if (params.size() == 2) {
                             throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
-                        } else if (params[0].isString()) {
+                        }
+                        else if (params[0].isString()) {
                             asset = db->getAsset(db->getAssetIndex(params[0].asString()));
-                        } else if (params[0].isInt()) {
+                        }
+                        else if (params[0].isInt()) {
                             asset = db->getAsset(params[0].asInt());
-                        } else {
+                        }
+                        else {
                             throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
                         }
 
                         return asset.toJSON();
-                    }
-            }, Method{
+                    }},
+            Method{
                     /**
                      * Returns the DigiByte address currently associated with a domain
                      *  params[0] - domain(string)
                      */
-                    .name="getdomainaddress",
-                    .func=[this](const Json::Value& params) -> Value {
+                    .name = "getdomainaddress",
+                    .func = [this](const Json::Value& params) -> Value {
                         if (params.size() != 1) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
                         if (!params[0].isString()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
                         return DigiByteDomain::getAddress(params[0].asString());
-                    }
-            }, Method{
+                    }},
+            Method{
                     /**
                      * pins all ipfs meta data
                      * returns true - does not mean they are all downloaded yet.  Will likely take a while to finish
                      */
-                    .name="resyncmetadata",
-                    .func=[this](const Json::Value& params) -> Value {
+                    .name = "resyncmetadata",
+                    .func = [this](const Json::Value& params) -> Value {
                         Database* db = Database::GetInstance();
                         db->repinPermanent();
                         return true;
-                    }
-            }, Method{
+                    }},
+            Method{
                     /**
                      * Returns the current DigiByte block height and state of DigiAsset Sync
                      * {
@@ -472,14 +482,14 @@ void BitcoinRpcServer::defineMethods() {
                      *                   3 = rewinding
                      * }
                      */
-                    .name="syncstate",
-                    .func=[this](const Json::Value& params) -> Value {
-                        Value result=Value(Json::objectValue);
-                        result["count"]=_api->getBlockCount();
-                        result["sync"]=_analyzer->getSync();
+                    .name = "syncstate",
+                    .func = [this](const Json::Value& params) -> Value {
+                        Value result = Value(Json::objectValue);
+                        result["count"] = _api->getBlockCount();
+                        result["sync"] = _analyzer->getSync();
                         return result;
-                    }
-            }, Method{
+                    }},
+            Method{
                     /**
                      * Returns stats about addresses over time.
                      * Warning: The last result is likely not a full time period.
@@ -519,33 +529,33 @@ void BitcoinRpcServer::defineMethods() {
                      *    ...
                      *  ]
                      */
-                    .name="addressstats",
-                    .func=[this](const Json::Value& params) -> Value {
+                    .name = "addressstats",
+                    .func = [this](const Json::Value& params) -> Value {
                         //get paramaters
-                        unsigned int timeFrame=86400;
-                        unsigned int start=0;
-                        unsigned int end=std::numeric_limits<unsigned int>::max();
-                        if (params.size()>3) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+                        unsigned int timeFrame = 86400;
+                        unsigned int start = 0;
+                        unsigned int end = std::numeric_limits<unsigned int>::max();
+                        if (params.size() > 3) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
                         if (params.size() >= 1) {
                             if (!params[0].isInt()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
-                            start=params[0].asInt();
+                            start = params[0].asInt();
                         }
                         if (params.size() >= 2) {
                             if (!params[1].isInt()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
-                            end=params[1].asInt();
+                            end = params[1].asInt();
                         }
                         if (params.size() == 3) {
                             if (!params[2].isInt()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
-                            timeFrame=params[2].asInt();
+                            timeFrame = params[2].asInt();
                         }
 
                         //lookup stats
                         try {
                             Database* db = Database::GetInstance();
-                            vector<AddressStats> stats=db->getAddressStats(start,end,timeFrame);
+                            vector<AddressStats> stats = db->getAddressStats(start, end, timeFrame);
 
                             //convert to json
-                            Value result=Value(Json::arrayValue);
+                            Value result = Value(Json::arrayValue);
                             for (const auto& stat: stats) {
                                 Json::Value statObject(Json::objectValue);
                                 statObject["time"] = stat.time;
@@ -567,8 +577,8 @@ void BitcoinRpcServer::defineMethods() {
                         } catch (const Database::exceptionDataPruned& e) {
                             return Json::arrayValue;
                         }
-                    }
-            }, Method{
+                    }},
+            Method{
                     /**
                      * Returns mining stats over a given time period
                      * Warning: The last result is likely not a full time period.
@@ -602,24 +612,24 @@ void BitcoinRpcServer::defineMethods() {
                      *
                      * Note: 'null' is used to fill in missing algorithms.
                      */
-                    .name="algostats",
-                    .func=[this](const Json::Value& params) -> Value {
+                    .name = "algostats",
+                    .func = [this](const Json::Value& params) -> Value {
                         //get paramaters
-                        unsigned int timeFrame=86400;
-                        unsigned int start=0;
-                        unsigned int end=std::numeric_limits<unsigned int>::max();
-                        if (params.size()>3) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+                        unsigned int timeFrame = 86400;
+                        unsigned int start = 0;
+                        unsigned int end = std::numeric_limits<unsigned int>::max();
+                        if (params.size() > 3) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
                         if (params.size() >= 1) {
                             if (!params[0].isInt()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
-                            start=params[0].asInt();
+                            start = params[0].asInt();
                         }
                         if (params.size() >= 2) {
                             if (!params[1].isInt()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
-                            end=params[1].asInt();
+                            end = params[1].asInt();
                         }
                         if (params.size() == 3) {
                             if (!params[2].isInt()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
-                            timeFrame=params[2].asInt();
+                            timeFrame = params[2].asInt();
                         }
 
                         //lookup stats
@@ -638,7 +648,7 @@ void BitcoinRpcServer::defineMethods() {
 
                             // Populate result from stats
                             for (const auto& stat: stats) {
-                                if (stat.time ==0) continue;
+                                if (stat.time == 0) continue;
                                 if (stat.time != currentTime) {
                                     // Save the previous time object if it exists
                                     if (!currentAlgoArray.empty()) {
@@ -682,9 +692,7 @@ void BitcoinRpcServer::defineMethods() {
                         } catch (const Database::exceptionDataPruned& e) {
                             return Json::arrayValue;
                         }
-                    }
-            }
-    };
+                    }}};
 }
 
 
@@ -704,7 +712,7 @@ bool BitcoinRpcServer::isRPCAllowed(const string& method) {
     auto it = _allowedRPC.find(method);
     if (it == _allowedRPC.end()) {
         if (_allowRPCDefault == -1) {
-            _allowRPCDefault = 0; //default.  must set to prevent possible infinite loop
+            _allowRPCDefault = 0;//default.  must set to prevent possible infinite loop
             _allowRPCDefault = isRPCAllowed("*") ? 1 : 0;
         }
         return _allowRPCDefault;

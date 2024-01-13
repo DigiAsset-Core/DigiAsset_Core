@@ -26,11 +26,12 @@ void Threaded::_threadFunction() {
             while (it != subThreads.end()) {
                 if (it->wait_for(chrono::seconds(0)) == future_status::ready) {
                     it = subThreads.erase(it);
-                } else {
+                }
+                else {
                     ++it;
                 }
             }
-            this_thread::sleep_for(chrono::milliseconds(10));  // Avoid busy-waiting
+            this_thread::sleep_for(chrono::milliseconds(10));// Avoid busy-waiting
         }
     }
 
@@ -49,7 +50,6 @@ void Threaded::_threadFunction() {
  * Override this function if there is code that should be run when the thread is started
  */
 void Threaded::startupFunction() {
-
 }
 
 /**
@@ -69,7 +69,6 @@ void Threaded::mainFunction() {
  * Override this function if there is code that should be run when the thread is shut down
  */
 void Threaded::shutdownFunction() {
-
 }
 
 /**
@@ -108,4 +107,12 @@ Threaded::~Threaded() {
 
 void Threaded::setMaxParallels(size_t max) {
     _parallels = max;
+}
+
+/**
+ * Allows main function to check if it should allow shutdown
+ * @return
+ */
+bool Threaded::stopRequested() {
+    return _stopRequest;
 }

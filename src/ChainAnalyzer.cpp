@@ -294,7 +294,7 @@ void ChainAnalyzer::phaseSync() {
     chrono::steady_clock::time_point beginTotalTime;
     long totalProcessed = 0;
     stringstream ss;
-    while (hash == _nextHash) {
+    while ((hash == _nextHash) && !stopRequested()) {
         if (totalProcessed == 0) {
             beginTotalTime = chrono::steady_clock::now();
         }
