@@ -1,15 +1,19 @@
 ## install ubuntu
 
-Ideally this should work on all OS.  So far it has only been tested on:
+Ideally this should work on all OS. So far it has only been tested on:
+
 - Ubuntu 20.04LTS - app works but google tests don't compile
 - Ubuntu 22.04LTS - all functions
 
-The instructions below are specifically writen for Ubuntu 22.04 LTS any other OS may have slightly different instructions needed.
+The instructions below are specifically writen for Ubuntu 22.04 LTS any other OS may have slightly different
+instructions needed.
 
 Install ubuntu server using default settings.
 
 ## Increase swap size
+
 Default install had a 4GB swap file but DigiByte core kept crashing during sync so I increased it to 8GB
+
 ```bash
 sudo swapoff /swap.img
 sudo dd if=/dev/zero bs=1M count=8192 oflag=append conv=notrunc of=/swapfile
@@ -84,6 +88,7 @@ StartLimitBurst=5
 [Install]
 WantedBy=multi-user.target
 ```
+
 replace <your-username>
 
 Enable the service on boot
@@ -108,6 +113,7 @@ sudo apt install libboost-all-dev
 ```
 
 ## Install VCPKG
+
 ```bash
 wget -qO vcpkg.tar.gz https://github.com/microsoft/vcpkg/archive/master.tar.gz
 sudo mkdir /opt/vcpkg
@@ -118,7 +124,9 @@ sudo ln -s /opt/vcpkg/vcpkg /usr/local/bin/vcpkg
 ```
 
 ## Install Standard C++ Dependencies
+
 Warning: The following steps build a lot of code and can take a long time to complete
+
 ```bash
 sudo vcpkg install cryptopp
 sudo mkdir /usr/local/include/cryptopp870
@@ -128,6 +136,7 @@ sudo apt install libcrypto++-dev
 ```
 
 ## Update CMAKE
+
 ```bash
 wget https://github.com/Kitware/CMake/releases/download/v3.27.7/cmake-3.27.7-linux-x86_64.sh
 chmod +x cmake-3.27.7-linux-x86_64.sh
@@ -143,6 +152,7 @@ export PATH=/usr/local/cmake-3.27.7-linux-x86_64/bin:$PATH
 ```
 
 ## Install IPFS Desktop
+
 ```bash
 wget https://dist.ipfs.tech/kubo/v0.22.0/kubo_v0.22.0_linux-amd64.tar.gz
 tar -xvzf kubo_v0.22.0_linux-amd64.tar.gz
@@ -152,15 +162,21 @@ ipfs init
 ipfs daemon
 
 ```
-this step will list out a lot of data of importance is the line that says "RPC API server listening on" it is usually port 5001 note it down if it is not.  You can now see IPFS usage at localhost:5001/webui in your web browser(if not headless).
+
+this step will list out a lot of data of importance is the line that says "RPC API server listening on" it is usually
+port 5001 note it down if it is not. You can now see IPFS usage at localhost:5001/webui in your web browser(if not
+headless).
 Press Ctrl+C to stop the daemon
 
 ## Set IPFS to run on boot
+
 ```bash
 cd ~
 sudo nano /etc/systemd/system/ipfs.service
 ```
+
 edit the file to look like this
+
 ```
 [Unit]
 Description=IPFS Daemon
@@ -174,6 +190,7 @@ Restart=always
 [Install]
 WantedBy=multi-user.target
 ```
+
 replace <your-username>
 
 ```bash
@@ -182,8 +199,8 @@ sudo systemctl enable ipfs.service
 sudo systemctl start ipfs.service
 ```
 
-
 ## Build DigiAsset Core
+
 ```bash
 git clone -b master --recursive https://github.com/DigiAsset-Core/DigiAsset_Core.git
 cd DigiAsset_Core
@@ -203,17 +220,64 @@ cd ../bin
 ```
 
 ## Configure DigiAsset Core
+
 ```bash
 nano config.cfg
 ```
-Set your config settings in here.  At minimum, you need
+
+Set your config settings in here. At minimum, you need
+
 ```
 rpcuser=user
 rpcpassword=pass11
 ```
+
 for a full list of config options see example.cfg
 
 ---
+
+## Set DigiAsset Core to run at boot
+
+```bash
+sudo nano /etc/systemd/system/digiasset_core.service
+```
+
+```
+[Unit]
+Description=DigiAsset Core
+After=network.target digibyted.service
+
+[Service]
+User=<your-username>
+Group=<your-username>
+
+Type=simple
+ExecStart=/home/<your-username>/DigiAsset_Core/bin/digiasset_core
+
+Restart=always
+PrivateTmp=true
+TimeoutStopSec=60s
+TimeoutStartSec=2s
+StartLimitInterval=120s
+StartLimitBurst=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+replace <your-username>
+
+Enable the service on boot
+
+```bash
+sudo systemctl enable digiasset_core.service
+```
+
+Start the service
+
+```bash
+sudo systemctl start digiasset_core.service
+```
 
 ### Other Notes
 
@@ -221,8 +285,10 @@ for a full list of config options see example.cfg
 
 - There are instructions on how to bootstrap the blockchain in bin/readme.md
 
-
 ---
+
 # Special Thanks
+
 ### Major Financial Support:
+
 RevGenetics [Longevity Supplements](https://www.RevGenetics.com)

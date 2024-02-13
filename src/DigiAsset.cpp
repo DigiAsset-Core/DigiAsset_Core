@@ -2,16 +2,18 @@
 // Created by mctrivia on 07/06/23.
 //
 
-#include "static_block.hpp"
 #include "DigiAsset.h"
+#include "AppMain.h"
+#include "Base58.h"
 #include "BitIO.h"
+#include "Blob.h"
 #include "IPFS.h"
 #include "KYC.h"
-#include <cryptopp870/sha.h>
+#include "PermanentStoragePool/PermanentStoragePoolList.h"
+#include "static_block.hpp"
 #include <cryptopp870/ripemd.h>
+#include <cryptopp870/sha.h>
 #include <iostream>
-#include "Base58.h"
-#include "Blob.h"
 
 using namespace std;
 
@@ -83,107 +85,66 @@ const string DigiAsset::standardVoteAddresses[] = {"D8LWk1fGksGDxZai17A5wQUVsRiV
                                                    "D5kY1eMcDfLZWznQFSjCQMUW8DiSoxhmuy",
                                                    "D6dSnsPqcLaVvcH1MSFRMUy5KyVbnDufiX"};
 const ExchangeRate DigiAsset::standardExchangeRates[] = {
-        {
-                .address =  "dgb1qunxh378eltj2jrwza5sj9grvu5xud43vqvudwh",
-                .index =    0,
-                .name =     "CAD"
-        },
-        {
-                .address = "dgb1qunxh378eltj2jrwza5sj9grvu5xud43vqvudwh",
-                .index =   1,
-                .name =    "USD"
-        },
-        {
-                .address = "dgb1qunxh378eltj2jrwza5sj9grvu5xud43vqvudwh",
-                .index =   2,
-                .name =    "EUR"
-        },
-        {
-                .address = "dgb1qunxh378eltj2jrwza5sj9grvu5xud43vqvudwh",
-                .index =   3,
-                .name =    "GBP"
-        },
-        {
-                .address = "dgb1qunxh378eltj2jrwza5sj9grvu5xud43vqvudwh",
-                .index =   4,
-                .name =    "AUD"
-        },
-        {
-                .address = "dgb1qunxh378eltj2jrwza5sj9grvu5xud43vqvudwh",
-                .index =   5,
-                .name =    "JPY"
-        },
-        {
-                .address = "dgb1qunxh378eltj2jrwza5sj9grvu5xud43vqvudwh",
-                .index =   6,
-                .name =    "CNY"
-        },
-        {
-                .address = "dgb1qunxh378eltj2jrwza5sj9grvu5xud43vqvudwh",
-                .index =   7,
-                .name =    "TRY"
-        },
-        {
-                .address = "dgb1qunxh378eltj2jrwza5sj9grvu5xud43vqvudwh",
-                .index =   8,
-                .name =    "BRL"
-        },
-        {
-                .address = "dgb1qunxh378eltj2jrwza5sj9grvu5xud43vqvudwh",
-                .index =   9,
-                .name =    "CHF"
-        },
-        {
-                .address = "dgb1qlk3hldeynl3prqw259u8gv0jh7w5nwppxlvt3v",
-                .index =   0,
-                .name =    "BTC"
-        },
-        {
-                .address = "dgb1qlk3hldeynl3prqw259u8gv0jh7w5nwppxlvt3v",
-                .index =   1,
-                .name =    "ETH"
-        },
-        {
-                .address = "dgb1qlk3hldeynl3prqw259u8gv0jh7w5nwppxlvt3v",
-                .index =   2,
-                .name =    "LTC"
-        },
-        {
-                .address = "dgb1qlk3hldeynl3prqw259u8gv0jh7w5nwppxlvt3v",
-                .index =   3,
-                .name =    "DCR"
-        },
-        {
-                .address = "dgb1qlk3hldeynl3prqw259u8gv0jh7w5nwppxlvt3v",
-                .index =   4,
-                .name =    "ZIL"
-        },
-        {
-                .address = "dgb1qlk3hldeynl3prqw259u8gv0jh7w5nwppxlvt3v",
-                .index =   5,
-                .name =    "RVN"
-        },
-        {
-                .address = "dgb1qlk3hldeynl3prqw259u8gv0jh7w5nwppxlvt3v",
-                .index =   6,
-                .name =    "XVG"
-        },
-        {
-                .address = "dgb1qlk3hldeynl3prqw259u8gv0jh7w5nwppxlvt3v",
-                .index =   7,
-                .name =    "RDD"
-        },
-        {
-                .address = "dgb1qlk3hldeynl3prqw259u8gv0jh7w5nwppxlvt3v",
-                .index =   8,
-                .name =    "NXS"
-        },
-        {
-                .address = "dgb1qlk3hldeynl3prqw259u8gv0jh7w5nwppxlvt3v",
-                .index =   9,
-                .name =    "POT"
-        }
-};
+        {.address = "dgb1qunxh378eltj2jrwza5sj9grvu5xud43vqvudwh",
+         .index = 0,
+         .name = "CAD"},
+        {.address = "dgb1qunxh378eltj2jrwza5sj9grvu5xud43vqvudwh",
+         .index = 1,
+         .name = "USD"},
+        {.address = "dgb1qunxh378eltj2jrwza5sj9grvu5xud43vqvudwh",
+         .index = 2,
+         .name = "EUR"},
+        {.address = "dgb1qunxh378eltj2jrwza5sj9grvu5xud43vqvudwh",
+         .index = 3,
+         .name = "GBP"},
+        {.address = "dgb1qunxh378eltj2jrwza5sj9grvu5xud43vqvudwh",
+         .index = 4,
+         .name = "AUD"},
+        {.address = "dgb1qunxh378eltj2jrwza5sj9grvu5xud43vqvudwh",
+         .index = 5,
+         .name = "JPY"},
+        {.address = "dgb1qunxh378eltj2jrwza5sj9grvu5xud43vqvudwh",
+         .index = 6,
+         .name = "CNY"},
+        {.address = "dgb1qunxh378eltj2jrwza5sj9grvu5xud43vqvudwh",
+         .index = 7,
+         .name = "TRY"},
+        {.address = "dgb1qunxh378eltj2jrwza5sj9grvu5xud43vqvudwh",
+         .index = 8,
+         .name = "BRL"},
+        {.address = "dgb1qunxh378eltj2jrwza5sj9grvu5xud43vqvudwh",
+         .index = 9,
+         .name = "CHF"},
+        {.address = "dgb1qlk3hldeynl3prqw259u8gv0jh7w5nwppxlvt3v",
+         .index = 0,
+         .name = "BTC"},
+        {.address = "dgb1qlk3hldeynl3prqw259u8gv0jh7w5nwppxlvt3v",
+         .index = 1,
+         .name = "ETH"},
+        {.address = "dgb1qlk3hldeynl3prqw259u8gv0jh7w5nwppxlvt3v",
+         .index = 2,
+         .name = "LTC"},
+        {.address = "dgb1qlk3hldeynl3prqw259u8gv0jh7w5nwppxlvt3v",
+         .index = 3,
+         .name = "DCR"},
+        {.address = "dgb1qlk3hldeynl3prqw259u8gv0jh7w5nwppxlvt3v",
+         .index = 4,
+         .name = "ZIL"},
+        {.address = "dgb1qlk3hldeynl3prqw259u8gv0jh7w5nwppxlvt3v",
+         .index = 5,
+         .name = "RVN"},
+        {.address = "dgb1qlk3hldeynl3prqw259u8gv0jh7w5nwppxlvt3v",
+         .index = 6,
+         .name = "XVG"},
+        {.address = "dgb1qlk3hldeynl3prqw259u8gv0jh7w5nwppxlvt3v",
+         .index = 7,
+         .name = "RDD"},
+        {.address = "dgb1qlk3hldeynl3prqw259u8gv0jh7w5nwppxlvt3v",
+         .index = 8,
+         .name = "NXS"},
+        {.address = "dgb1qlk3hldeynl3prqw259u8gv0jh7w5nwppxlvt3v",
+         .index = 9,
+         .name = "POT"}};
 
 
 /*
@@ -286,8 +247,7 @@ string DigiAsset::calculateAssetId(const vin_t& firstVin, uint8_t issuanceFlags)
     //get header
     const uint16_t headerOptions[] = {0x2e37, 0x2e6b, 0x2e4e, 0, 0x20ce, 0x2102, 0x20e4, 0};
 
-    uint16_t header = headerOptions[(issuanceFlags & 0x1c)
-            >> 2];   //gets the assetId header based on lock status and aggregation
+    uint16_t header = headerOptions[(issuanceFlags & 0x1c) >> 2]; //gets the assetId header based on lock status and aggregation
     assetIdBinary[0] = header >> 8;
     assetIdBinary[1] = header & 0xff;
 
@@ -336,7 +296,7 @@ DigiAsset::DigiAsset(const getrawtransaction_t& txData, unsigned int height, uns
 
 DigiAsset::DigiAsset(uint64_t assetIndex, const string& assetId, const string& cid, const KYC& issuer,
                      const DigiAssetRules& rules,
-                     unsigned int heightCreated, unsigned int heightUpdated, bool bad, uint64_t amount) {
+                     unsigned int heightCreated, unsigned int heightUpdated, uint64_t amount) {
     //store variables
     _assetIndex = assetIndex;
     _assetId = assetId;
@@ -345,7 +305,6 @@ DigiAsset::DigiAsset(uint64_t assetIndex, const string& assetId, const string& c
     _rules = rules;
     _heightCreated = heightCreated;
     _heightUpdated = heightUpdated;
-    _bad = bad;
     _count = amount;
     _existingAsset = true;
     _enableWrite = false;
@@ -423,15 +382,15 @@ void DigiAsset::decodeAssetTxHeader(const getrawtransaction_t& txData, unsigned 
     //check encoded data on output 1 has correct header
     dataStream = BitIO::makeHexString(txData.vout[iO].scriptPubKey.hex);
     if (dataStream.getLength() < DIGIASSET_MIN_POSSIBLE_LENGTH) {
-        return;   //fc8ac69d67c298152a8b93b1b7a054e28427f02e69025249e09be123de2986f3 has an OP_RETURN with no extra data after.  This prevents error
+        return; //fc8ac69d67c298152a8b93b1b7a054e28427f02e69025249e09be123de2986f3 has an OP_RETURN with no extra data after.  This prevents error
     }
     if (!dataStream.checkIsBitcoinOpReturn()) {
-        return;   //not an OP_RETURN
+        return; //not an OP_RETURN
     }
     if (dataStream.getBitcoinDataHeader() != BITIO_BITCOIN_TYPE_DATA) {
         return; //not data
     }
-    dataStream = dataStream.copyBitcoinData();    //strip the header out
+    dataStream = dataStream.copyBitcoinData(); //strip the header out
 
     if (dataStream.getBits(16) != 0x4441) {
         return; //not asset tx
@@ -470,7 +429,7 @@ void DigiAsset::decodeAssetTxHeader(const getrawtransaction_t& txData, unsigned 
  */
 bool DigiAsset::processIssuance(const getrawtransaction_t& txData, unsigned int height, unsigned char version,
                                 unsigned char opcode, BitIO& dataStream) {
-    Database* db = Database::GetInstance();
+    Database* db = AppMain::GetInstance()->getDatabase();
     _existingAsset = true;
     try {
         //for now assume this is first issuance of asset we will correct later if not
@@ -486,9 +445,9 @@ bool DigiAsset::processIssuance(const getrawtransaction_t& txData, unsigned int 
         if (opcode == 2) {
             //meta data hash encoded in
             BitIO multiSigData = BitIO::makeHexString(txData.vout[0].scriptPubKey.hex);
-            multiSigData.getBitcoinDataHeader();    //number of signers needed
-            multiSigData.getBitcoinData();          //hash of first signers key
-            metadataHash = multiSigData.copyBitcoinData();//sha256 of meta data
+            multiSigData.getBitcoinDataHeader();           //number of signers needed
+            multiSigData.getBitcoinData();                 //hash of first signers key
+            metadataHash = multiSigData.copyBitcoinData(); //sha256 of meta data
         }
 
         //calculate cid
@@ -502,14 +461,14 @@ bool DigiAsset::processIssuance(const getrawtransaction_t& txData, unsigned int 
 
         //get issuance flags
         size_t rulesStart = dataStream.getPosition();
-        if (dataStream.getLength() - 8 < rulesStart) return false;  //data missing
-        dataStream.movePositionTo(dataStream.getLength() - 8); //set to 8th last bit
+        if (dataStream.getLength() - 8 < rulesStart) return false; //data missing
+        dataStream.movePositionTo(dataStream.getLength() - 8);     //set to 8th last bit
         unsigned char issuanceFlags = dataStream.getBits(8);
         _divisibility = issuanceFlags >> 5;
         _locked = ((issuanceFlags & 0x10) > 0);
         _aggregation = (issuanceFlags & 0x0c) >> 2;
-        if (_aggregation == 3) return false;  //invalid header type
-        dataStream.movePositionTo(rulesStart);         //put pointer back
+        if (_aggregation == 3) return false;   //invalid header type
+        dataStream.movePositionTo(rulesStart); //put pointer back
 
         //fix amount if version 1
         if (version == 1) {
@@ -517,9 +476,9 @@ bool DigiAsset::processIssuance(const getrawtransaction_t& txData, unsigned int 
         }
 
         //check counts are valid
-        if ((_locked) && (_count == 0)) return false;    //not assets possible to create
-        if ((_aggregation != AGGREGABLE) && (_count == 0)) return false;    //not assets possible to create
-        if (_count > (uint64_t) 18014398509481983) return false; //invalid amount
+        if ((_locked) && (_count == 0)) return false;                    //not assets possible to create
+        if ((_aggregation != AGGREGABLE) && (_count == 0)) return false; //not assets possible to create
+        if (_count > (uint64_t) 18014398509481983) return false;         //invalid amount
 
         //special cases for locked assets
         if (_locked) _rules.lock(); //can't rewrite rules if locked
@@ -559,11 +518,11 @@ bool DigiAsset::processIssuance(const getrawtransaction_t& txData, unsigned int 
  */
 void DigiAsset::handleRulesConflict() {
     //check if possible to have old rules
-    if (_locked) return;    //not possible to have conflicts
-    if (_aggregation != AGGREGABLE) return;    //not possible to have conflicts
+    if (_locked) return;                    //not possible to have conflicts
+    if (_aggregation != AGGREGABLE) return; //not possible to have conflicts
 
     //lookup old rules
-    Database* db = Database::GetInstance();
+    Database* db = AppMain::GetInstance()->getDatabase();
     DigiAssetRules oldRules = db->getRules(_assetId);
     if (oldRules.empty()) return; //no old rules exist
 
@@ -629,10 +588,10 @@ uint64_t DigiAsset::getCount() const {
  * "1" , "4.01", "4.00"
  */
 std::string DigiAsset::getStrCount() const {
-    string result = to_string(_count);                                       //convert to string
+    string result = to_string(_count); //convert to string
     int neededDecimals = _divisibility + 1 - result.length();
-    if (neededDecimals > 0) result.insert(0, neededDecimals, '0');        //pad start so at least 1 zero before decimal
-    result.insert(result.length() - _divisibility, 1, '.');                 //add decimal point
+    if (neededDecimals > 0) result.insert(0, neededDecimals, '0'); //pad start so at least 1 zero before decimal
+    result.insert(result.length() - _divisibility, 1, '.');        //add decimal point
     return result;
 }
 
@@ -759,12 +718,25 @@ uint64_t DigiAsset::getExpiry() const {
 }
 
 /**
- * declare and asset as being bad.
- * todo: add a feature to allow you to publish your opinion that an asset is bad to chain and a way to listen for people you trusts opinion
+ * returns true if any pool has marked this asset as bad.
+ * Optionally can put in a pool index to check just 1 pool
  * @return
  */
-bool DigiAsset::isBad() const {
-    return _bad;
+bool DigiAsset::isBad(int poolIndex) const {
+    //get the range off pools we will check
+    PermanentStoragePoolList* pools = AppMain::GetInstance()->getPermanentStoragePoolList();
+    size_t start = 0;
+    size_t stop = pools->getPoolCount() - 1;
+    if (poolIndex >= 0) {
+        start = poolIndex;
+        stop = poolIndex;
+    }
+
+    //check pools and return true if any say bad
+    for (size_t i = start; i <= stop; i++) {
+        if (pools->getPool(i)->isAssetBad(_assetId)) return true;
+    }
+    return false;
 }
 
 /**
@@ -784,8 +756,8 @@ void DigiAsset::setOwned() {
  * @param rules
  */
 void DigiAsset::setRules(const DigiAssetRules& rules) {
-    if (!_enableWrite) throw exceptionWriteProtected();                 //need to mark you own the asset
-    if (!_rules.isRewritable()) throw exceptionWriteProtected();        //not possible to change
+    if (!_enableWrite) throw exceptionWriteProtected();          //need to mark you own the asset
+    if (!_rules.isRewritable()) throw exceptionWriteProtected(); //not possible to change
     _rules = rules;
 }
 
@@ -801,7 +773,7 @@ void DigiAsset::checkRulesPass(const vector<AssetUTXO>& inputs, const vector<Ass
                                uint64_t time) const {
     //if no rules than no need to check if they were followed
     if (_rules.empty()) return;
-    Database* db = Database::GetInstance();
+    Database* db = AppMain::GetInstance()->getDatabase();
 
     //make list of changes
     map<string, int64_t> changes;
@@ -826,7 +798,7 @@ void DigiAsset::checkRulesPass(const vector<AssetUTXO>& inputs, const vector<Ass
 
     //rules don't apply if consolidation transaction or pure burn so check if assets actually moved anywhere
     bool consolidation = true;
-    for (const auto& change: changes) {//[address,change]
+    for (const auto& change: changes) { //[address,change]
         if (change.second > 0) consolidation = false;
     }
     if (consolidation) return;
@@ -869,7 +841,7 @@ void DigiAsset::checkRulesPass(const vector<AssetUTXO>& inputs, const vector<Ass
         vector<Royalty> royalties = _rules.getRoyalties();
         for (const Royalty& royalty: royalties) {
             uint64_t minAccepted = (count * royalty.amount * exchangeRate / 100000000) -
-                                   1;//in case of rounding error minimum accepted is 1 sat lower
+                                   1; //in case of rounding error minimum accepted is 1 sat lower
             bool paid = false;
             for (const AssetUTXO& utxo: outputs) {
                 if ((utxo.address == royalty.address) && (utxo.digibyte >= minAccepted)) {
@@ -886,14 +858,13 @@ void DigiAsset::checkRulesPass(const vector<AssetUTXO>& inputs, const vector<Ass
         for (const auto& change: changes) {
             if (change.second <= 0) {
                 continue;
-            }                                             //didn't receive so don't check
-            KYC addressData = db->getAddressKYC(change.first);                   //gets the addresses KYC data
+            }                                                  //didn't receive so don't check
+            KYC addressData = db->getAddressKYC(change.first); //gets the addresses KYC data
             if (
                     (!addressData.valid(height)) ||
-                    (!_rules.getIfCountryAllowedToReceive(addressData.getCountry()))
-                    ) {
+                    (!_rules.getIfCountryAllowedToReceive(addressData.getCountry()))) {
                 throw exceptionRuleFailed("KYC");
-            }       //throw if not valid
+            } //throw if not valid
         }
     }
 
@@ -913,7 +884,7 @@ void DigiAsset::checkRulesPass(const vector<AssetUTXO>& inputs, const vector<Ass
         //count how many assets have been burned
         int64_t burns = 0;
         for (const auto& change: changes) {
-            burns -= change.second;//negative so a negative change results in positive numbers
+            burns -= change.second; //negative so a negative change results in positive numbers
         }
         //negative numbers is not possible at this point
         if ((uint64_t) burns < _rules.getRequiredBurn()) throw exceptionRuleFailed("Deflation");
@@ -995,7 +966,7 @@ Value DigiAsset::toJSON(bool simplified) const {
     // Include meta data
     if (!_cid.empty()) {
         try {
-            IPFS* ipfs = IPFS::GetInstance();
+            IPFS* ipfs = AppMain::GetInstance()->getIPFS();
             string metadata = ipfs->callOnDownloadSync(_cid, "", DIGIASSET_JSON_IPFS_MAX_WAIT);
             Json::Value metadataValue;
             Json::Reader reader;

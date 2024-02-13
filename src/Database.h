@@ -2,7 +2,7 @@
 // Created by mctrivia on 30/01/23.
 //
 #ifndef SHA256_LENGTH
-#define SHA256_LENGTH   32
+#define SHA256_LENGTH 32
 #endif
 
 #ifndef STRINGIZE
@@ -19,62 +19,41 @@
 #define DIGIBYTECORE_DATABASE_CHAIN_WATCH_MAX 20
 
 
+#include "BitIO.h"
+#include "DigiAssetRules.h"
+#include "DigiAssetTypes.h"
+#include "DigiByteCore.h"
+#include "IPFS.h"
+#include "KYC.h"
+#include <future>
+#include <mutex>
 #include <sqlite3.h>
 #include <string>
 #include <vector>
-#include "KYC.h"
-#include "BitIO.h"
-#include "DigiAssetTypes.h"
-#include "DigiAssetRules.h"
-#include "IPFS.h"
-#include "DigiByteCore.h"
-#include "UTXOCache.h"
-#include <mutex>
-#include <future>
 
 struct AddressStats {
-    unsigned int time;      //time block start
-    unsigned int created;   //number of addresses created for the first time
-    unsigned int used;      //number of addresses used during time block
-    unsigned int withAssets;//number of addresses with assets
-    unsigned int over0;     //address count with any DGB
-    unsigned int over1;     //address count with at least 1 DGB
-    unsigned int over1k;    //address count with at least 1000 DGB
-    unsigned int over1m;    //address count with at least 1000000 DGB
-    unsigned int quantumInsecure;   //number of addresses a quantum computer could steel from
-    unsigned int total;     //total number of addresses that have ever existed up to this point
+    unsigned int time;            //time block start
+    unsigned int created;         //number of addresses created for the first time
+    unsigned int used;            //number of addresses used during time block
+    unsigned int withAssets;      //number of addresses with assets
+    unsigned int over0;           //address count with any DGB
+    unsigned int over1;           //address count with at least 1 DGB
+    unsigned int over1k;          //address count with at least 1000 DGB
+    unsigned int over1m;          //address count with at least 1000000 DGB
+    unsigned int quantumInsecure; //number of addresses a quantum computer could steel from
+    unsigned int total;           //total number of addresses that have ever existed up to this point
 };
 
 struct AlgoStats {
-    unsigned int time;      //time block start
-    unsigned int algo;      //algo number
-    unsigned int blocks;    //number of blocks created with that algo
+    unsigned int time;   //time block start
+    unsigned int algo;   //algo number
+    unsigned int blocks; //number of blocks created with that algo
     double difficultyMin;
     double difficultyMax;
     double difficultyAvg;
 };
 
 class Database {
-/**
- * Singleton Start
- */
-private:
-    static Database* _pinstance;
-    static std::mutex _mutex;
-
-protected:
-    Database(DigiByteCore* dgb);
-    ~Database();
-
-public:
-    Database(Database& other) = delete;
-    void operator=(const Database&) = delete;
-    static Database* GetInstance(DigiByteCore* dgb= nullptr);
-    static Database* GetInstance(const std::string& fileName,DigiByteCore* dgb= nullptr);
-
-/**
- * Singleton End
- */
 private:
     sqlite3* _db = nullptr;
     sqlite3_stmt* _stmtCheckFlag = nullptr;
@@ -126,15 +105,19 @@ private:
     sqlite3_stmt* _stmtRemoveNonReachable = nullptr;
     sqlite3_stmt* _stmtInsertPermanent = nullptr;
     sqlite3_stmt* _stmtRepinAssets = nullptr;
-    sqlite3_stmt* _stmtRepinPermanent = nullptr;
-
-    //core wallet pointer
-    DigiByteCore* _dgb = nullptr;
+    sqlite3_stmt* _stmtRepinPermanentSpecific = nullptr;
+    sqlite3_stmt* _stmtAddAssetToPool = nullptr;
+    sqlite3_stmt* _stmtIsAssetInPool = nullptr;
+    sqlite3_stmt* _stmtIsAssetInAPool = nullptr;
+    sqlite3_stmt* _stmtPSPFindBadAsset = nullptr;
+    sqlite3_stmt* _stmtPSPDeleteBadAsset = nullptr;
+    sqlite3_stmt* _stmtDeletePermanent = nullptr;
+    sqlite3_stmt* _stmtIsInPermanent = nullptr;
 
     //locks
     std::mutex _mutexGetNextIPFSJob;
 
-    void buildTables(unsigned int dbVersionNumber=0);
+    void buildTables(unsigned int dbVersionNumber = 0);
     void initializeClassValues();
 
     //flag table
@@ -150,28 +133,21 @@ private:
 
     //helpers
     static int executeSqliteStepWithRetry(sqlite3_stmt* stmt, int maxRetries = 3, int sleepDurationMs = 100);
-    void executeSQLStatement(const string& query, const exception& errorToThrowOnFail);
-
-    //change database
-    void load(const std::string& newFileName = "chain.db"); //used for testing
+    void executeSQLStatement(const std::string& query, const std::exception& errorToThrowOnFail);
 
     //ipfs ram db values
     std::vector<std::pair<std::string, uint64_t>> _ipfsCurrentlyPaused;
-    std::map<std::string, IPFSCallbackFunction> _ipfsCallbacks = {
-            {"",
-             [](const std::string&, const std::string&, const std::string&, bool) {}}    //generic do nothing callback
-    };
-
-    //utxo cache(helps speed up spam sections)
-    UTXOCache _recentNonAssetUTXO{100000};
+    static std::map<std::string, IPFSCallbackFunction> _ipfsCallbacks;
 
     //DigiBYte Domain ram values
     std::vector<std::string> _masterDomainAssetId = {};
+
 public:
     static std::string _lastErrorMessage;
 
-    //link Core wallet
-    void setDigiByteCore(DigiByteCore& core);
+    //constructor
+    Database(const std::string& newFileName = "chain.db");
+    ~Database();
 
     //performance related
     void startTransaction();
@@ -180,7 +156,7 @@ public:
     disableWriteVerification(); //on power failure not all commands may be written.  If using need to check at startup
 
     //reset database
-    void reset();   //used in case of roll back exceeding pruned history
+    void reset(); //used in case of roll back exceeding pruned history
 
     //assets table
     uint64_t addAsset(const DigiAsset& asset);
@@ -208,13 +184,13 @@ public:
     void addWatchAddress(const std::string& address);
 
     //flag table
-    int getBeenPrunedExchangeHistory();   //-1 = never, above=height which anything below may be pruned
-    int getBeenPrunedUTXOHistory();   //-1 = never, above=height which anything below may be pruned
-    int getBeenPrunedVoteHistory();   //-1 = never, above=height which anything below may be pruned
+    int getBeenPrunedExchangeHistory(); //-1 = never, above=height which anything below may be pruned
+    int getBeenPrunedUTXOHistory();     //-1 = never, above=height which anything below may be pruned
+    int getBeenPrunedVoteHistory();     //-1 = never, above=height which anything below may be pruned
     bool getBeenPrunedNonAssetUTXOHistory();
-    void setBeenPrunedExchangeHistory(int height);   //-1 = never
-    void setBeenPrunedUTXOHistory(int height);   //-1 = never
-    void setBeenPrunedVoteHistory(int height);   //-1 = never
+    void setBeenPrunedExchangeHistory(int height); //-1 = never
+    void setBeenPrunedUTXOHistory(int height);     //-1 = never
+    void setBeenPrunedVoteHistory(int height);     //-1 = never
     void setBeenPrunedNonAssetUTXOHistory(bool state);
 
     //kyc table
@@ -226,7 +202,7 @@ public:
 
     //utxos table
     void createUTXO(const AssetUTXO& value, unsigned int heightCreated);
-    void spendUTXO(const std::string& txid, unsigned int vout, unsigned int heightSpent);  //returns total amount spent
+    void spendUTXO(const std::string& txid, unsigned int vout, unsigned int heightSpent); //returns total amount spent
     std::string getSendingAddress(const std::string& txid, unsigned int vout);
     void pruneUTXO(unsigned int height);
     AssetUTXO getAssetUTXO(const std::string& txid, unsigned int vout);
@@ -238,7 +214,7 @@ public:
     void pruneVote(unsigned int height);
 
     //IPFS table
-    void registerIPFSCallback(const std::string& callbackSymbol, const IPFSCallbackFunction& callback);
+    static void registerIPFSCallback(const std::string& callbackSymbol, const IPFSCallbackFunction& callback);
     void getNextIPFSJob(unsigned int& jobIndex, std::string& cid, std::string& sync, std::string& extra,
                         unsigned int& maxSleep, IPFSCallbackFunction& callback);
     void pauseIPFSSync(unsigned int jobIndex, const std::string& sync, unsigned int pauseLengthInSeconds = 3600);
@@ -262,16 +238,26 @@ public:
     bool isDomainCompromised() const;
 
     //Permanent table
-    void addToPermanent(const string& cid);
-    void repinPermanent();
+    void addToPermanent(unsigned int poolIndex, const std::string& cid);
+    void removeFromPermanent(unsigned int poolIndex, const std::string& cid, bool unpin);
+    void repinPermanent(unsigned int poolIndex);
+    void unpinPermanent(unsigned int poolIndex);
+    void addAssetToPool(unsigned int poolIndex, unsigned int assetIndex);
+    void removeAssetFromPool(unsigned int poolIndex, const std::string& assetId, bool unpin);
+    bool isAssetInPool(unsigned int poolIndex, unsigned int assetIndex);
+    void subscribeToPool(unsigned int poolIndex, const std::string& payoutAddress, bool visible);
+    void unsubscribeToPool(unsigned int poolIndex);
+    bool pspIsSubscribed(unsigned int poolIndex);
+    std::string pspPayoutAddress(unsigned int poolIndex);
+    bool pspIsVisible(unsigned int poolIndex);
 
     //stats table
     //warning a new stats table is created for every timeFrame.  It is not recommended to allow users direct access to this value
-    void updateStats(unsigned int timeFrame=86400);
+    void updateStats(unsigned int timeFrame = 86400);
     bool canGetAlgoStats();
     bool canGetAddressStats();
-    vector<AlgoStats> getAlgoStats(unsigned int start=0,unsigned int end=std::numeric_limits<unsigned int>::max(),unsigned int timeFrame=86400);
-    vector<AddressStats> getAddressStats(unsigned int start=0,unsigned int end=std::numeric_limits<unsigned int>::max(),unsigned int timeFrame=86400);
+    std::vector<AlgoStats> getAlgoStats(unsigned int start = 0, unsigned int end = std::numeric_limits<unsigned int>::max(), unsigned int timeFrame = 86400);
+    std::vector<AddressStats> getAddressStats(unsigned int start = 0, unsigned int end = std::numeric_limits<unsigned int>::max(), unsigned int timeFrame = 86400);
 
     /*
     ███████╗██████╗ ██████╗  ██████╗ ██████╗ ███████╗

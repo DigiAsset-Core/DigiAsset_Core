@@ -3,6 +3,7 @@
 //
 
 #include "ChainAnalyzer.h"
+#include "AppMain.h"
 #include "BitIO.h"
 #include "Config.h"
 #include "Database.h"
@@ -11,7 +12,8 @@
 #include "DigiByteTransaction.h"
 #include "KYC.h"
 #include "Log.h"
-#include "static_block.hpp"
+#include "PermanentStoragePool/PermanentStoragePoolList.h"
+#include "utils.h"
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -22,15 +24,6 @@
 using namespace std;
 
 
-// Static block to register our callback function with IPFS Controller
-static_block {
-    IPFS::registerCallback(CHAINANALYZER_CALLBACK_NEWMETADATA_ID, ChainAnalyzer::_callbackNewMetadata);
-}
-
-unsigned int ChainAnalyzer::_pinAssetIcon = CHAINANALYZER_DEFAULT_PINASSETICON;
-unsigned int ChainAnalyzer::_pinAssetDescription = CHAINANALYZER_DEFAULT_PINASSETDESCRIPTION;
-unsigned int ChainAnalyzer::_pinAssetExtra = CHAINANALYZER_DEFAULT_PINASSETEXTRA;
-unsigned int ChainAnalyzer::_pinAssetPermanent = CHAINANALYZER_DEFAULT_PINPERMANENT;
 std::map<std::string, int> ChainAnalyzer::_pinAssetExtraMimeTypes;
 
 /*
@@ -42,10 +35,7 @@ std::map<std::string, int> ChainAnalyzer::_pinAssetExtraMimeTypes;
  ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝╚══════╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝  ╚═════╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝
  */
 
-ChainAnalyzer::ChainAnalyzer(DigiByteCore& digibyteCore) {
-    //store inputs
-    _dgb = &digibyteCore;
-
+ChainAnalyzer::ChainAnalyzer() {
     //reset config variables
     resetConfig();
 }
@@ -71,17 +61,11 @@ void ChainAnalyzer::resetConfig() {
     _nextHash = "";
 
     //default config values(chain data)
-    _pruneAge = 5760;//number of blocks to keep for roll back protection(-1 don't prune, default is 1 day)
+    _pruneAge = 5760; //number of blocks to keep for roll back protection(-1 don't prune, default is 1 day)
     _pruneInterval = (int) ceil(_pruneAge / PRUNE_INTERVAL_DIVISOR / 100) * 100;
     _pruneExchangeHistory = true;
     _pruneUTXOHistory = true;
     _pruneVoteHistory = true;
-
-    //default config values(meta data)
-    _pinAssetIcon = CHAINANALYZER_DEFAULT_PINASSETICON;
-    _pinAssetDescription = CHAINANALYZER_DEFAULT_PINASSETDESCRIPTION;
-    _pinAssetExtra = CHAINANALYZER_DEFAULT_PINASSETEXTRA;
-    _pinAssetPermanent = CHAINANALYZER_DEFAULT_PINPERMANENT;
 }
 
 /**
@@ -107,21 +91,11 @@ void ChainAnalyzer::loadConfig() {
     Config config = Config(_configFileName);
 
     //load values in to class(chain data)
-    setPruneAge(config.getInteger("pruneage", 5760));//-1 for don't prune, default daily
+    setPruneAge(config.getInteger("pruneage", 5760)); //-1 for don't prune, default daily
     setPruneExchangeHistory(config.getBool("pruneexchangehistory", true));
     setPruneUTXOHistory(config.getBool("pruneutxohistory", true));
     setPruneVoteHistory(config.getBool("prunevotehistory", true));
     setStoreNonAssetUTXO(config.getBool("storenonassetutxo", false));
-
-    //load values in to class(meta data)
-    _pinAssetIcon = config.getInteger("pinasseticon", CHAINANALYZER_DEFAULT_PINASSETICON);
-    _pinAssetDescription = config.getInteger("pinassetdescription", CHAINANALYZER_DEFAULT_PINASSETDESCRIPTION);
-    _pinAssetExtra = config.getInteger("pinassetextra", CHAINANALYZER_DEFAULT_PINASSETEXTRA);
-    _pinAssetPermanent = config.getInteger("pinassetpermanent", CHAINANALYZER_DEFAULT_PINPERMANENT);
-    _pinAssetExtraMimeTypes = config.getIntegerMap("pinassetextra");
-
-    //make sure IPFS is running
-    IPFS::GetInstance(_configFileName);
 }
 
 void ChainAnalyzer::saveConfig() {
@@ -141,7 +115,7 @@ bool ChainAnalyzer::shouldPruneExchangeHistory() const {
 }
 
 void ChainAnalyzer::setPruneExchangeHistory(bool shouldPrune) {
-    Database* db = Database::GetInstance();
+    Database* db = AppMain::GetInstance()->getDatabase();
     if (!shouldPrune && (db->getBeenPrunedExchangeHistory() >= 0)) throw exceptionAlreadyPruned();
     _pruneExchangeHistory = shouldPrune;
 }
@@ -151,7 +125,7 @@ bool ChainAnalyzer::shouldPruneUTXOHistory() const {
 }
 
 void ChainAnalyzer::setPruneUTXOHistory(bool shouldPrune) {
-    Database* db = Database::GetInstance();
+    Database* db = AppMain::GetInstance()->getDatabase();
     if (!shouldPrune && (db->getBeenPrunedUTXOHistory() >= 0)) throw exceptionAlreadyPruned();
     _pruneUTXOHistory = shouldPrune;
 }
@@ -161,7 +135,7 @@ bool ChainAnalyzer::shouldPruneVoteHistory() const {
 }
 
 void ChainAnalyzer::setPruneVoteHistory(bool shouldPrune) {
-    Database* db = Database::GetInstance();
+    Database* db = AppMain::GetInstance()->getDatabase();
     if (!shouldPrune && (db->getBeenPrunedVoteHistory() >= 0)) throw exceptionAlreadyPruned();
     _pruneVoteHistory = shouldPrune;
 }
@@ -171,7 +145,7 @@ bool ChainAnalyzer::shouldStoreNonAssetUTXO() const {
 }
 
 void ChainAnalyzer::setStoreNonAssetUTXO(bool shouldStore) {
-    Database* db = Database::GetInstance();
+    Database* db = AppMain::GetInstance()->getDatabase();
     if (shouldStore && (db->getBeenPrunedNonAssetUTXOHistory())) throw exceptionAlreadyPruned();
     _storeNonAssetUTXOs = shouldStore;
 }
@@ -183,8 +157,8 @@ void ChainAnalyzer::setStoreNonAssetUTXO(bool shouldStore) {
  * @return
  */
 unsigned int ChainAnalyzer::pruneMax(unsigned int height) {
-    if (_pruneAge < 0) return 0;               //no pruning
-    if (height % _pruneInterval != 0) return 0;//not time to prune
+    if (_pruneAge < 0) return 0;                //no pruning
+    if (height % _pruneInterval != 0) return 0; //not time to prune
     if (height - _pruneAge < 0) return 0;
     return height - _pruneAge;
 }
@@ -192,7 +166,7 @@ unsigned int ChainAnalyzer::pruneMax(unsigned int height) {
 void ChainAnalyzer::setPruneAge(int age) {
     _pruneAge = age;
     _pruneInterval = (int) ceil(1.0 * _pruneAge / PRUNE_INTERVAL_DIVISOR / 100) *
-                     100;//make sure prune interval is multiple of 100
+                     100; //make sure prune interval is multiple of 100
 }
 
 
@@ -208,17 +182,16 @@ void ChainAnalyzer::setPruneAge(int age) {
 void ChainAnalyzer::startupFunction() {
     //mark as initializing
     _state = INITIALIZING;
-    Database* db = Database::GetInstance();
-
-    //let database access to wallet
-    db->setDigiByteCore(*_dgb);
+    AppMain* main = AppMain::GetInstance();
+    Database* db = main->getDatabase();
+    DigiByteCore* dgb = main->getDigiByteCore();
 
     //make sure everything is set up
     db->disableWriteVerification();
 
     //find block we left off at
     _height = db->getBlockHeight();
-    _nextHash = _dgb->getBlockHash(_height);
+    _nextHash = dgb->getBlockHash(_height);
 
     //clear the block we left off on just in case it was partially processed
     db->clearBlocksAboveHeight(_height);
@@ -249,23 +222,25 @@ void ChainAnalyzer::shutdownFunction() {
  */
 
 void ChainAnalyzer::phaseRewind() {
-
     Log* log = Log::GetInstance();
     log->addMessage("Rewinding");
     log->addMessage("Rewind start height: " + to_string(_height), Log::DEBUG);
-    Database* db = Database::GetInstance();
+
+    AppMain* main = AppMain::GetInstance();
+    Database* db = main->getDatabase();
+    DigiByteCore* dgb = main->getDigiByteCore();
 
     ///should start at what ever number left off at since blocks is set only after finishing
 
     //check if we need to rewind
-    string hash = _dgb->getBlockHash(_height);
+    string hash = dgb->getBlockHash(_height);
     if (hash != _nextHash) {
         _state = ChainAnalyzer::REWINDING;
 
         //rewind until correct
         while (hash != _nextHash) {
             _height--;
-            hash = _dgb->getBlockHash(_height);
+            hash = dgb->getBlockHash(_height);
             try {
                 _nextHash = db->getBlockHash(_height);
             } catch (const Database::exceptionDataPruned& e) {
@@ -283,12 +258,15 @@ void ChainAnalyzer::phaseRewind() {
 }
 
 void ChainAnalyzer::phaseSync() {
-    Database* db = Database::GetInstance();
     Log* log = Log::GetInstance();
     log->addMessage("Starting sync phase at height: " + to_string(_height), Log::DEBUG);
 
+    AppMain* main = AppMain::GetInstance();
+    Database* db = main->getDatabase();
+    DigiByteCore* dgb = main->getDigiByteCore();
+
     //start syncing
-    string hash = _dgb->getBlockHash(_height);
+    string hash = dgb->getBlockHash(_height);
     bool fastMode = false;
     chrono::steady_clock::time_point beginTime;
     chrono::steady_clock::time_point beginTotalTime;
@@ -306,20 +284,20 @@ void ChainAnalyzer::phaseSync() {
                 ss << "processed blocks: " << setw(9) << _height << " to " << setw(9) << (_height + 99);
                 beginTime = chrono::steady_clock::now();
             }
-        }
-        else {
+        } else {
             ss << "processed block: " << setw(9) << _height;
             beginTime = chrono::steady_clock::now();
         }
 
         //process block
-        blockinfo_t blockData = _dgb->getBlock(hash);               //get the next blocks data
-        _state = 0 - blockData.confirmations;                       //calculate how far behind we are
-        if (!fastMode) ss << "(" << setw(8) << (_state + 1) << ") ";//+1 because message is related to after block is done
+        blockinfo_t blockData = dgb->getBlock(hash);                 //get the next blocks data
+        _state = 0 - blockData.confirmations;                        //calculate how far behind we are
+        if (!fastMode) ss << "(" << setw(8) << (_state + 1) << ") "; //+1 because message is related to after block is done
 
         //process each tx in block
-        if (shouldStoreNonAssetUTXO() || (_height >= 8432316)) {//only non asset utxo below this height
-            for (string& tx: blockData.tx) processTX(tx, blockData.height);
+        if (shouldStoreNonAssetUTXO() || (_height >= 8432316)) { //only non asset utxo below this height
+            for (string& tx: blockData.tx)
+                processTX(tx, blockData.height);
         }
 
 
@@ -344,13 +322,11 @@ void ChainAnalyzer::phaseSync() {
                     // Convert to days if more than 2 days
                     double days = msRemaining / static_cast<double>(msPerDay);
                     ss << std::fixed << std::setprecision(1) << days << " days left to sync";
-                }
-                else if (msRemaining >= msPerHour * 2) {
+                } else if (msRemaining >= msPerHour * 2) {
                     // Convert to hours if more than 2 hours
                     double hours = msRemaining / static_cast<double>(msPerHour);
                     ss << std::fixed << std::setprecision(1) << hours << " hours left to sync";
-                }
-                else {
+                } else {
                     // Convert to minutes for anything less
                     double minutes = msRemaining / static_cast<double>(msPerMinute);
                     ss << std::fixed << std::setprecision(1) << minutes << " minutes left to sync";
@@ -360,8 +336,7 @@ void ChainAnalyzer::phaseSync() {
                 ss.str("");
                 ss.clear();
             }
-        }
-        else {
+        } else {
             chrono::steady_clock::time_point endTime = chrono::steady_clock::now();
             ss << " in " << setw(6)
                << chrono::duration_cast<chrono::milliseconds>(endTime - beginTime).count() << " ms per block";
@@ -377,46 +352,46 @@ void ChainAnalyzer::phaseSync() {
         while (blockData.nextblockhash.empty()) {
             //mark as synced
             _state = SYNCED;
-            totalProcessed = 0;//don't track waiting time
+            totalProcessed = 0; //don't track waiting time
 
             //pause for 0.5 sec
             chrono::milliseconds dura(500);
             this_thread::sleep_for(dura);
 
             //check current block has not changed
-            string currentHash = _dgb->getBlockHash(_height);
+            string currentHash = dgb->getBlockHash(_height);
             if (hash != currentHash) {
                 _state = REWINDING;
                 return;
             }
 
             //update blockData so we can exit loop
-            blockData = _dgb->getBlock(hash);
+            blockData = dgb->getBlock(hash);
         }
 
         //set what block we will work on next
         _nextHash = blockData.nextblockhash;
         _height++;
         db->insertBlock(_height, _nextHash, blockData.time, blockData.algo, blockData.difficulty);
-        hash = _dgb->getBlockHash(_height);
+        hash = dgb->getBlockHash(_height);
     }
 }
 
 void ChainAnalyzer::phasePrune() {
-    Database* db = Database::GetInstance();
 
     //check if time to prune
     unsigned int pruneHeight = pruneMax(_height);
     if (pruneHeight == 0) return;
 
     //prune the data
+    Database* db = AppMain::GetInstance()->getDatabase();
     if (shouldPruneExchangeHistory()) db->pruneExchange(min(pruneHeight, _height - DigiAsset::EXCHANGE_RATE_LENIENCY));
     if (shouldPruneUTXOHistory()) db->pruneUTXO(pruneHeight);
     if (shouldPruneVoteHistory()) db->pruneVote(pruneHeight);
 }
 
 void ChainAnalyzer::restart() {
-    Database* db = Database::GetInstance();
+    Database* db = AppMain::GetInstance()->getDatabase();
     db->reset();
     _height = 1;
     _nextHash = DIGIBYTE_BLOCK1_HASH;
@@ -433,127 +408,10 @@ void ChainAnalyzer::restart() {
 
 void ChainAnalyzer::processTX(const string& txid, unsigned int height) {
     //get raw transaction
-    DigiByteTransaction tx(txid, *_dgb, height);
-    bool needDownloadMeta = _pinAssetIcon || _pinAssetDescription || _pinAssetExtra || _pinAssetPermanent;
-    tx.addToDatabase(needDownloadMeta ? CHAINANALYZER_CALLBACK_NEWMETADATA_ID : "");
+    DigiByteTransaction tx(txid, height);
+    tx.addToDatabase();
 }
 
-void ChainAnalyzer::_callbackNewMetadata(const string& cid, const string& extra, const string& content, bool failed) {
-    //failed will always be false since no maxSleep ever set
-
-    IPFS* ipfs = IPFS::GetInstance();
-    Json::CharReaderBuilder rbuilder;
-    Json::Value metadata;
-    istringstream s(content);
-    string errs;
-    Json::parseFromStream(rbuilder, s, &metadata, &errs);
-
-    //Calculate max size for permanent
-    unsigned int permanentSpace = configSizeToInt(_pinAssetPermanent);//Max allowed by core operator
-    bool permanentAmountLoaded = (permanentSpace == 0);               //Set to true if we won't check it
-
-    //Just in case someone tries to name multiple files icon (bad idea since wallets may not show as desired)
-    unsigned int pinIconSize = _pinAssetIcon;
-    unsigned int pinDescriptionSize = _pinAssetDescription;
-
-    //Check if there is a data.urls section
-    if (!metadata.isMember("data") || !metadata["data"].isObject()) return;//Improperly formatted
-    Json::Value data = metadata["data"];
-    if (!data.isMember("urls") || !data["urls"].isArray()) return;//Improperly formatted
-    Json::Value urls = data["urls"];
-
-    //Go through URLs and pin those we care about
-    for (const auto& obj: urls) {
-        //Ignore all links that don't have name and url
-        if (!obj.isMember("name") || !obj["name"].isString()) continue;
-        if (!obj.isMember("url") || !obj["url"].isString()) continue;
-        string name = obj["name"].asString();
-        string url = obj["url"].asString();
-
-        //Ignore links not on IPFS
-        if (!isIPFSLink(url)) continue;//Not on IPFS so ignore
-
-        //Check how much space is available if we have not done so already
-        //We don't do this earlier because it is a waste of time if there are no IPFS links
-        if (!permanentAmountLoaded) {
-            permanentAmountLoaded = true;
-            Database* db = Database::GetInstance();
-            unsigned int size = db->getPermanentSize(extra); //Extra is txid
-            if (size < permanentSpace) permanentSpace = size;//Pick smaller of size and permanentSpace
-        }
-
-        //If space in permanent space, use that first
-        if (permanentSpace > 0) {
-            string newCID = url.substr(7);
-            unsigned int fileSize = ipfs->getSize(newCID);
-            if (permanentSpace > fileSize) {
-                permanentSpace -= fileSize;
-                ipfs->pin(newCID);
-                Database* db = Database::GetInstance();
-                db->addToPermanent(newCID);
-                continue;
-            }
-        }
-
-        //If no space in permanent then check if standard file name
-        if (name == "icon") {
-            ipfs->pin(url.substr(7), pinIconSize);
-            pinIconSize = 0;
-            continue;
-        }
-        if (name == "description") {
-            ipfs->pin(url.substr(7), pinDescriptionSize);
-            pinDescriptionSize = 0;
-            continue;
-        }
-
-        //It is an extra file so pin based on type
-        string mimeType =
-                (obj.isMember("mimeType") && obj["mimeType"].isString()) ? obj["mimeType"].asString() : "";
-        ipfs->pin(url.substr(7), extraFileLengthByMimeType(mimeType));
-    }
-}
-
-unsigned int ChainAnalyzer::configSizeToInt(unsigned int value) {
-    return (value == 1) ? std::numeric_limits<unsigned int>::max() : value;
-}
-
-bool ChainAnalyzer::isIPFSLink(const string& url) {
-    const char* prefix = "ipfs://";
-    const size_t prefixLength = 7;// Length of "ipfs://"
-
-    // Check if the input string is at least as long as the prefix
-    if (url.length() < prefixLength) {
-        return false;
-    }
-
-    // Compare the characters case-insensitively
-    for (size_t i = 0; i < prefixLength; ++i) {
-        if (tolower(url[i]) != prefix[i]) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-unsigned int ChainAnalyzer::extraFileLengthByMimeType(const string& mimeType) {
-    // Try to find an exact match in the map
-    auto exactMatch = _pinAssetExtraMimeTypes.find(mimeType);
-    if (exactMatch != _pinAssetExtraMimeTypes.end()) {
-        return exactMatch->second;
-    }
-
-    // If no exact match found, check for wildcard matches
-    string mimeWildCardValue = mimeType.substr(0, mimeType.find('/')) + "/*";
-    auto itr = _pinAssetExtraMimeTypes.find(mimeWildCardValue);
-    if (itr != _pinAssetExtraMimeTypes.end()) {
-        return itr->second;
-    }
-
-    // If no matches found, return the default value _pinAssetExtra
-    return _pinAssetExtra;
-}
 
 /**
  * Gets the current sync state

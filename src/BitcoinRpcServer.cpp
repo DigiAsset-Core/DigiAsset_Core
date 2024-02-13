@@ -3,11 +3,13 @@
 //
 
 #include "BitcoinRpcServer.h"
+#include "AppMain.h"
 #include "Config.h"
 #include "DigiByteCore.h"
 #include "DigiByteDomain.h"
 #include "DigiByteTransaction.h"
 #include "Log.h"
+#include "PermanentStoragePool/PermanentStoragePoolList.h"
 #include <iostream>
 #include <jsonrpccpp/client.h>
 #include <jsonrpccpp/client/connectors/httpclient.h>
@@ -75,7 +77,7 @@ void BitcoinRpcServer::start() {
         try {
             //get the socket
             tcp::socket socket(_io);
-            SocketRAII socketGuard(socket);//make sure socket always gets closed
+            SocketRAII socketGuard(socket); //make sure socket always gets closed
             _acceptor.accept(socket);
 
             // Handle the request and send the response
@@ -146,7 +148,7 @@ string BitcoinRpcServer::getHeader(const string& headers, const string& wantedHe
     size_t start = headers.find(wantedHeader + ": ");
     if (start == string::npos) throw DigiByteException(HTTP_BAD_REQUEST, wantedHeader + " header not found");
     size_t end = headers.find("\r\n", start);
-    size_t headerLength = wantedHeader.length() + 2;//+2 for ": "
+    size_t headerLength = wantedHeader.length() + 2; //+2 for ": "
     return headers.substr(start + headerLength, end - start - headerLength);
 }
 
@@ -156,7 +158,7 @@ bool BitcoinRpcServer::basicAuth(const string& headers) {
 
     string decoded;
     // Extract and decode the base64-encoded credentials
-    string base64Credentials = authHeader.substr(6);// Remove "Basic "
+    string base64Credentials = authHeader.substr(6); // Remove "Basic "
     BIO* bio = BIO_new(BIO_f_base64());
     BIO* bioMem = BIO_new_mem_buf(base64Credentials.c_str(), -1);
     bio = BIO_push(bio, bioMem);
@@ -179,8 +181,7 @@ Value BitcoinRpcServer::handleRpcRequest(const Value& request) {
     //lets get the id(user defined value they can use as a reference)
     if (request.isMember("id")) {
         response["id"] = request["id"];
-    }
-    else {
+    } else {
         response["id"] = Value(Json::nullValue);
     }
 
@@ -207,7 +208,7 @@ Value BitcoinRpcServer::handleRpcRequest(const Value& request) {
         methodFound = true;
 
         //get result of this method
-        response["result"] = method.func(params);//this calls lambda
+        response["result"] = method.func(params); //this calls lambda
 
         //stop checking methods
         break;
@@ -217,7 +218,7 @@ Value BitcoinRpcServer::handleRpcRequest(const Value& request) {
     }
 
     //add the null error value to show no errors and return
-    response["error"] = Json::nullValue;// No error
+    response["error"] = Json::nullValue; // No error
     return response;
 }
 
@@ -286,7 +287,7 @@ void BitcoinRpcServer::defineMethods() {
                         }
 
                         //load transaction
-                        DigiByteTransaction tx{params[0].asString(), *_api};
+                        DigiByteTransaction tx{params[0].asString()};
 
                         //convert to a value and return
                         return tx.toJSON(rawTransactionData);
@@ -343,8 +344,7 @@ void BitcoinRpcServer::defineMethods() {
                                 string newKey = DigiByteDomain::getAddress(key);
                                 if (newParams[1].isMember(newKey)) {
                                     newParams[1][newKey] = newParams[1][newKey].asDouble() + value.asDouble();
-                                }
-                                else {
+                                } else {
                                     newParams[1][newKey] = value;
                                 }
 
@@ -392,7 +392,7 @@ void BitcoinRpcServer::defineMethods() {
                     .name = "shutdown",
                     .func = [this](const Json::Value& params) -> Value {
                         _analyzer->stop();
-                        IPFS::GetInstance()->stop();
+                        AppMain::GetInstance()->getIPFS()->stop();
                         Log* log = Log::GetInstance();
                         log->addMessage("Safe to shut down", Log::CRITICAL);
                         return true;
@@ -420,7 +420,7 @@ void BitcoinRpcServer::defineMethods() {
                             throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
                         }
 
-                        Database* db = Database::GetInstance();
+                        Database* db = AppMain::GetInstance()->getDatabase();
                         DigiAsset asset;
 
                         if (params.size() == 3) {
@@ -432,17 +432,13 @@ void BitcoinRpcServer::defineMethods() {
                                     params[0].asString(),
                                     params[1].asString(),
                                     params[2].asInt()));
-                        }
-                        else if (params.size() == 2) {
+                        } else if (params.size() == 2) {
                             throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
-                        }
-                        else if (params[0].isString()) {
+                        } else if (params[0].isString()) {
                             asset = db->getAsset(db->getAssetIndex(params[0].asString()));
-                        }
-                        else if (params[0].isInt()) {
+                        } else if (params[0].isInt()) {
                             asset = db->getAsset(params[0].asInt());
-                        }
-                        else {
+                        } else {
                             throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
                         }
 
@@ -466,8 +462,12 @@ void BitcoinRpcServer::defineMethods() {
                      */
                     .name = "resyncmetadata",
                     .func = [this](const Json::Value& params) -> Value {
-                        Database* db = Database::GetInstance();
-                        db->repinPermanent();
+                        AppMain* main = AppMain::GetInstance();
+                        PermanentStoragePoolList* pools = main->getPermanentStoragePoolList();
+                        for (const auto& pool: *pools) {
+                            if (!pool->subscribed()) continue;
+                            pool->repinAllFiles();
+                        }
                         return true;
                     }},
             Method{
@@ -551,7 +551,7 @@ void BitcoinRpcServer::defineMethods() {
 
                         //lookup stats
                         try {
-                            Database* db = Database::GetInstance();
+                            Database* db = AppMain::GetInstance()->getDatabase();
                             vector<AddressStats> stats = db->getAddressStats(start, end, timeFrame);
 
                             //convert to json
@@ -634,7 +634,7 @@ void BitcoinRpcServer::defineMethods() {
 
                         //lookup stats
                         try {
-                            Database* db = Database::GetInstance();
+                            Database* db = AppMain::GetInstance()->getDatabase();
                             vector<AlgoStats> stats = db->getAlgoStats(start, end, timeFrame);
 
                             // Initialize Json::Value
@@ -665,7 +665,7 @@ void BitcoinRpcServer::defineMethods() {
                                 }
 
                                 // Fill in missing algos with null values
-                                while (lastAlgo + 1 < stat.algo) {
+                                while (static_cast<unsigned int>(lastAlgo + 1) < stat.algo) {
                                     ++lastAlgo;
                                     currentAlgoArray.append(Json::Value(Json::nullValue));
                                 }
@@ -712,7 +712,7 @@ bool BitcoinRpcServer::isRPCAllowed(const string& method) {
     auto it = _allowedRPC.find(method);
     if (it == _allowedRPC.end()) {
         if (_allowRPCDefault == -1) {
-            _allowRPCDefault = 0;//default.  must set to prevent possible infinite loop
+            _allowRPCDefault = 0; //default.  must set to prevent possible infinite loop
             _allowRPCDefault = isRPCAllowed("*") ? 1 : 0;
         }
         return _allowRPCDefault;

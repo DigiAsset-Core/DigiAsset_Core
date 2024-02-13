@@ -2,28 +2,28 @@
 // Created by mctrivia on 19/07/23.
 //
 
-#include <cmath>
-#include "gtest/gtest.h"
 #include "DigiAsset.h"
 #include "DigiByteCore.h"
 #include "DigiByteTransaction.h"
+#include "gtest/gtest.h"
+#include <cmath>
 
-#include <vector>
-#include <random>
-#include <string>
 #include <algorithm>
 #include <iomanip>
 #include <iostream>
+#include <random>
+#include <string>
+#include <vector>
 
 using namespace std;
 
-std::string uint8_to_hex_string(const vector<uint8_t> v) {
+std::string uint8_to_hex_string(const vector<uint8_t>& v) {
     std::stringstream ss;
 
     ss << std::hex << std::setfill('0');
     size_t w = 0;
 
-    for (int i = 0; i < v.size(); i++) {
+    for (size_t i = 0; i < v.size(); i++) {
         ss << std::hex << "0x" << std::setw(2) << static_cast<int>(v[i]) << ",";
         if (w++ == 8) {
             w = 0;
@@ -80,11 +80,11 @@ TEST(DigiAssetRules, serialize) {
     //Try requiring signers
     test = DigiAssetRules();
     test.setRequireSigners(3, {
-            {.address="fake1", .weight=3},
-            {.address="fake2", .weight=2},
-            {.address="fake3", .weight=2},
-            {.address="fake4", .weight=1},
-    });
+                                      {.address = "fake1", .weight = 3},
+                                      {.address = "fake2", .weight = 2},
+                                      {.address = "fake3", .weight = 2},
+                                      {.address = "fake4", .weight = 1},
+                              });
     serialized = {};
     serialize(serialized, test);
     expected = {0x40, 0x80, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 4,
@@ -96,9 +96,7 @@ TEST(DigiAssetRules, serialize) {
 
     //try requiring royalties(1 dgb)
     test = DigiAssetRules();
-    test.setRoyalties({
-                              {.address="fake1", .amount=100000000}
-                      });
+    test.setRoyalties({{.address = "fake1", .amount = 100000000}});
     serialized = {};
     serialize(serialized, test);
     expected = {0x40, 0x40, 0, 0, 0, 0, 0, 0, 0, 1,
@@ -107,28 +105,24 @@ TEST(DigiAssetRules, serialize) {
 
     //try requiring royalties(1 CAD)
     test = DigiAssetRules();
-    test.setRoyalties({
-                              {.address="fake1", .amount=100000000}
-                      }, DigiAsset::standardExchangeRates[0]);
+    test.setRoyalties({{.address = "fake1", .amount = 100000000}}, DigiAsset::standardExchangeRates[0]);
     serialized = {};
     serialize(serialized, test);
     expected = {0x40, 0x42,
-                0, 0, 0, 0, 0, 0, 0, 1,                                              //number of addresses
-                0, 0, 0, 0, 0, 0, 0, 5, 0x66, 0x61, 0x6b, 0x65, 0x31,                     //address to pay to
-                0, 0, 0, 0, 0x05, 0xf5, 0xe1, 0x00,                                  //amount to pay
+                0, 0, 0, 0, 0, 0, 0, 1,                               //number of addresses
+                0, 0, 0, 0, 0, 0, 0, 5, 0x66, 0x61, 0x6b, 0x65, 0x31, //address to pay to
+                0, 0, 0, 0, 0x05, 0xf5, 0xe1, 0x00,                   //amount to pay
                 0, 0, 0, 0, 0, 0, 0, 43, 0x64, 0x67, 0x62, 0x31, 0x71, 0x75, 0x6E, 0x78, 0x68, 0x33, 0x37, 0x38, 0x65,
                 0x6C, 0x74, 0x6A, 0x32, 0x6A, 0x72, 0x77, 0x7A, 0x61, 0x35, 0x73, 0x6A, 0x39, 0x67, 0x72, 0x76, 0x75,
-                0x35, 0x78, 0x75, 0x64, 0x34, 0x33, 0x76, 0x71, 0x76, 0x75, 0x64, 0x77, 0x68,      //rate address
-                0,                                                            //rate index
-                0, 0, 0, 0, 0, 0, 0, 3, 0x43, 0x41, 0x44};                              //serialize name
+                0x35, 0x78, 0x75, 0x64, 0x34, 0x33, 0x76, 0x71, 0x76, 0x75, 0x64, 0x77, 0x68, //rate address
+                0,                                                                            //rate index
+                0, 0, 0, 0, 0, 0, 0, 3, 0x43, 0x41, 0x44};                                    //serialize name
     EXPECT_EQ(serialized, expected);
 
     //try rewritable, royalties 5 DGB - same as c57fc42847ebf7b3842fde56ed3ef1897d330413d3325e6b2043b78b5ed7f3fa
     test = DigiAssetRules();
     test.setRewritable(true);
-    test.setRoyalties({
-                              {.address="fake1", .amount=500000000}
-                      });
+    test.setRoyalties({{.address = "fake1", .amount = 500000000}});
     serialized = {};
     serialize(serialized, test);
     expected = {0xc0, 0x40,
@@ -140,9 +134,9 @@ TEST(DigiAssetRules, serialize) {
     //try royalty 24.75 and 0.25 like in 500f85a4bfcedc462702e5d86c55cbc058b8f758db712b97d0067e73e5243848
     test = DigiAssetRules();
     test.setRoyalties({
-                              {.address="dgb1qkspymp9gk4rht2f43qrrpdkd6k05h82j0sykr0", .amount=2475000000},
-                              {.address="dgb1qwlnzswupjvlczfclqxgwcsgzlzf803yzzv97q8", .amount=25000000},
-                      });
+            {.address = "dgb1qkspymp9gk4rht2f43qrrpdkd6k05h82j0sykr0", .amount = 2475000000},
+            {.address = "dgb1qwlnzswupjvlczfclqxgwcsgzlzf803yzzv97q8", .amount = 25000000},
+    });
     serialized = {};
     serialize(serialized, test);
     expected = {0x40, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -218,11 +212,11 @@ TEST(DigiAssetRules, deserialize) {
     deserialize(serialized, i, test);
     expected = DigiAssetRules();
     expected.setRequireSigners(3, {
-            {.address="fake1", .weight=3},
-            {.address="fake2", .weight=2},
-            {.address="fake3", .weight=2},
-            {.address="fake4", .weight=1},
-    });
+                                          {.address = "fake1", .weight = 3},
+                                          {.address = "fake2", .weight = 2},
+                                          {.address = "fake3", .weight = 2},
+                                          {.address = "fake4", .weight = 1},
+                                  });
     EXPECT_TRUE(test == expected);
 
     //try requiring royalties(1 dgb)
@@ -232,28 +226,24 @@ TEST(DigiAssetRules, deserialize) {
     i = 0;
     deserialize(serialized, i, test);
     expected = DigiAssetRules();
-    expected.setRoyalties({
-                                  {.address="fake1", .amount=100000000}
-                          });
+    expected.setRoyalties({{.address = "fake1", .amount = 100000000}});
     EXPECT_TRUE(test == expected);
 
     //try requiring royalties(1 CAD)
     serialized = {0x40, 0x42,
-                  0, 0, 0, 0, 0, 0, 0, 1,                                              //number of addresses
-                  0, 0, 0, 0, 0, 0, 0, 5, 0x66, 0x61, 0x6b, 0x65, 0x31,                     //address to pay to
-                  0, 0, 0, 0, 0x05, 0xf5, 0xe1, 0x00,                                  //amount to pay
+                  0, 0, 0, 0, 0, 0, 0, 1,                               //number of addresses
+                  0, 0, 0, 0, 0, 0, 0, 5, 0x66, 0x61, 0x6b, 0x65, 0x31, //address to pay to
+                  0, 0, 0, 0, 0x05, 0xf5, 0xe1, 0x00,                   //amount to pay
                   0, 0, 0, 0, 0, 0, 0, 43, 0x64, 0x67, 0x62, 0x31, 0x71, 0x75, 0x6E, 0x78, 0x68, 0x33, 0x37, 0x38, 0x65,
                   0x6C, 0x74, 0x6A, 0x32, 0x6A, 0x72, 0x77, 0x7A, 0x61, 0x35, 0x73, 0x6A, 0x39, 0x67, 0x72, 0x76, 0x75,
-                  0x35, 0x78, 0x75, 0x64, 0x34, 0x33, 0x76, 0x71, 0x76, 0x75, 0x64, 0x77, 0x68,      //rate address
-                  0,                                                            //rate index
-                  0, 0, 0, 0, 0, 0, 0, 3, 0x43, 0x41, 0x44};                              //serialize name;
+                  0x35, 0x78, 0x75, 0x64, 0x34, 0x33, 0x76, 0x71, 0x76, 0x75, 0x64, 0x77, 0x68, //rate address
+                  0,                                                                            //rate index
+                  0, 0, 0, 0, 0, 0, 0, 3, 0x43, 0x41, 0x44};                                    //serialize name;
     test = DigiAssetRules();
     i = 0;
     deserialize(serialized, i, test);
     expected = DigiAssetRules();
-    expected.setRoyalties({
-                                  {.address="fake1", .amount=100000000}
-                          }, DigiAsset::standardExchangeRates[0]);
+    expected.setRoyalties({{.address = "fake1", .amount = 100000000}}, DigiAsset::standardExchangeRates[0]);
     EXPECT_TRUE(test == expected);
 
     //try rewritable, royalties 5 DGB - same as c57fc42847ebf7b3842fde56ed3ef1897d330413d3325e6b2043b78b5ed7f3fa
@@ -266,9 +256,7 @@ TEST(DigiAssetRules, deserialize) {
     deserialize(serialized, i, test);
     expected = DigiAssetRules();
     expected.setRewritable(true);
-    expected.setRoyalties({
-                                  {.address="fake1", .amount=500000000}
-                          });
+    expected.setRoyalties({{.address = "fake1", .amount = 500000000}});
     EXPECT_TRUE(test == expected);
 
     //try royalty 24.75 and 0.25 like in 500f85a4bfcedc462702e5d86c55cbc058b8f758db712b97d0067e73e5243848
@@ -293,9 +281,9 @@ TEST(DigiAssetRules, deserialize) {
     deserialize(serialized, i, test);
     expected = DigiAssetRules();
     expected.setRoyalties({
-                                  {.address="dgb1qkspymp9gk4rht2f43qrrpdkd6k05h82j0sykr0", .amount=2475000000},
-                                  {.address="dgb1qwlnzswupjvlczfclqxgwcsgzlzf803yzzv97q8", .amount=25000000},
-                          });
+            {.address = "dgb1qkspymp9gk4rht2f43qrrpdkd6k05h82j0sykr0", .amount = 2475000000},
+            {.address = "dgb1qwlnzswupjvlczfclqxgwcsgzlzf803yzzv97q8", .amount = 25000000},
+    });
     EXPECT_TRUE(test == expected);
     //todo add more tests to make sure all combinations of rules have been tried
 }

@@ -2,11 +2,11 @@
 // Created by mctrivia on 06/06/23.
 //
 
-#include <functional>
-#include <utility>
-#include <algorithm>
 #include "KYC.h"
 #include "BitIO.h"
+#include <algorithm>
+#include <functional>
+#include <utility>
 
 using namespace std;
 
@@ -67,12 +67,12 @@ bool KYC::processKYCVerify(const getrawtransaction_t& txData, unsigned int heigh
     //check encoded data on output 1 has correct header
     if (txData.vout[1].scriptPubKey.type != "nulldata") return false;
     BitIO dataStream = BitIO::makeHexString(txData.vout[1].scriptPubKey.hex);
-    if (!dataStream.checkIsBitcoinOpReturn()) return false;   //not an OP_RETURN
+    if (!dataStream.checkIsBitcoinOpReturn()) return false;                         //not an OP_RETURN
     if (dataStream.getBitcoinDataHeader() != BITIO_BITCOIN_TYPE_DATA) return false; //not data
-    dataStream = dataStream.copyBitcoinData();    //strip the header out
+    dataStream = dataStream.copyBitcoinData();                                      //strip the header out
     if (dataStream.getNumberOfBitLeft() <= 40) {
         return false;
-    }  //shortest possible data 2 byte header,2 byte country, 1 byte length,name or hash
+    } //shortest possible data 2 byte header,2 byte country, 1 byte length,name or hash
     if (dataStream.get3B40String(3) != "kyc") return false;
 
     //check last input is a valid validator
@@ -91,10 +91,10 @@ bool KYC::processKYCVerify(const getrawtransaction_t& txData, unsigned int heigh
     try {
         countryCode = dataStream.get3B40String(3);
         transform(countryCode.begin(), countryCode.end(), countryCode.begin(),
-                  ::toupper);  //make upper case since 3B40 is lowercase
+                  ::toupper); //make upper case since 3B40 is lowercase
         unsigned int length = dataStream.getFixedPrecision();
         if (length == 0) {
-            hash = dataStream.getHexString(64);   //get 32 byte hex value(64 nibbles)
+            hash = dataStream.getHexString(64); //get 32 byte hex value(64 nibbles)
         } else {
             name = dataStream.getUTF8String(length);
         }
@@ -135,10 +135,10 @@ bool KYC::processKYCRevoke(const getrawtransaction_t& txData, unsigned int heigh
     //check encoded data on output 1 has correct header
     if (txData.vout[1].scriptPubKey.type != "nulldata") return false;
     BitIO dataStream = BitIO::makeHexString(txData.vout[1].scriptPubKey.hex);
-    if (!dataStream.checkIsBitcoinOpReturn()) return false;   //not an OP_RETURN
+    if (!dataStream.checkIsBitcoinOpReturn()) return false;                         //not an OP_RETURN
     if (dataStream.getBitcoinDataHeader() != BITIO_BITCOIN_TYPE_DATA) return false; //not data
-    dataStream = dataStream.copyBitcoinData();    //strip the header out
-    if (dataStream.getNumberOfBitLeft() == 16) return false;  //should only contain 2 bytes
+    dataStream = dataStream.copyBitcoinData();                                      //strip the header out
+    if (dataStream.getNumberOfBitLeft() == 16) return false;                        //should only contain 2 bytes
     if (dataStream.get3B40String(3) != "kyc") return false;
 
     //check first output is a validator
@@ -192,7 +192,7 @@ std::string KYC::getCountry() const {
     return _country;
 }
 
-int KYC::getHeightCreated() const {
+unsigned int KYC::getHeightCreated() const {
     if (_heightCreated == -1) throw exceptionUnknownValue();
     return _heightCreated;
 }
@@ -202,16 +202,13 @@ int KYC::getHeightRevoked() const {
 }
 
 bool KYC::valid(int height) const {
-    if (_heightCreated == -1) return false;   //empty
+    if (_heightCreated == -1) return false;                       //empty
     if ((height > -1) && (height < _heightCreated)) return false; //before created
-    if (_heightRevoked == -1) return true;    //never revoked
-    if (height == -1) return false;           //was revoked at some point and selected highest
-    return (height < _heightRevoked);         //valid if height before revoke
+    if (_heightRevoked == -1) return true;                        //never revoked
+    if (height == -1) return false;                               //was revoked at some point and selected highest
+    return (height < _heightRevoked);                             //valid if height before revoke
 }
 
 bool KYC::empty() const {
     return (_heightCreated == -1);
 }
-
-
-

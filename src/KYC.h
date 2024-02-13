@@ -6,8 +6,8 @@
 #define DIGIASSET_CORE_KYC_H
 
 
-#include <functional>
 #include "DigiByteCore_Types.h"
+#include <functional>
 
 class KYC {
     static std::string _lastErrorMessage;
@@ -39,8 +39,8 @@ public:
     std::string getName() const;
     std::string getHash() const;
     std::string getCountry() const;
-    int getHeightCreated() const;
-    int getHeightRevoked() const; //-1 not yet revoked or haven't yet processed
+    unsigned int getHeightCreated() const;
+    int getHeightRevoked() const;      //-1 not yet revoked or haven't yet processed
     bool valid(int height = -1) const; //-1 highest scanned(returns false if empty also)
     bool empty() const;
 
@@ -65,7 +65,6 @@ public:
             return const_cast<char*>(_lastErrorMessage.c_str());
         }
     };
-
 };
 
 

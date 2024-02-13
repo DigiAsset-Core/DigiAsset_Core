@@ -9,7 +9,7 @@
 Blob::Blob(const void* data, int length) {
     //reserve needed memory
     _data = (unsigned char*) malloc(length);
-    if (_data == nullptr) throw std::exception();//failed to get needed memory
+    if (_data == nullptr) throw std::exception(); //failed to get needed memory
 
     //copy data
     memcpy(_data, data, length);
@@ -31,7 +31,7 @@ int char2int(char input) {
     throw std::invalid_argument("Invalid input string");
 }
 
-Blob::Blob(const std::string hex) {
+Blob::Blob(const std::string& hex) {
     //get number of bytes and make sure not an odd number of nibles
     _length = hex.length();
     if (_length % 2 != 0) throw std::invalid_argument("Invalid input string");
@@ -53,7 +53,7 @@ constexpr char hexmap[] = {'0', '1', '2', '3', '4', '5', '6', '7',
 
 std::string Blob::toHex() {
     std::string s(_length * 2, ' ');
-    for (int i = 0; i < _length; ++i) {
+    for (size_t i = 0; i < _length; ++i) {
         s[2 * i] = hexmap[(_data[i] & 0xF0) >> 4];
         s[2 * i + 1] = hexmap[_data[i] & 0x0F];
     }
@@ -64,7 +64,7 @@ unsigned char* Blob::data() {
     return _data;
 }
 
-uint Blob::length() {
+size_t Blob::length() {
     return _length;
 }
 

@@ -12,17 +12,17 @@
 class Blob {
 public:
     Blob(const void* data, int length);
-    Blob(const std::vector<uint8_t>& data);
-    explicit Blob(const std::string hex);
+    explicit Blob(const std::vector<uint8_t>& data);
+    explicit Blob(const std::string& hex);
     ~Blob();
     std::string toHex();
     unsigned char* data();
     std::vector<uint8_t> vector();
-    uint length();
+    size_t length();
+
 private:
     unsigned char* _data;
-    int _length;
-
+    size_t _length;
 };
 
 

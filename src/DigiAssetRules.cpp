@@ -2,11 +2,12 @@
 // Created by mctrivia on 14/06/23.
 //
 
-#include "DigiAsset.h"
 #include "DigiAssetRules.h"
-#include <algorithm>
+#include "AppMain.h"
+#include "DigiAsset.h"
 #include "DigiAssetTypes.h"
 #include "serialize.h"
+#include <algorithm>
 
 using namespace std;
 
@@ -62,7 +63,7 @@ DigiAssetRules::DigiAssetRules(const getrawtransaction_t& txData, BitIO& dataStr
                 _countryListIsBan = true;
                 decodeGeofence(txData, dataStream);
                 break;
-            case RULE_VOTE://RULE_EXPIRY also
+            case RULE_VOTE: //RULE_EXPIRY also
                 decodeVoteAndExpiry(txData, dataStream, cid);
                 break;
             case RULE_DEFLATION:
@@ -113,14 +114,13 @@ void DigiAssetRules::decodeApproval(const getrawtransaction_t& txData, BitIO& da
             //range
             dataStream.insertBits(0, 1);
             dataStream.movePositionBy(
-                    -1);                            //move back 1 bit since this 0 is part of output number
+                    -1); //move back 1 bit since this 0 is part of output number
             unsigned int start = dataStream.getFixedPrecision();
             unsigned int length = dataStream.getFixedPrecision();
             for (unsigned int outputNum = start; outputNum < start + length; outputNum++) {
                 _signers.emplace_back(Signer{
                         .address = txData.vout[outputNum].scriptPubKey.addresses[0],
-                        .weight =  txData.vout[outputNum].valueS - 600
-                });
+                        .weight = txData.vout[outputNum].valueS - 600});
             }
             notDone = false;
 
@@ -130,7 +130,7 @@ void DigiAssetRules::decodeApproval(const getrawtransaction_t& txData, BitIO& da
 
             //per output
             dataStream.movePositionBy(
-                    -1);                         //move back 1 bit since this 0 is part of output number
+                    -1); //move back 1 bit since this 0 is part of output number
             uint64_t temp = dataStream.getFixedPrecision();
             if (temp == 0) {
                 notDone = false;
@@ -138,8 +138,7 @@ void DigiAssetRules::decodeApproval(const getrawtransaction_t& txData, BitIO& da
                 unsigned int outputNum = temp - 1;
                 _signers.emplace_back(Signer{
                         .address = txData.vout[outputNum].scriptPubKey.addresses[0],
-                        .weight =  dataStream.getFixedPrecision()
-                });
+                        .weight = dataStream.getFixedPrecision()});
             }
         }
     }
@@ -170,14 +169,12 @@ void DigiAssetRules::decodeRoyaltyUnits(const getrawtransaction_t& txData, BitIO
         string address = txData.vout[output].scriptPubKey.addresses[0];
         _exchangeRate = {
                 .address = address,
-                .index =  static_cast<unsigned char>(txData.vout[output].valueS - 600),
-                .name =   "?"
-        };
+                .index = static_cast<unsigned char>(txData.vout[output].valueS - 600),
+                .name = "?"};
 
         //make sure exchange address is being watched
-        Database* db = Database::GetInstance();
+        Database* db = AppMain::GetInstance()->getDatabase();
         db->addWatchAddress(address);
-
     }
 }
 
@@ -195,8 +192,7 @@ void DigiAssetRules::decodeRoyalties(const getrawtransaction_t& txData, BitIO& d
     for (unsigned int outputNum = start; outputNum < start + length; outputNum++) {
         _royalties.emplace_back(Royalty{
                 .address = txData.vout[outputNum].scriptPubKey.addresses[0],
-                .amount =  txData.vout[outputNum].valueS
-        });
+                .amount = txData.vout[outputNum].valueS});
     }
 }
 
@@ -254,8 +250,7 @@ void DigiAssetRules::decodeVoteAndExpiry(const getrawtransaction_t& txData, BitI
         for (unsigned char i = 0; i < voteLength; i++) {
             _voteOptions.emplace_back(VoteOption{
                     .address = DigiAsset::standardVoteAddresses[i],
-                    .label = ""
-            });
+                    .label = ""});
         }
 
     } else {
@@ -263,8 +258,7 @@ void DigiAssetRules::decodeVoteAndExpiry(const getrawtransaction_t& txData, BitI
         for (unsigned int outputNum = voteStart; outputNum < (unsigned) voteStart + voteLength; outputNum++) {
             _voteOptions.emplace_back(VoteOption{
                     .address = txData.vout[outputNum].scriptPubKey.addresses[0],
-                    .label = ""
-            });
+                    .label = ""});
         }
     }
     _voteLabelsCID = cid;
@@ -322,28 +316,24 @@ bool DigiAssetRules::expires() const {
  * @param input
  */
 void serialize(vector<uint8_t>& serializedData, const DigiAssetRules& input) {
-    const uint8_t versionCode = 0;    //version code to allow detection of old serialization protocols.  max value is 15
+    const uint8_t versionCode = 0; //version code to allow detection of old serialization protocols.  max value is 15
     if (input.empty()) return;
 
     //get booleans and version code
-    serialize(serializedData, (uint8_t) (
-            input._rewritable * 128 +
-            input._movable * 64 +
-            input._countryListIsBan * 32 +
-            versionCode
-    ));
+    serialize(serializedData, (uint8_t) (input._rewritable * 128 +
+                                         input._movable * 64 +
+                                         input._countryListIsBan * 32 +
+                                         versionCode));
 
     //get data that will be included
-    serialize(serializedData, (uint8_t) (
-            (input._signersRequired > 0) * 128 +
-            (!input._royalties.empty()) * 64 +
-            (!input._countryList.empty()) * 32 +
-            (!input._voteOptions.empty()) * 16 +
-            (input._expiry != DigiAssetRules::EXPIRE_NEVER) * 8 +
-            (input._deflate != 0) * 4 +
-            (input._exchangeRate.enabled()) * 2 +
-            (!input._voteLabelsCID.empty())
-    ));
+    serialize(serializedData, (uint8_t) ((input._signersRequired > 0) * 128 +
+                                         (!input._royalties.empty()) * 64 +
+                                         (!input._countryList.empty()) * 32 +
+                                         (!input._voteOptions.empty()) * 16 +
+                                         (input._expiry != DigiAssetRules::EXPIRE_NEVER) * 8 +
+                                         (input._deflate != 0) * 4 +
+                                         (input._exchangeRate.enabled()) * 2 +
+                                         (!input._voteLabelsCID.empty())));
 
 
     //add signers
@@ -725,8 +715,8 @@ Json::Value DigiAssetRules::toJSON() {
  * @return A vector of VoteOption structs containing the addresses and labels for each voting option.
  */
 std::vector<VoteOption> DigiAssetRules::getVoteOptions() {
-    if (_voteLabelsCID.empty()) {         //labels already processed so skip that step
-        IPFS* ipfs = IPFS::GetInstance();
+    if (_voteLabelsCID.empty()) { //labels already processed so skip that step
+        IPFS* ipfs = AppMain::GetInstance()->getIPFS();
         string content = ipfs->callOnDownloadSync(_voteLabelsCID);
 
         //parse returned data
@@ -754,26 +744,22 @@ std::vector<VoteOption> DigiAssetRules::getVoteOptions() {
             if (usingString) {
 
                 //array of string processing
-                if (!vote.isString()) throw exceptionVoteOptionsCorrupt();   //invalid format
+                if (!vote.isString()) throw exceptionVoteOptionsCorrupt(); //invalid format
                 options.emplace_back(VoteOption{
                         .address = DigiAsset::standardVoteAddresses[i],
-                        .label = vote.asString()
-                });
+                        .label = vote.asString()});
 
             } else {
 
                 //array of object processing
                 if (
                         !vote.isMember("address") || !vote["address"].isString() ||
-                        !vote.isMember("label") || !vote["label"].isString()
-                        ) {
+                        !vote.isMember("label") || !vote["label"].isString()) {
                     throw exceptionVoteOptionsCorrupt();
                 }
                 options.emplace_back(VoteOption{
                         .address = vote["address"].asString(),
-                        .label = vote["label"].asString()
-                });
-
+                        .label = vote["label"].asString()});
             }
         }
 

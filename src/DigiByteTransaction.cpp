@@ -2,14 +2,16 @@
 // Created by mctrivia on 17/06/23.
 //
 
+#include "DigiByteTransaction.h"
+#include "AppMain.h"
+#include "BitIO.h"
+#include "DigiAsset.h"
+#include "DigiByteDomain.h"
+#include "IPFS.h"
+#include "PermanentStoragePool/PermanentStoragePoolList.h"
 #include <chrono>
 #include <cmath>
 #include <iostream>
-#include "DigiByteTransaction.h"
-#include "BitIO.h"
-#include "DigiAsset.h"
-#include "IPFS.h"
-#include "DigiByteDomain.h"
 
 using namespace std;
 
@@ -26,11 +28,14 @@ DigiByteTransaction::DigiByteTransaction() {
  * Creates an object that can hold a transactions data including any DigiAssets
  * height is optional but if known will speed things up if provided
  */
-DigiByteTransaction::DigiByteTransaction(const string& txid, DigiByteCore& core, unsigned int height) {
-    getrawtransaction_t txData = core.getRawTransaction(txid);
-    if (height == 0) height = core.getBlock(txData.blockhash).height;
+DigiByteTransaction::DigiByteTransaction(const string& txid, unsigned int height) {
+    AppMain* main = AppMain::GetInstance();
+    DigiByteCore* dgb = main->getDigiByteCore();
+    Database* db = main->getDatabase();
 
-    Database* db = Database::GetInstance();
+    getrawtransaction_t txData = dgb->getRawTransaction(txid);
+    if (height == 0) height = dgb->getBlock(txData.blockhash).height;
+
     _height = height;
     _blockHash = txData.blockhash;
     _time = txData.time;
@@ -41,9 +46,6 @@ DigiByteTransaction::DigiByteTransaction(const string& txid, DigiByteCore& core,
     for (const vin_t& vin: txData.vin) {
         //if a coinbase transaction don't look up the input
         if (vin.txid.empty()) {
-            if (txData.vin.size() != 1) { //todo think only 1 input allowed but check
-                cout << "*";
-            }
             break;
         }
 
@@ -56,11 +58,10 @@ DigiByteTransaction::DigiByteTransaction(const string& txid, DigiByteCore& core,
     //copy output data
     for (const vout_t& vout: txData.vout) {
         _outputs.emplace_back(AssetUTXO{
-                .txid=txData.txid,
-                .vout=static_cast<uint16_t>(vout.n),
-                .address=(vout.scriptPubKey.addresses.empty()) ? "" : vout.scriptPubKey.addresses[0],
-                .digibyte=vout.valueS
-        });
+                .txid = txData.txid,
+                .vout = static_cast<uint16_t>(vout.n),
+                .address = (vout.scriptPubKey.addresses.empty()) ? "" : vout.scriptPubKey.addresses[0],
+                .digibyte = vout.valueS});
     }
 
     //Check different tx types
@@ -83,16 +84,16 @@ bool DigiByteTransaction::decodeExchangeRate(const getrawtransaction_t& txData) 
     //check first output is an op_return
     if (txData.vout[0].scriptPubKey.type != "nulldata") return false;
     BitIO dataStream = BitIO::makeHexString(txData.vout[0].scriptPubKey.hex);
-    if (!dataStream.checkIsBitcoinOpReturn()) return false;   //not an OP_RETURN
+    if (!dataStream.checkIsBitcoinOpReturn()) return false;                         //not an OP_RETURN
     if (dataStream.getBitcoinDataHeader() != BITIO_BITCOIN_TYPE_DATA) return false; //not data
-    dataStream = dataStream.copyBitcoinData();    //strip the header out
+    dataStream = dataStream.copyBitcoinData();                                      //strip the header out
 
     //check data is a multiple of 8 bytes
     if (dataStream.getLength() % 64 != 0) return false;
 
     //check only 1 address in output 2, and it is an exchange address
     if (txData.vout[1].scriptPubKey.addresses.size() != 1) return false;
-    Database* db = Database::GetInstance();
+    Database* db = AppMain::GetInstance()->getDatabase();
     string address = txData.vout[1].scriptPubKey.addresses[0];
     if (!db->isWatchAddress(address)) return false;
 
@@ -117,13 +118,13 @@ bool DigiByteTransaction::decodeExchangeRate(const getrawtransaction_t& txData) 
  */
 bool DigiByteTransaction::decodeKYC(const getrawtransaction_t& txData) {
     unsigned int txType = _kycData.processTX(txData, _height, [this](string txid, unsigned int vout) -> string {
-        Database* db = Database::GetInstance();
+        Database* db = AppMain::GetInstance()->getDatabase();
         return db->getSendingAddress(txid, vout);
     });
     if (txType == KYC::NA) return false;
     if (txType == KYC::VERIFY) {
         _txType = KYC_ISSUANCE;
-    } else {    //KYC::REVOKE
+    } else { //KYC::REVOKE
         _txType = KYC_REVOKE;
     }
     return true;
@@ -140,7 +141,7 @@ void DigiByteTransaction::decodeAssetTX(const getrawtransaction_t& txData) {
     DigiAsset::decodeAssetTxHeader(txData, _assetTransactionVersion, opcode, dataStream);
 
     if (opcode == 0) {
-        return;//invalid op code
+        return; //invalid op code
     }
     if (opcode < 16) {
 
@@ -152,23 +153,17 @@ void DigiByteTransaction::decodeAssetTX(const getrawtransaction_t& txData) {
 
             //create the asset
             _newAsset = DigiAsset{txData, _height, _assetTransactionVersion, opcode, dataStream};
-            decodeAssetTransfer(dataStream, vector<AssetUTXO>{{
-                                                                      .digibyte =  0,
-                                                                      .assets =  vector<DigiAsset>{_newAsset}
-                                                              }}, DIGIASSET_ISSUANCE);
+            decodeAssetTransfer(dataStream, vector<AssetUTXO>{{.digibyte = 0, .assets = vector<DigiAsset>{_newAsset}}}, DIGIASSET_ISSUANCE);
             _txType = DIGIASSET_ISSUANCE;
         } catch (const DigiAsset::exception& e) {
-
         }
         return;
-
-
     } else if (opcode < 48) {
 
         //check if valid transfer or burn
         bool burn = (opcode >= 0x20);
         if ((opcode % 16) != 5) {
-            return;    //invalid transfer opcode
+            return; //invalid transfer opcode
         }
 
         if (!_assetFound) {
@@ -256,7 +251,7 @@ void DigiByteTransaction::decodeAssetTransfer(BitIO& dataStream, const vector<As
                 } //Different asset then expected;
 
                 //see if we used them all up
-                allowSkip = true;   //make sure true for all instructions except where ends on exactly 0 leftToRemoveFromInputs
+                allowSkip = true; //make sure true for all instructions except where ends on exactly 0 leftToRemoveFromInputs
                 if ((currentAmount < leftToRemoveFromInputs) && (inputs[index][0].isHybrid())) {
                     throw DigiAsset::exceptionInvalidTransfer();
                 } //"Hybrid assets can't rap over inputs;
@@ -267,7 +262,7 @@ void DigiByteTransaction::decodeAssetTransfer(BitIO& dataStream, const vector<As
                     if (inputs[index].empty()) {
                         //used all inputs up so move to next
                         index++;
-                        allowSkip = false;//exactly 0 leftToRemoveFromInputs so disable skip
+                        allowSkip = false; //exactly 0 leftToRemoveFromInputs so disable skip
                     }
                 } else {
                     //there are assets leftToRemoveFromInputs in the input
@@ -294,10 +289,10 @@ void DigiByteTransaction::decodeAssetTransfer(BitIO& dataStream, const vector<As
 
             //skip remainder of vin inputs if called for
             if (skip) {
-                if (allowSkip) index++;     //ignore skip if last instruction emptied the input
+                if (allowSkip) index++; //ignore skip if last instruction emptied the input
                 allowSkip = true;
             }
-        } catch (const exception& e) {
+        } catch (const std::exception& e) {
             //remove any assets that where already applied
             for (AssetUTXO& vout: _outputs) {
                 vout.assets.clear();
@@ -310,9 +305,8 @@ void DigiByteTransaction::decodeAssetTransfer(BitIO& dataStream, const vector<As
                 inputs.emplace_back(vin.assets); //copy the assets
             }
 
-            break;  //breaks the while (dataStream.getNumberOfBitLeft() > footerBitCount) loop
+            break; //breaks the while (dataStream.getNumberOfBitLeft() > footerBitCount) loop
         }
-
     }
 
     //see if any change
@@ -326,7 +320,7 @@ void DigiByteTransaction::decodeAssetTransfer(BitIO& dataStream, const vector<As
 
             //something left over so see if already in list
             bool needAdding = true;
-            if (asset.isAggregable()) {   //only search on aggregable
+            if (asset.isAggregable()) { //only search on aggregable
                 for (DigiAsset& assetTest: _outputs[lastOutput].assets) {
                     if (assetTest.getAssetIndex() == asset.getAssetIndex()) {
                         //already there so add the amount
@@ -366,8 +360,17 @@ void DigiByteTransaction::checkRulesPass() const {
     }
 }
 
+
+unsigned int DigiByteTransaction::getInputCount() const {
+    return _inputs.size();
+}
+
 AssetUTXO DigiByteTransaction::getInput(size_t n) const {
     return _inputs[n];
+}
+
+unsigned int DigiByteTransaction::getOutputCount() const {
+    return _outputs.size();
 }
 
 AssetUTXO DigiByteTransaction::getOutput(size_t n) const {
@@ -444,10 +447,9 @@ ExchangeRate DigiByteTransaction::getExchangeRateName(uint8_t i) const {
         }
     }
     return {
-            .address= _outputs[1].address,
-            .index=i,
-            .name=name
-    };
+            .address = _outputs[1].address,
+            .index = i,
+            .name = name};
 }
 
 /**
@@ -472,10 +474,10 @@ void DigiByteTransaction::addAssetToOutput(size_t output, const DigiAsset& asset
 
 /**
  * Adds the transaction to the database
- * @param optionalMetaCallbackSymbol - used to asynchronously call metadata handling function
  */
-void DigiByteTransaction::addToDatabase(const std::string& optionalMetaCallbackSymbol) {
-    Database* db = Database::GetInstance();
+void DigiByteTransaction::addToDatabase() {
+    AppMain* main = AppMain::GetInstance();
+    Database* db = main->getDatabase();
 
     //set to process all changes at once
     db->startTransaction();
@@ -496,19 +498,19 @@ void DigiByteTransaction::addToDatabase(const std::string& optionalMetaCallbackS
             }
             break;
         case DIGIASSET_ISSUANCE:
+            //add to the database and get the asset index number
             bool indexAlreadySet = (_newAsset.getAssetIndex() != 0);
-            uint64_t assetIndex = db->addAsset(_newAsset);                              //add asset to the database
-            IPFS* ipfs = IPFS::GetInstance();
-            ipfs->pin(
-                    _newAsset.getCID());    //add the cid to the lookup list to make sure we have a local copy
-            if (!optionalMetaCallbackSymbol.empty()) {
-                ipfs->callOnDownload(_newAsset.getCID(), "", _txid, optionalMetaCallbackSymbol);
-            }
-            DigiByteDomain::processAssetIssuance(
-                    _newAsset);       //allow digibyte domain changes to be handled
-            if (indexAlreadySet) break;
+            uint64_t assetIndex = db->addAsset(_newAsset);
 
-            //set that assetIndex on the outputs
+            //see if part of a PSP and pin files for those we subscribe to
+            PermanentStoragePoolList* pools = main->getPermanentStoragePoolList();
+            pools->processNewMetaData(*this, assetIndex, _newAsset.getCID());
+
+            //Handle DigiByte Domain Assets
+            DigiByteDomain::processAssetIssuance(_newAsset);
+
+            //set that assetIndex on the outputs if not set
+            if (indexAlreadySet) break;
             for (AssetUTXO& vout: _outputs) {
                 if (vout.assets.empty()) continue;
                 for (DigiAsset& asset: vout.assets) {
@@ -520,7 +522,7 @@ void DigiByteTransaction::addToDatabase(const std::string& optionalMetaCallbackS
 
     //mark spent old UTXOs
     for (const AssetUTXO& vin: _inputs) {
-        if (vin.txid == "") continue;  //coinbase
+        if (vin.txid == "") continue; //coinbase
         db->spendUTXO(vin.txid, vin.vout, _height);
     }
 
@@ -595,7 +597,7 @@ Value DigiByteTransaction::toJSON(const Value& original) const {
     for (size_t i = 0; i < _inputs.size(); i++) {
         const AssetUTXO& input = _inputs[i];
         Json::Value inputObject = addingToOriginal ? result["vin"][static_cast<Json::ArrayIndex>(i)]
-                                                   : Json::objectValue;   //load original or blank
+                                                   : Json::objectValue; //load original or blank
         inputObject["txid"] = input.txid;
         inputObject["vout"] = input.vout;
         inputObject["address"] = input.address;
@@ -615,7 +617,7 @@ Value DigiByteTransaction::toJSON(const Value& original) const {
     for (size_t i = 0; i < _outputs.size(); i++) {
         const AssetUTXO& output = _outputs[i];
         Json::Value outputObject = addingToOriginal ? result["vout"][static_cast<Json::ArrayIndex>(i)]
-                                                    : Json::objectValue;   //load original or blank
+                                                    : Json::objectValue; //load original or blank
         outputObject["n"] = output.vout;
         outputObject["address"] = output.address;
         outputObject["valueS"] = static_cast<Json::UInt64>(output.digibyte);
@@ -681,3 +683,13 @@ DigiAsset DigiByteTransaction::getIssuedAsset() const {
     return _newAsset;
 }
 
+unsigned int DigiByteTransaction::getHeight() const {
+    return _height;
+}
+
+
+void DigiByteTransaction::addDigiByteOutput(const string& address, uint64_t amount) {
+    //todo check its unlocked
+    //todo check there is enough funds to send(and still pay tx fee)
+    //todo add the output
+}

@@ -24,7 +24,6 @@ set(HEADER_FILES
         DigiByteCore.h
         Blob.h
         BitIO.h
-        UserInput.h
         KYC.h
         DigiAsset.h
         DigiAssetRules.h
@@ -36,10 +35,17 @@ set(HEADER_FILES
         DigiByteDomain.h
         Config.h
         BitcoinRpcServer.h
-        UTXOCache.h
         DigiByteCore_Types.h
         DigiByteCore_Exception.h
         Log.h
+        utils.h
+        PermanentStoragePool/PermanentStoragePoolMetaProcessor.h
+        PermanentStoragePool/PermanentStoragePool.h
+        PermanentStoragePool/PermanentStoragePoolList.h
+        PermanentStoragePool/pools/mctrivia.h
+        PermanentStoragePool/pools/local.h
+        AppMain.h
+        CurlHandler.h
         )
 
 set(SOURCE_FILES
@@ -49,7 +55,6 @@ set(SOURCE_FILES
         DigiByteCore.cpp
         Blob.cpp
         BitIO.cpp
-        UserInput.cpp
         KYC.cpp
         DigiAsset.cpp
         DigiAssetRules.cpp
@@ -60,13 +65,18 @@ set(SOURCE_FILES
         DigiByteDomain.cpp
         Config.cpp
         BitcoinRpcServer.cpp
-        UTXOCache.cpp
         Log.cpp
+        utils.cpp
+        PermanentStoragePool/PermanentStoragePoolMetaProcessor.cpp
+        PermanentStoragePool/PermanentStoragePool.cpp
+        PermanentStoragePool/PermanentStoragePoolList.cpp
+        PermanentStoragePool/pools/mctrivia.cpp
+        PermanentStoragePool/pools/local.cpp
+        AppMain.cpp
+        CurlHandler.cpp
         )
 
 add_executable(digiasset_core main.cpp ${SOURCE_FILES} ${HEADER_FILES})
-
-
 
 
 target_link_libraries(digiasset_core PRIVATE CURL::libcurl)

@@ -6,10 +6,10 @@
 #define DIGIASSET_CORE_DIGIASSETRULES_H
 
 
-#include "DigiAssetTypes.h"
 #include "BitIO.h"
-#include <jsonrpccpp/server.h>
+#include "DigiAssetTypes.h"
 #include "DigiByteCore_Types.h"
+#include <jsonrpccpp/server.h>
 
 class DigiAssetRules {
     static std::string _lastErrorMessage;
@@ -22,14 +22,14 @@ class DigiAssetRules {
     ExchangeRate _exchangeRate;
     std::vector<Royalty> _royalties;
     std::vector<std::string> _countryList;
-    bool _countryListIsBan = false;    //false+_countryList.empty()=kyc not required
+    bool _countryListIsBan = false; //false+_countryList.empty()=kyc not required
     //true+_countryList.empty()=kyc required from any country
     //!_countryList.empty()=kyc required limited countries allowed
-    uint64_t _expiry = EXPIRE_NEVER;  //584 million years from now = never
+    uint64_t _expiry = EXPIRE_NEVER; //584 million years from now = never
     std::vector<VoteOption> _voteOptions;
     uint64_t _deflate = 0;
 
-    std::string _voteLabelsCID;  //empty if labels have been processed already
+    std::string _voteLabelsCID; //empty if labels have been processed already
 
     void decodeApproval(const getrawtransaction_t& txData, BitIO& dataStream);
     void decodeRoyaltyUnits(const getrawtransaction_t& txData, BitIO& dataStream);
@@ -40,19 +40,20 @@ class DigiAssetRules {
 
     friend void serialize(std::vector<uint8_t>& serializedData, const DigiAssetRules& input);
     friend void deserialize(const std::vector<uint8_t>& serializedData, size_t& i, DigiAssetRules& output);
+
 public:
     static const unsigned char RULE_APPROVAL = 0;
     static const unsigned char RULE_ROYALTIES = 1;
     static const unsigned char RULE_GEOFENCE_ALLOWED = 2;
     static const unsigned char RULE_GEOFENCE_DENIED = 3;
     static const unsigned char RULE_VOTE = 4;
-    static const unsigned char RULE_EXPIRES = 4;  //vote length=0 cutoff!=0
+    static const unsigned char RULE_EXPIRES = 4; //vote length=0 cutoff!=0
     static const unsigned char RULE_DEFLATION = 5;
     static const unsigned char RULE_ROYALTY_UNITS = 9;
 
     static const unsigned char RULE_END = 15;
 
-    static const uint64_t MIN_EPOCH_VALUE = 1577836800000;        //expiry bellow this are block height above time in ms
+    static const uint64_t MIN_EPOCH_VALUE = 1577836800000; //expiry bellow this are block height above time in ms
     static const uint64_t EXPIRE_NEVER = std::numeric_limits<uint64_t>::max();
 
 
@@ -86,22 +87,22 @@ public:
     //setters
     void setRewritable(bool state = true);
     void setRequireSigners(uint64_t requiredWeight, const std::vector<Signer>& signers);
-    void setRequireKYC();   //sets so can be sent to any KYCd address
+    void setRequireKYC(); //sets so can be sent to any KYCd address
     void setDoesNotRequireKYC();
     void setRequireKYC(const std::vector<std::string>& countries,
-                       bool banList = false);        //sets countries allowed to hold(optionally countries not allowed)
+                       bool banList = false); //sets countries allowed to hold(optionally countries not allowed)
     void setRoyalties(const std::vector<Royalty>& royalties, const ExchangeRate& rate = {});
     void setVote(const std::vector<VoteOption>& voteOptions, uint64_t expiry = EXPIRE_NEVER);
     void setExpiry(uint64_t expiry);
     void setDeflationary(uint64_t deflateRate);
 
     //comparators
-    bool operator==(const DigiAssetRules& b);       //needed for testing class
+    bool operator==(const DigiAssetRules& b); //needed for testing class
 
 
     Json::Value toJSON();
 
-/*
+    /*
    ███████╗██████╗ ██████╗  ██████╗ ██████╗ ███████╗
    ██╔════╝██╔══██╗██╔══██╗██╔═══██╗██╔══██╗██╔════╝
    █████╗  ██████╔╝██████╔╝██║   ██║██████╔╝███████╗
@@ -134,7 +135,6 @@ public:
             return const_cast<char*>(_lastErrorMessage.c_str());
         }
     };
-
 };
 
 

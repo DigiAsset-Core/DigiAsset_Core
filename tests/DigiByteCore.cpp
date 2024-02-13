@@ -2,10 +2,10 @@
 // Created by mctrivia on 27/05/23.
 //
 
-#include <cmath>
-#include "gtest/gtest.h"
 #include "DigiByteCore.h"
 #include "Config.h"
+#include "gtest/gtest.h"
+#include <cmath>
 
 using namespace std;
 
@@ -56,7 +56,7 @@ TEST(DigiByteCore, MakeConnection) {
     try {
         test.makeConnection();
     } catch (const Config::exceptionConfigFileMissing& e) {
-        failed = false;   //want this exception
+        failed = false; //want this exception
     } catch (const std::exception& e) {
         failed = true;
     }
@@ -68,7 +68,7 @@ TEST(DigiByteCore, MakeConnection) {
     try {
         test.makeConnection();
     } catch (const Config::exceptionConfigFileInvalid& e) {
-        failed = false;   //want this exception
+        failed = false; //want this exception
     } catch (const std::exception& e) {
         failed = true;
     }
@@ -82,7 +82,7 @@ TEST(DigiByteCore, MakeConnection) {
         cout << "88\n";
         test.makeConnection();
     } catch (const Config::exceptionCorruptConfigFile& e) {
-        failed = false;   //want this exception
+        failed = false; //want this exception
     } catch (const std::exception& e) {
         failed = true;
     }
@@ -111,8 +111,8 @@ TEST(DigiByteCore, GetBlockHash) {
     bool failed = true;
     try {
         test.getBlockHash(1000000000);
-    } catch (const exception& e) {
-        failed = false;   //want this exception
+    } catch (const DigiByteCore::exception& e) {
+        failed = false; //want this exception
     } catch (const std::exception& e) {
         failed = true;
     }
