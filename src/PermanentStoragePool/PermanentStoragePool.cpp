@@ -16,11 +16,11 @@ void PermanentStoragePool::setPoolIndexAndInitialize(unsigned int index, const C
     //save config data
     const string prefix = "psp" + to_string(index);
     _subscribed = config.getBool(prefix + "subscribe", true);
-    _autoRemoveBad = config.getBool(prefix + "pspautoremovebad", true);
+    _autoRemoveBad = config.getBool(prefix + "autoremovebad", true);
     if (!_subscribed) return;
 
     //get payout address
-    _payoutAddress = config.getString(prefix + "psppayout", "_psppayout");
+    _payoutAddress = config.getString(prefix + "payout", "_psppayout");
 
     //handle condition payout address is a label
     if (!_payoutAddress.empty() && _payoutAddress[0] == '_') {
