@@ -61,6 +61,7 @@ int main() {
             this_thread::sleep_for(chrono::seconds(30)); //Don't hammer wallet
         }
     }
+    main->setDigiByteCore(&dgb);
 
     //make sure if we predownloaded data from ipfs that the wallet is synced past the point image was syned to
     if (pauseHeight > 0) {
@@ -69,7 +70,6 @@ int main() {
             this_thread::sleep_for(chrono::minutes(2)); //Don't hammer wallet
         }
     }
-    main->setDigiByteCore(&dgb);
 
     /**
      * Connect to Database

@@ -205,11 +205,6 @@ sudo systemctl start ipfs.service
 git clone -b master --recursive https://github.com/DigiAsset-Core/DigiAsset_Core.git
 cd DigiAsset_Core
 git submodule update --init --recursive
-cd tests
-cd testFiles
-ipfs get QmNPyr5tkm48cUu5iMbReiM8GN8AW6PRpzUztPFadaxC8j -o assetTest.csv
-ipfs get QmdfQ2sVheA69pytxTXAk3rUrBPneiN3jpsKGAymAp7m6x -o assetTest.db
-cd ../..
 mkdir build
 cd build
 cmake -B . -S .. -DCMAKE_TOOLCHAIN_FILE=/opt/vcpkg/scripts/buildsystems/vcpkg.cmake
