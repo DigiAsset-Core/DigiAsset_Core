@@ -248,6 +248,7 @@ Group=<your-username>
 
 Type=simple
 ExecStart=/home/<your-username>/DigiAsset_Core/bin/digiasset_core
+WorkingDirectory=/home/<your-username>/DigiAsset_Core/bin
 
 Restart=always
 PrivateTmp=true
