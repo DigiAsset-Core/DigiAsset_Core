@@ -1,0 +1,21 @@
+// Version.h.in
+#pragma once
+
+#include <string>
+
+#define MAJOR_VERSION @MAJOR_VERSION@
+#define MINOR_VERSION @MINOR_VERSION@
+#define PATCH_VERSION @PATCH_VERSION@
+#define SO_VERSION @SO_VERSION@
+
+// Helper macros for stringification
+#define STRINGIFY(x) #x
+#define TO_STRING(x) STRINGIFY(x)
+
+// Concatenate version numbers into a string
+#define VERSION_STRING (TO_STRING(MAJOR_VERSION) "." TO_STRING(MINOR_VERSION) "." TO_STRING(PATCH_VERSION) "." TO_STRING(SO_VERSION))
+
+// Function to return version string
+inline const std::string getVersionString() {
+    return std::string(VERSION_STRING);
+}

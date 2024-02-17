@@ -8,16 +8,10 @@
 #include "Log.h"
 #include "utils.h"
 #include <iostream>
+#include "Version.h"
 
 
 int main() {
-    /*
-     * Start IPFS
-     */
-    //IPFS* ipfs = IPFS::GetInstance();
-    //ipfs->start();
-    //IPFS::get("bafkreicr2pggml4j5bjv3hhxi5i5ud4rgnnaqphrfs2mtoub77zfiwbhju", "temp.json");
-
     /*
      * Start Log
      */
@@ -25,6 +19,11 @@ int main() {
     Config config = Config("config.cfg");
     log->setMinLevelToScreen(static_cast<Log::LogLevel>(config.getInteger("logscreen", static_cast<int>(Log::INFO))));
     log->setMinLevelToFile(static_cast<Log::LogLevel>(config.getInteger("logfile", static_cast<int>(Log::WARNING))));
+
+    /*
+     * Print starting message
+     */
+    log->addMessage("Starting DigiAsset Core " + getVersionString());
 
     /*
      * Predownload database files if config files allow and database missing

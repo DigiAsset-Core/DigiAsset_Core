@@ -10,6 +10,7 @@
 #include "DigiByteTransaction.h"
 #include "Log.h"
 #include "PermanentStoragePool/PermanentStoragePoolList.h"
+#include "Version.h"
 #include <iostream>
 #include <jsonrpccpp/client.h>
 #include <jsonrpccpp/client/connectors/httpclient.h>
@@ -692,6 +693,14 @@ void BitcoinRpcServer::defineMethods() {
                         } catch (const Database::exceptionDataPruned& e) {
                             return Json::arrayValue;
                         }
+                    }},
+            Method{
+                    /**
+                     * Returns current version number
+                     */
+                    .name = "version",
+                    .func = [this](const Json::Value& params) -> Value {
+                        return getVersionString();
                     }}};
 }
 

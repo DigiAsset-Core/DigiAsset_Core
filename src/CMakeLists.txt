@@ -1,6 +1,13 @@
 cmake_minimum_required(VERSION 3.21)
 project(digiasset_core)
 
+#Build Version.h
+configure_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/Version.h.in"
+        "${CMAKE_CURRENT_SOURCE_DIR}/Version.h"
+)
+
+
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 set(CMAKE_CXX_STANDARD 11)
@@ -46,6 +53,7 @@ set(HEADER_FILES
         PermanentStoragePool/pools/local.h
         AppMain.h
         CurlHandler.h
+        Version.h
         )
 
 set(SOURCE_FILES
