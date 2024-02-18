@@ -223,7 +223,7 @@ void Database::initializeClassValues() {
     if (rc != SQLITE_OK) throw exceptionCreatingStatement();
 
     //statement to get asset holders
-    const char* sql46 = "SELECT address,SUM(amount) FROM utxos WHERE assetIndex=5 GROUP BY address;";
+    const char* sql46 = "SELECT address,SUM(amount) FROM utxos WHERE assetIndex=? AND heightDestroyed IS NULL GROUP BY address;";
     rc = sqlite3_prepare_v2(_db, sql46, strlen(sql46), &_stmtGetAssetHolders, nullptr);
     if (rc != SQLITE_OK) throw exceptionCreatingStatement();
 
