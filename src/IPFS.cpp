@@ -7,7 +7,6 @@
 #include "Config.h"
 #include "CurlHandler.h"
 #include "Database.h"
-#include <curl/curl.h>
 #include <fstream>
 #include <iostream>
 #include <regex>
@@ -77,14 +76,6 @@ IPFS::IPFS(const string& configFile, bool runStart) {
    ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═════╝
 */
 void IPFS::mainFunction() {
-    //check if we should be running at all
-    if (_processOff) {
-        //not using thread so just let it do nothing for half a second
-        chrono::milliseconds dura(500);
-        this_thread::sleep_for(dura);
-        return;
-    }
-
     //get next job if there is one
     Database* db = AppMain::GetInstance()->getDatabase();
     unsigned int jobIndex;
@@ -102,7 +93,7 @@ void IPFS::mainFunction() {
     }
 
     //check if it is a known bad cid
-    if (isLostCID(cid)) {
+    if (!isValidCID(cid) || isLostCID(cid)) {
         //since this can only happen do to the repin sql statement pinning stuff that should not have been pinned just remove the job
         db->removeIPFSJob(jobIndex, sync);
         return;
@@ -209,11 +200,6 @@ string IPFS::sha256ToCID(const string& hash) {
 }
 
 
-size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
-    ((string*) userp)->append((char*) contents, size * nmemb);
-    return size * nmemb;
-}
-
 /**
  * Sends a command to the IPFS node and return result
  * @param command - should be in the format cat/cid  should not have a / at beginning
@@ -284,7 +270,7 @@ string IPFS::findPublicAddress(const vector<string>& addresses, const string& ip
         return possible[0];
     }
 
-    //if more than one possible pick the one with lowest port number since that is likely correct
+    //if more than one possible pick the one with the lowest port number since that is likely correct
     string peerId;
     int lowest = 65536;
     regex portRegex("tcp/([0-9]*)/");
@@ -301,7 +287,7 @@ string IPFS::findPublicAddress(const vector<string>& addresses, const string& ip
     return peerId;
 }
 
-vector<string> IPFS::extractAddresses(const string& idString) const {
+vector<string> IPFS::extractAddresses(const string& idString) {
     Json::Value root;
     Json::Reader reader;
     vector<string> addresses;
@@ -352,7 +338,7 @@ void IPFS::registerCallback(const string& callbackSymbol, const IPFSCallbackFunc
 void IPFS::callOnDownload(const string& cid, const string& sync, const string& extra,
                           const string& callbackRegistry, unsigned int maxTime) {
     //check if no cid
-    if (cid.empty()) return;
+    if (!isValidCID(cid)) return;
     if (isLostCID(cid)) return; //this function never throws errors
 
     Database* db = AppMain::GetInstance()->getDatabase();
@@ -383,11 +369,16 @@ void IPFS::callOnDownload(const string& cid, const string& sync, const string& e
  */
 promise<string> IPFS::callOnDownloadPromise(const string& cid, const string& sync, unsigned int maxTime) {
     //check if a known lost CID
+    if (!isValidCID(cid)) {
+        promise<string> result;
+        result.set_exception(std::make_exception_ptr(exceptionInvalidCID()));
+        return result;
+    }
     if (isLostCID(cid)) {
         promise<string> result;
         result.set_exception(std::make_exception_ptr(exceptionTimeout()));
         return result;
-    }; //well it would have timed out if we had let it
+    } //well it would have timed out if we had let it
 
     //check if we can do synchronously quickly
     if (sync.empty() && isPinned(cid)) {
@@ -425,7 +416,7 @@ std::string IPFS::callOnDownloadSync(const string& cid, const string& sync, unsi
  */
 void IPFS::pin(const string& cid, unsigned int maxSize) {
     //check if no cid
-    if (cid.empty()) return;
+    if (!isValidCID(cid)) return;                 //just ignore bad cids for pin requests
     if (isLostCID(cid)) throw exceptionTimeout(); //well it would have timed out if we had let it
     if (maxSize == 0) return;                     //skip because set to not pin
 
@@ -444,6 +435,7 @@ bool IPFS::isPinned(const string& cid) const {
 }
 
 unsigned int IPFS::getSize(const string& cid) const {
+    if (!isValidCID(cid)) throw exceptionInvalidCID();
     if (isLostCID(cid)) throw exceptionTimeout(); //well it would have timed out if we had let it
     string stats = _command("object/stat?arg=" + cid);
     Json::Value json;
@@ -467,6 +459,7 @@ unsigned int IPFS::getSize(const string& cid) const {
  * @param pinAlso - defaults false.  Set to true for downloading startup files that must be present for program to run
  */
 void IPFS::downloadFile(const string& cid, const string& filePath, bool pinAlso) {
+    if (!isValidCID(cid)) throw exceptionInvalidCID();
     if (isLostCID(cid)) throw exceptionTimeout(); //well it would have timed out if we had let it
     if (pinAlso) _command("pin/add/" + cid);
     _command("cat?arg=" + cid, {}, 0, filePath);
@@ -493,7 +486,8 @@ bool IPFS::isIPFSurl(const string& url) {
         }
     }
 
-    return true;
+    //check if remainder is a valid cid
+    return isValidCID(url.substr(prefixLength));
 }
 string IPFS::getPeerId() const {
     //get this machines ip address
@@ -518,4 +512,20 @@ std::string IPFS::getCID(const string& url) {
 }
 bool IPFS::isLostCID(const std::string& cid) {
     return std::binary_search(_knownLostCID.begin(), _knownLostCID.end(), cid);
+}
+
+/**
+ * A bit of a hacky method of removing known invalid CIDs.
+ * Would be nice to have this actually validate cid format but this works for all bad cids i have seen so far
+ * @param cid
+ * @return
+ */
+bool IPFS::isValidCID(const string& cid) {
+    //check if no cid provided
+    if (cid.empty()) return false;
+
+    //check only alphanumeric characters
+    return std::all_of(cid.begin(), cid.end(), [](unsigned char c) {
+        return std::isalnum(c);
+    });
 }
