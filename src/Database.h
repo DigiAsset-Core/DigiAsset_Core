@@ -113,9 +113,11 @@ private:
     sqlite3_stmt* _stmtPSPDeleteBadAsset = nullptr;
     sqlite3_stmt* _stmtDeletePermanent = nullptr;
     sqlite3_stmt* _stmtIsInPermanent = nullptr;
+    sqlite3_stmt* _stmtNumberOfIPFSJobs = nullptr;
 
     //locks
     std::mutex _mutexGetNextIPFSJob;
+    std::mutex _mutexRemoveIPFSJob;
 
     void buildTables(unsigned int dbVersionNumber = 0);
     void initializeClassValues();
@@ -224,6 +226,7 @@ public:
     std::promise<std::string>
     addIPFSJobPromise(const std::string& cid, const std::string& sync = "", unsigned int maxTime = 0);
     IPFSCallbackFunction& getIPFSCallback(const std::string& callbackSymbol);
+    unsigned int getIPFSJobCount();
 
     //DigiByte Domain table(these should only ever be called by DigiByteDomain.cpp
     void revokeDomain(const std::string& domain);

@@ -387,6 +387,9 @@ void Database::initializeClassValues() {
     rc = sqlite3_prepare_v2(_db, sql107, strlen(sql107), &_stmtSetIPFSLockJob, nullptr);
     if (rc != SQLITE_OK) throw exceptionCreatingStatement();
 
+    const char* sql108 = "SELECT count(*) FROM ipfs;";
+    rc = sqlite3_prepare_v2(_db, sql108, strlen(sql108), &_stmtNumberOfIPFSJobs, nullptr);
+    if (rc != SQLITE_OK) throw exceptionCreatingStatement();
 
     //DigiByte Domain statements
     const char* sql110 = "SELECT assetId,revoked FROM domains WHERE domain=?";
@@ -1640,6 +1643,19 @@ IPFSCallbackFunction& Database::getIPFSCallback(const string& callbackSymbol) {
 }
 
 /**
+ * Returns the number of pending jobs to be executed on IPFS network
+ * @return
+ */
+unsigned int Database::getIPFSJobCount() {
+    sqlite3_reset(_stmtNumberOfIPFSJobs);
+    int rc = executeSqliteStepWithRetry(_stmtNumberOfIPFSJobs);
+    if (rc != SQLITE_ROW) {
+        throw exceptionFailedSelect();
+    }
+    return sqlite3_column_int(_stmtNumberOfIPFSJobs, 0);
+}
+
+/**
  * Gets the next IPFS job that can be processed
  * @param jobIndex - number to refer back to this job for updating it
  * @param cid - cid of the file that should be downloaded or pinned
@@ -1768,6 +1784,9 @@ void Database::pauseIPFSSync(unsigned int jobIndex, const string& sync, unsigned
  * @param jobIndex
  */
 void Database::removeIPFSJob(unsigned int jobIndex, const string& sync) {
+    //make sure only 1 thread can call at a time
+    std::lock_guard<std::mutex> lock(_mutexRemoveIPFSJob);
+
     //remove from database
     sqlite3_reset(_stmtClearNextIPFSJob_a);
     sqlite3_bind_int(_stmtClearNextIPFSJob_a, 1, jobIndex);

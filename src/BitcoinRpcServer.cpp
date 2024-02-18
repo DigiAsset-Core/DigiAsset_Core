@@ -701,6 +701,15 @@ void BitcoinRpcServer::defineMethods() {
                     .name = "version",
                     .func = [this](const Json::Value& params) -> Value {
                         return getVersionString();
+                    }},
+            Method{
+                    /**
+                     * Returns the number of IPFS jobs in que
+                     */
+                    .name = "getipfscount",
+                    .func = [this](const Json::Value& params) -> Value {
+                        Database* db = AppMain::GetInstance()->getDatabase();
+                        return db->getIPFSJobCount();
                     }}};
 }
 
