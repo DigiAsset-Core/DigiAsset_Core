@@ -443,6 +443,10 @@ void BitcoinRpcServer::defineMethods() {
                             throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
                         }
 
+                        //look up how many assets exist
+                        asset.setCount(db->getTotalAssetCount(asset.getAssetIndex()));
+
+                        //return result
                         return asset.toJSON();
                     }},
             Method{

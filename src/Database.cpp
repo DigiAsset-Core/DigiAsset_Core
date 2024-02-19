@@ -237,6 +237,16 @@ void Database::initializeClassValues() {
     rc = sqlite3_prepare_v2(_db, sql48, strlen(sql48), &_stmtGetPermanentPaid, nullptr);
     if (rc != SQLITE_OK) throw exceptionCreatingStatement();
 
+    //statement to get number of assets that exist
+    const char* sql49a = "SELECT sum(amount) FROM utxos where assetIndex=? and heightDestroyed is null;";
+    rc = sqlite3_prepare_v2(_db, sql49a, strlen(sql49a), &_stmtGetTotalAssetCounta, nullptr);
+    if (rc != SQLITE_OK) throw exceptionCreatingStatement();
+    const char* sql49b = "SELECT sum(u.amount) as totalAmount\n"
+                         "FROM utxos u\n"
+                         "JOIN assets a ON u.assetIndex = a.assetIndex\n"
+                         "WHERE a.assetId = ? AND u.heightDestroyed IS NULL;";
+    rc = sqlite3_prepare_v2(_db, sql49b, strlen(sql49b), &_stmtGetTotalAssetCountb, nullptr);
+    if (rc != SQLITE_OK) throw exceptionCreatingStatement();
 
 
 
@@ -634,6 +644,8 @@ Database::~Database() {
     sqlite3_finalize(_stmtPSPDeleteBadAsset);
     sqlite3_finalize(_stmtDeletePermanent);
     sqlite3_finalize(_stmtIsInPermanent);
+    sqlite3_finalize(_stmtGetTotalAssetCounta);
+    sqlite3_finalize(_stmtGetTotalAssetCountb);
 }
 
 /*
@@ -1304,6 +1316,32 @@ std::vector<AssetHolder> Database::getAssetHolders(uint64_t assetIndex) const {
                 .count = count});
     }
     return result;
+}
+
+/**
+ * Returns the total number assets that exist of this specific type.
+ * The difference between this and the other getTotalAssetCount function is that if the asset has sub types this will only give total of the sub type provided
+ * @param assetIndex
+ * @return
+ */
+uint64_t Database::getTotalAssetCount(uint64_t assetIndex) const {
+    sqlite3_reset(_stmtGetTotalAssetCounta);
+    sqlite3_bind_int64(_stmtGetTotalAssetCounta, 1, assetIndex);
+    if (executeSqliteStepWithRetry(_stmtGetTotalAssetCounta) != SQLITE_ROW) throw exceptionFailedSelect();
+    return sqlite3_column_int64(_stmtGetTotalAssetCounta, 0);
+}
+
+/**
+ * Returns the total number assets that exist of this specific type.
+ * The difference between this and the other getTotalAssetCount function is this if the asset has sub types this will provide the total of all sub types
+ * @param assetIndex
+ * @return
+ */
+uint64_t Database::getTotalAssetCount(const string& assetId) const {
+    sqlite3_reset(_stmtGetTotalAssetCountb);
+    sqlite3_bind_text(_stmtGetTotalAssetCountb, 1, assetId.c_str(), assetId.length(), nullptr);
+    if (executeSqliteStepWithRetry(_stmtGetTotalAssetCountb) != SQLITE_ROW) throw exceptionFailedSelect();
+    return sqlite3_column_int64(_stmtGetTotalAssetCountb, 0);
 }
 
 /*

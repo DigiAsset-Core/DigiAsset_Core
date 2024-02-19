@@ -114,6 +114,8 @@ private:
     sqlite3_stmt* _stmtDeletePermanent = nullptr;
     sqlite3_stmt* _stmtIsInPermanent = nullptr;
     sqlite3_stmt* _stmtNumberOfIPFSJobs = nullptr;
+    sqlite3_stmt* _stmtGetTotalAssetCounta = nullptr;
+    sqlite3_stmt* _stmtGetTotalAssetCountb = nullptr;
 
     //locks
     std::mutex _mutexGetNextIPFSJob;
@@ -209,7 +211,8 @@ public:
     void pruneUTXO(unsigned int height);
     AssetUTXO getAssetUTXO(const std::string& txid, unsigned int vout);
     std::vector<AssetHolder> getAssetHolders(uint64_t assetIndex) const;
-    unsigned int getPermanentSize(const std::string& txid);
+    uint64_t getTotalAssetCount(uint64_t assetIndex) const; //returns total count of specific variant
+    uint64_t getTotalAssetCount(const std::string& assetId) const; //returns total count of specific asset(sum of all variants)
 
     //vote table
     void addVote(const std::string& address, unsigned int assetIndex, uint64_t count, unsigned int height);
