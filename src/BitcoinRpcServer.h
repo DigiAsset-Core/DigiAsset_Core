@@ -12,6 +12,9 @@
 #define RPC_INVALID_PARAMS (-32602)
 #define RPC_PARSE_ERROR (-32700)
 #define RPC_FORBIDDEN_BY_SAFE_MODE  (-2)
+#define RPC_MISC_ERROR (-1)
+
+
 
 
 #include <string>

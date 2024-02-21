@@ -149,6 +149,13 @@ private:
 public:
     static std::string _lastErrorMessage;
 
+    struct exchangeRateHistoryValue {
+        unsigned int height;
+        std::string address;
+        unsigned char index;
+        double value;
+    };
+
     //constructor
     Database(const std::string& newFileName = "chain.db");
     ~Database();
@@ -182,6 +189,7 @@ public:
     void pruneExchange(unsigned int height);
     double getAcceptedExchangeRate(const ExchangeRate& rate, unsigned int height) const;
     double getCurrentExchangeRate(const ExchangeRate& rate) const;
+    std::vector<exchangeRateHistoryValue> getExchangeRatesAtHeight(unsigned int height) const;
 
     //exchange watch table
     bool isWatchAddress(const std::string& address) const;

@@ -419,3 +419,6 @@ void ChainAnalyzer::processTX(const string& txid, unsigned int height) {
 int ChainAnalyzer::getSync() const {
     return _state;
 }
+unsigned int ChainAnalyzer::getSyncHeight() const {
+    return _height;
+}

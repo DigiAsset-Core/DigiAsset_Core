@@ -462,6 +462,129 @@ void BitcoinRpcServer::defineMethods() {
                     }},
             Method{
                     /**
+                     * Returns a list of all current exchange rates
+                     * params[0] - optional block height(if provided will give what the exchange rates where at that time)
+                     * Warning will throw error if height provided is above current sync height or if not provided sync is more then 120 blocks behind
+                     *  JSON array of objects, each containing:
+                     *    - "height": the block height this exchange rate was recorded at (integer)
+                     *    - "address": the address this exchange rate was recorded at (string)
+                     *    - "index": What index the recorded value was at (integer 0 to 9)
+                     *    - "value": the exchange rate value(double)
+                     *
+                     *    DGB has an implied value of 100000000 and is never included in the returned value
+                     *    To convert from one exchange rate to another use the formula
+                     *    inputAmount*inputRate/outputRate
+                     *    units will be same as units used for inputAmount
+                     *
+                     *    so for example if you wanted to convert from USD to DGB you would get the inputRate where
+                     *    address="dgb1qunxh378eltj2jrwza5sj9grvu5xud43vqvudwh" and index=1(see DigiAsset::standardExchangeRates in DigiAsset.cpp for standard exchange rate addresses and indexes)
+                     *    and use 100000000 as the outputRate
+                     */
+                    .name = "getexchangerates",
+                    .func = [this](const Json::Value& params) -> Value {
+                        unsigned int height;
+                        if (params.size() == 1) {
+                            //use height provided
+                            if (!params[0].isUInt()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+                            height=params[0].asUInt();
+                            if (height>_analyzer->getSyncHeight()) throw DigiByteException(RPC_MISC_ERROR, "Height out of range");
+
+                        } else if (params.size() == 0) {
+                            //find current height
+                            if (_analyzer->getSync()<-120) throw DigiByteException(RPC_MISC_ERROR,"To far behind to get current exchange rate");
+                            height=_analyzer->getSyncHeight();
+
+                        } else {
+                            throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+                        }
+
+                        //get desired exchange rates
+                        Database* db = AppMain::GetInstance()->getDatabase();
+                        vector<Database::exchangeRateHistoryValue> rates = db->getExchangeRatesAtHeight(height);
+
+                        //convert to json
+                        Value result=Json::arrayValue;
+                        for (const Database::exchangeRateHistoryValue& rate: rates) {
+                            Value entry=Json::objectValue;
+                            entry["height"]=rate.height;
+                            entry["address"]=rate.address;
+                            entry["index"]=rate.index;
+                            entry["value"]=rate.value;
+                            result.append(entry);
+                        }
+                        return result;
+                    }},
+            Method{
+                    /**
+                     * Returns current DGB equivalent for an exchange amount
+                     * params[0] - address(string)
+                     * params[1] - index(unsinged int between 0 and 9)
+                     * params[2] - fixed precision amount to convert.  8 decimals(unsigned int)
+                     * Warning will throw error if sync is more then 120 blocks behind
+                     *
+                     * return DGB sats
+                     */
+                    .name = "getdgbequivalent",
+                    .func = [this](const Json::Value& params) -> Value {
+                        unsigned int height;
+                        if (params.size() != 3) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+                        if (!params[0].isString()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+                        if (!params[1].isUInt()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+                        if (!params[2].isUInt64()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+                        if (_analyzer->getSync()<-120) throw DigiByteException(RPC_MISC_ERROR,"To far behind to get current exchange rate");
+
+                        string address=params[0].asString();
+                        uint8_t index=params[1].asUInt();
+                        uint64_t amount=params[2].asUInt64();
+
+                        //get desired exchange rates
+                        Database* db = AppMain::GetInstance()->getDatabase();
+                        double rate = db->getCurrentExchangeRate({address,index});
+
+                        //calculate number of DGB sats
+                        return static_cast<uint64_t>(ceil(amount*rate/100000000));
+                    }},
+            Method{
+                    /**
+                     * Returns address kyc information
+                     * params[0] - address(string)
+                     *
+                     * return {
+                     *      address: (string) containing requested address
+                     *
+                     *      #bellow only pressent if kyc verified
+                     *      country: (string) contain ISO 3166-1 alpha-3 country code
+                     *      name: (string optional) will contain either name or hash field but not both.  If name is omitted address has been verified that country is correct but is left anonymous
+                     *      hash: (string optional) will contain either name or hash field but not both.  Hash is sha256 of persons full name and a pin they provided at the time of verification.
+                     * }
+                     */
+                    .name = "getaddresskyc",
+                    .func = [this](const Json::Value& params) -> Value {
+                        unsigned int height;
+                        if (params.size() != 1) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+                        if (!params[0].isString()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+
+                        string address=params[0].asString();
+
+                        //get desired exchange rates
+                        Database* db = AppMain::GetInstance()->getDatabase();
+                        KYC data = db->getAddressKYC(address);
+
+                        Value result=Json::objectValue;
+                        result["address"]=address;
+                        if (data.valid()) {
+                            result["country"]=data.getCountry();
+                            string name=data.getName();
+                            if (!name.empty()) {
+                                result["name"]=name;
+                            } else {
+                                result["hash"]=data.getHash();
+                            }
+                        }
+                        return result;
+                    }},
+            Method{
+                    /**
                      * pins all ipfs meta data
                      * returns true - does not mean they are all downloaded yet.  Will likely take a while to finish
                      */

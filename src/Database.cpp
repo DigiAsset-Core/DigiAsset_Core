@@ -1403,6 +1403,25 @@ void Database::addWatchAddress(const string& address) {
  */
 
 /**
+ * Gets the excahnge rates at a specific height
+ * @param height
+ * @return
+ */
+vector<Database::exchangeRateHistoryValue> Database::getExchangeRatesAtHeight(unsigned int height) const {
+    vector<exchangeRateHistoryValue> firstEntry;
+    sqlite3_reset(_stmtExchangeRatesAtHeight);
+    sqlite3_bind_int(_stmtExchangeRatesAtHeight, 1, height);
+    while (executeSqliteStepWithRetry(_stmtExchangeRatesAtHeight) == SQLITE_ROW) {
+        firstEntry.push_back(exchangeRateHistoryValue{
+                .height = (unsigned int) sqlite3_column_int(_stmtExchangeRatesAtHeight, 0),
+                .address = reinterpret_cast<const char*>(sqlite3_column_text(_stmtExchangeRatesAtHeight, 1)),
+                .index = (unsigned char) sqlite3_column_int(_stmtExchangeRatesAtHeight, 2),
+                .value = sqlite3_column_double(_stmtExchangeRatesAtHeight, 3)});
+    }
+    return firstEntry;
+}
+
+/**
  * This function should only ever be called by the chain analyzer
  */
 void Database::addExchangeRate(const string& address, unsigned int index, unsigned int height, double exchangeRate) {
@@ -1425,24 +1444,8 @@ void Database::addExchangeRate(const string& address, unsigned int index, unsign
  * @param pruneHeight
  */
 void Database::pruneExchange(unsigned int pruneHeight) {
-    struct entry {
-        unsigned int height;
-        string address;
-        unsigned char index;
-        double value;
-    };
-
-    //we need to keep at least 1 value before prune height for each value so lets find the newest before prune height for each exchange rate
-    vector<entry> firstEntry;
-    sqlite3_reset(_stmtExchangeRatesAtHeight);
-    sqlite3_bind_int(_stmtExchangeRatesAtHeight, 1, pruneHeight - 1);
-    while (executeSqliteStepWithRetry(_stmtExchangeRatesAtHeight) == SQLITE_ROW) {
-        firstEntry.push_back(entry{
-                .height = (unsigned int) sqlite3_column_int(_stmtExchangeRatesAtHeight, 0),
-                .address = reinterpret_cast<const char*>(sqlite3_column_text(_stmtExchangeRatesAtHeight, 1)),
-                .index = (unsigned char) sqlite3_column_int(_stmtExchangeRatesAtHeight, 2),
-                .value = sqlite3_column_double(_stmtExchangeRatesAtHeight, 3)});
-    }
+    //we need to keep at least 1 value before prune height for each value so let's find the newest before prune height for each exchange rate
+    vector<exchangeRateHistoryValue> firstEntry=getExchangeRatesAtHeight(pruneHeight-1);
 
     //delete from exchange where pruneHeight<pruneHeight;
     sqlite3_reset(_stmtPruneExchangeRate);
@@ -1463,7 +1466,7 @@ void Database::pruneExchange(unsigned int pruneHeight) {
     }
 
     //add first valuessqlite3_bind_int back in to table
-    for (entry& kept: firstEntry) {
+    for (exchangeRateHistoryValue& kept: firstEntry) {
         addExchangeRate(kept.address, kept.index, kept.height, kept.value);
     }
 

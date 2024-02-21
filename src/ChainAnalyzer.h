@@ -47,6 +47,7 @@ public:
 
     //get state
     int getSync() const;
+    unsigned int getSyncHeight() const;
 
 private:
     std::string _configFileName = "config.cfg";
