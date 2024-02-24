@@ -910,6 +910,22 @@ uint64_t Database::getAssetIndex(const string& assetId, const string& txid, unsi
     throw out_of_range("assetId not found in utxo");
 }
 
+vector<uint64_t> Database::getAssetIndexs(const std::string& assetId) const {
+    vector<uint64_t> assetIndexes;
+
+    // Reset the prepared statement to its initial state and bind the assetId parameter
+    sqlite3_reset(_stmtGetAssetIndex);
+    sqlite3_bind_text(_stmtGetAssetIndex, 1, assetId.c_str(), -1, SQLITE_STATIC);
+
+    // Execute the query and collect all matching asset indexes
+    while (executeSqliteStepWithRetry(_stmtGetAssetIndex) == SQLITE_ROW) {
+        uint64_t assetIndex = sqlite3_column_int64(_stmtGetAssetIndex, 0);
+        assetIndexes.push_back(assetIndex);
+    }
+
+    return assetIndexes;
+}
+
 /*
 ███████╗██╗      █████╗  ██████╗     ████████╗ █████╗ ██████╗ ██╗     ███████╗
 ██╔════╝██║     ██╔══██╗██╔════╝     ╚══██╔══╝██╔══██╗██╔══██╗██║     ██╔════╝

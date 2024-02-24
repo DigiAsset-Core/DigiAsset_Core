@@ -400,6 +400,28 @@ void BitcoinRpcServer::defineMethods() {
                     }},
             Method{
                     /**
+                     * Returns a list of assetIndexs that belong to a specific assetId(most will have only 1)
+                     *
+                     * @return array of unsigned ints
+                     */
+                    .name = "getassetindexs",
+                    .func = [this](const Json::Value& params) -> Value {
+                        if (params.size() != 1) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+                        if (!params[0].isString()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+
+                        //look up holders
+                        Database* db = AppMain::GetInstance()->getDatabase();
+                        vector<uint64_t> results=db->getAssetIndexs(params[0].asString());
+
+                        //convert to json
+                        Value jsonArray=Json::arrayValue;
+                        for (const auto& result : results) {
+                            jsonArray.append(Json::Value::UInt64(result)); // Append each uint64_t value to the Json array
+                        }
+                        return jsonArray;
+                    }},
+            Method{
+                    /**
                      * Returns data about a specific asset
                      *
                      * Usage 1:
@@ -459,6 +481,27 @@ void BitcoinRpcServer::defineMethods() {
                         if (params.size() != 1) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
                         if (!params[0].isString()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
                         return DigiByteDomain::getAddress(params[0].asString());
+                    }},
+            Method{
+                    /**
+                     * Returns an object containing all addresses(keys) holding an asset and how many they have(values)
+                     *  params[0] - assetIndex(unsigned int)
+                     */
+                    .name = "getassetholders",
+                    .func = [this](const Json::Value& params) -> Value {
+                        if (params.size() != 1) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+                        if (!params[0].isUInt()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+
+                        //look up holders
+                        Database* db = AppMain::GetInstance()->getDatabase();
+                        vector<AssetHolder> holders=db->getAssetHolders(params[0].asUInt());
+
+                        //convert to an object
+                        Value result=Json::objectValue;
+                        for (const auto& holder : holders) {
+                            result[holder.address] = Json::Value::UInt64(holder.count);
+                        }
+                        return result;
                     }},
             Method{
                     /**
@@ -560,7 +603,6 @@ void BitcoinRpcServer::defineMethods() {
                      */
                     .name = "getaddresskyc",
                     .func = [this](const Json::Value& params) -> Value {
-                        unsigned int height;
                         if (params.size() != 1) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
                         if (!params[0].isString()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
 

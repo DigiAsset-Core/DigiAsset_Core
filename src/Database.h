@@ -173,6 +173,7 @@ public:
     uint64_t addAsset(const DigiAsset& asset);
     DigiAsset getAsset(uint64_t assetIndex, uint64_t amount = 0) const;
     uint64_t getAssetIndex(const std::string& assetId, const std::string& txid = "", unsigned int vout = 0) const;
+    std::vector<uint64_t> getAssetIndexs(const std::string& assetId) const;
 
     //assets table not to be used on assets that may have more than one assetIndex
     DigiAssetRules getRules(const std::string& assetId) const;
