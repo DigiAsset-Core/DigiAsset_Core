@@ -34,9 +34,6 @@ struct Method {
 };
 
 class BitcoinRpcServer {
-    DigiByteCore* _api;
-    ChainAnalyzer* _analyzer;
-
     boost::asio::io_service _io{};
     tcp::acceptor _acceptor{_io};
     std::string _username;
@@ -58,7 +55,7 @@ class BitcoinRpcServer {
     bool basicAuth(const std::string& header);
     static std::string getHeader(const std::string& headers, const std::string& wantedHeader);
 public:
-    BitcoinRpcServer(DigiByteCore& api, ChainAnalyzer& analyzer, const std::string& fileName = "config.cfg");
+    BitcoinRpcServer(const std::string& fileName = "config.cfg");
 
     void start();
     unsigned int getPort();

@@ -54,6 +54,7 @@ set(HEADER_FILES
         AppMain.h
         CurlHandler.h
         Version.h
+        OldStream.h
         )
 
 set(SOURCE_FILES
@@ -82,6 +83,7 @@ set(SOURCE_FILES
         PermanentStoragePool/pools/local.cpp
         AppMain.cpp
         CurlHandler.cpp
+        OldStream.cpp
         )
 
 add_executable(digiasset_core main.cpp ${SOURCE_FILES} ${HEADER_FILES})

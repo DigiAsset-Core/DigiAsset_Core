@@ -9,8 +9,10 @@
 #include "DigiByteDomain.h"
 #include "DigiByteTransaction.h"
 #include "Log.h"
+#include "OldStream.h"
 #include "PermanentStoragePool/PermanentStoragePoolList.h"
 #include "Version.h"
+#include "utils.h"
 #include <iostream>
 #include <jsonrpccpp/client.h>
 #include <jsonrpccpp/client/connectors/httpclient.h>
@@ -40,10 +42,7 @@ private:
 ███████║███████╗   ██║   ╚██████╔╝██║
 ╚══════╝╚══════╝   ╚═╝    ╚═════╝ ╚═╝
  */
-BitcoinRpcServer::BitcoinRpcServer(DigiByteCore& api, ChainAnalyzer& analyzer, const string& fileName) {
-    _api = &api;
-    _analyzer = &analyzer;
-
+BitcoinRpcServer::BitcoinRpcServer(const string& fileName) {
     Config config = Config(fileName);
     _username = config.getString("rpcuser");
     _password = config.getString("rpcpassword");
@@ -215,7 +214,7 @@ Value BitcoinRpcServer::handleRpcRequest(const Value& request) {
         break;
     }
     if (!methodFound) {
-        response["result"] = _api->sendcommand(methodName, params);
+        response["result"] = AppMain::GetInstance()->getDigiByteCore()->sendcommand(methodName, params);
     }
 
     //add the null error value to show no errors and return
@@ -282,7 +281,7 @@ void BitcoinRpcServer::defineMethods() {
                         if (!params[0].isString()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
 
                         //get what core wallet has to say
-                        Value rawTransactionData = _api->sendcommand("getrawtransaction", params);
+                        Value rawTransactionData = AppMain::GetInstance()->getDigiByteCore()->sendcommand("getrawtransaction", params);
                         if ((params.size() == 1) || (params[1].isBool() && params[1].asBool() == false)) {
                             return rawTransactionData;
                         }
@@ -291,6 +290,7 @@ void BitcoinRpcServer::defineMethods() {
                         DigiByteTransaction tx{params[0].asString()};
 
                         //convert to a value and return
+                        tx.lookupAssetIndexes();
                         return tx.toJSON(rawTransactionData);
                     }},
             Method{
@@ -319,7 +319,7 @@ void BitcoinRpcServer::defineMethods() {
                         }
 
                         //send modified params to wallet
-                        return _api->sendcommand("send", newParams);
+                        return AppMain::GetInstance()->getDigiByteCore()->sendcommand("send", newParams);
                     }},
             Method{
                     /**
@@ -360,7 +360,7 @@ void BitcoinRpcServer::defineMethods() {
                         }
 
                         //send modified params to wallet
-                        return _api->sendcommand("sendmany", newParams);
+                        return AppMain::GetInstance()->getDigiByteCore()->sendcommand("sendmany", newParams);
                     }},
             Method{
                     /**
@@ -383,7 +383,7 @@ void BitcoinRpcServer::defineMethods() {
                         }
 
                         //send modified params to wallet
-                        return _api->sendcommand("sendtoaddress", newParams);
+                        return AppMain::GetInstance()->getDigiByteCore()->sendcommand("sendtoaddress", newParams);
                     }},
 
 
@@ -392,26 +392,27 @@ void BitcoinRpcServer::defineMethods() {
             Method{
                     .name = "shutdown",
                     .func = [this](const Json::Value& params) -> Value {
-                        _analyzer->stop();
-                        AppMain::GetInstance()->getIPFS()->stop();
+                        AppMain* main=AppMain::GetInstance();
+                        main->getChainAnalyzer()->stop();
+                        main->getIPFS()->stop();
                         Log* log = Log::GetInstance();
                         log->addMessage("Safe to shut down", Log::CRITICAL);
                         return true;
                     }},
             Method{
                     /**
-                     * Returns a list of assetIndexs that belong to a specific assetId(most will have only 1)
+                     * Returns a list of assetIndexes that belong to a specific assetId(most will have only 1)
                      *
                      * @return array of unsigned ints
                      */
-                    .name = "getassetindexs",
+                    .name = "getassetindexes",
                     .func = [this](const Json::Value& params) -> Value {
                         if (params.size() != 1) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
                         if (!params[0].isString()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
 
                         //look up holders
                         Database* db = AppMain::GetInstance()->getDatabase();
-                        vector<uint64_t> results=db->getAssetIndexs(params[0].asString());
+                        vector<uint64_t> results= db->getAssetIndexes(params[0].asString());
 
                         //convert to json
                         Value jsonArray=Json::arrayValue;
@@ -526,16 +527,17 @@ void BitcoinRpcServer::defineMethods() {
                     .name = "getexchangerates",
                     .func = [this](const Json::Value& params) -> Value {
                         unsigned int height;
+                        ChainAnalyzer* analyzer=AppMain::GetInstance()->getChainAnalyzer();
                         if (params.size() == 1) {
                             //use height provided
                             if (!params[0].isUInt()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
                             height=params[0].asUInt();
-                            if (height>_analyzer->getSyncHeight()) throw DigiByteException(RPC_MISC_ERROR, "Height out of range");
+                            if (height>analyzer->getSyncHeight()) throw DigiByteException(RPC_MISC_ERROR, "Height out of range");
 
                         } else if (params.size() == 0) {
                             //find current height
-                            if (_analyzer->getSync()<-120) throw DigiByteException(RPC_MISC_ERROR,"To far behind to get current exchange rate");
-                            height=_analyzer->getSyncHeight();
+                            if (analyzer->getSync()<-120) throw DigiByteException(RPC_MISC_ERROR,"To far behind to get current exchange rate");
+                            height=analyzer->getSyncHeight();
 
                         } else {
                             throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
@@ -569,19 +571,20 @@ void BitcoinRpcServer::defineMethods() {
                      */
                     .name = "getdgbequivalent",
                     .func = [this](const Json::Value& params) -> Value {
+                        AppMain* main=AppMain::GetInstance();
                         unsigned int height;
                         if (params.size() != 3) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
                         if (!params[0].isString()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
                         if (!params[1].isUInt()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
                         if (!params[2].isUInt64()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
-                        if (_analyzer->getSync()<-120) throw DigiByteException(RPC_MISC_ERROR,"To far behind to get current exchange rate");
+                        if (main->getChainAnalyzer()->getSync()<-120) throw DigiByteException(RPC_MISC_ERROR,"To far behind to get current exchange rate");
 
                         string address=params[0].asString();
                         uint8_t index=params[1].asUInt();
                         uint64_t amount=params[2].asUInt64();
 
                         //get desired exchange rates
-                        Database* db = AppMain::GetInstance()->getDatabase();
+                        Database* db = main->getDatabase();
                         double rate = db->getCurrentExchangeRate({address,index});
 
                         //calculate number of DGB sats
@@ -655,8 +658,9 @@ void BitcoinRpcServer::defineMethods() {
                     .name = "syncstate",
                     .func = [this](const Json::Value& params) -> Value {
                         Value result = Value(Json::objectValue);
-                        result["count"] = _api->getBlockCount();
-                        result["sync"] = _analyzer->getSync();
+                        AppMain* main=AppMain::GetInstance();
+                        result["count"] = main->getDigiByteCore()->getBlockCount();
+                        result["sync"] = main->getChainAnalyzer()->getSync();
                         return result;
                     }},
             Method{
@@ -879,6 +883,91 @@ void BitcoinRpcServer::defineMethods() {
                     .func = [this](const Json::Value& params) -> Value {
                         Database* db = AppMain::GetInstance()->getDatabase();
                         return db->getIPFSJobCount();
+                    }},
+            Method{
+                    /**
+                     * This function will be depricated eventually and should not be used for new projects
+                     * Simulates old DigiAsset Stream
+                     *
+                     *  params[0] - key(string)
+                     *
+                     *  return matches https://github.com/digiassetX/digibyte-stream-types as close as possible
+                     */
+                    .name = "createoldstreamkey",
+                    .func = [this](const Json::Value& params) -> Value {
+                        if (params.size() != 1) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+
+                        // Start a detached thread to handle the operation
+                        std::thread([params]() {
+                            //make sure output file does not exist
+                            std::string filename = "stream/"+params[0].asString() + ".json";
+                            if (utils::fileExists(filename)) remove(filename.c_str());
+
+                            //process request
+                            Json::Value result;
+                            if (params[0].isUInt()) {
+                                result = OldStream::getKey(params[0].asUInt());
+                            } else if (params[0].isString()) {
+                                result = OldStream::getKey(params[0].asString());
+                            } else {
+                                throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+                            }
+
+                            // Add cacheTime with the current epoch time in seconds
+                            if (result.isObject()) {
+                                auto now = std::chrono::system_clock::now();
+                                auto epoch = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
+                                result["cacheTime"] = static_cast<Json::Int64>(epoch);
+                            }
+
+                            // Save the result to a file
+                            std::ofstream file(filename);
+                            if (file.is_open()) {
+                                Json::StreamWriterBuilder builder;
+                                const std::unique_ptr<Json::StreamWriter> writer(builder.newStreamWriter());
+                                writer->write(result, &file);
+                                file.close();
+                            } else {
+                                // Handle the error, e.g., throw an exception or log an error
+                            }
+                        }).detach();
+
+                        // Return a message indicating the operation is in progress
+                        return Json::Value(true);
+                    }},
+            Method{
+                    /**
+                     * This function will be depricated eventually and should not be used for new projects
+                     * Simulates old DigiAsset Stream
+                     *
+                     *  params[0] - key(string)
+                     *
+                     *  return matches https://github.com/digiassetX/digibyte-stream-types as close as possible
+                     */
+                    .name = "getoldstreamkey",
+                    .func = [this](const Json::Value& params) -> Value {
+                        if (params.size() != 1) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+
+                        // Construct the filename from the provided key
+                        std::string filename = "stream/" + params[0].asString() + ".json";
+
+                        // Check if the file exists
+                        if (!utils::fileExists(filename)) {
+                            return Json::Value(false); // File does not exist
+                        }
+
+                        // Open and read the file
+                        std::ifstream file(filename);
+                        if (file.is_open()) {
+                            Json::Value result;
+                            file >> result;
+                            file.close();
+                            return result; // Return the contents of the file
+                        } else {
+                            // If the file exists but cannot be opened, return false
+                            // This could indicate a permissions issue or a transient file system error
+                            return Json::Value(false);
+                        }
                     }}};
 }
 

@@ -499,7 +499,7 @@ void DigiByteTransaction::addToDatabase() {
             break;
         case DIGIASSET_ISSUANCE:
             //add to the database and get the asset index number
-            bool indexAlreadySet = (_newAsset.getAssetIndex() != 0);
+            bool indexAlreadySet=_newAsset.isAssetIndexSet();
             uint64_t assetIndex = db->addAsset(_newAsset);
 
             //see if part of a PSP and pin files for those we subscribe to
@@ -517,18 +517,20 @@ void DigiByteTransaction::addToDatabase() {
                     asset.setAssetIndex(assetIndex);
                 }
             }
+            if (isIssuance()) _newAsset.setAssetIndex(assetIndex);
             break;
     }
 
     //mark spent old UTXOs
     for (const AssetUTXO& vin: _inputs) {
         if (vin.txid == "") continue; //coinbase
-        db->spendUTXO(vin.txid, vin.vout, _height);
+        db->spendUTXO(vin.txid, vin.vout, _height,_txid);
     }
 
     //add utxos
+    bool isIssuance=(_txType==DIGIASSET_ISSUANCE);
     for (const AssetUTXO& vout: _outputs) {
-        db->createUTXO(vout, _height);
+        db->createUTXO(vout, _height,isIssuance);
     }
 
     //handle votes
@@ -542,6 +544,36 @@ void DigiByteTransaction::addToDatabase() {
 
     //finalise changes
     db->endTransaction();
+}
+
+/**
+ * If there is an asset issuance will lookup its assetIndex
+ * other then chain explorer that sets this through the addToDatabase function this should always be run before using getAssetIndex on any asset in
+ */
+void DigiByteTransaction::lookupAssetIndexes() {
+    //see if we even need to do the setting
+    if (!isIssuance()) return;
+    if (_newAsset.isAssetIndexSet()) return;
+
+    //find first vout with asset
+    unsigned int index;
+    for (const AssetUTXO& vout: _outputs) {
+        if (vout.assets.empty()) continue;
+        index=vout.vout;
+        break;
+    }
+
+    //lookup assetIndex from database
+    _newAsset.lookupAssetIndex(_txid,index);
+    uint64_t assetIndex=_newAsset.getAssetIndex();
+
+    //set all vouts
+    for (AssetUTXO& vout: _outputs) {
+        if (vout.assets.empty()) continue;
+        for (DigiAsset& asset: vout.assets) {
+            asset.setAssetIndex(assetIndex);
+        }
+    }
 }
 
 /**

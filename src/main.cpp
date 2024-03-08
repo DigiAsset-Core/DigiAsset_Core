@@ -30,6 +30,7 @@ int main() {
      */
     unsigned int pauseHeight = 0;
     if (config.getBool("bootstrapchainstate", true) && !utils::fileExists("chain.db")) {
+        log->addMessage("Bootstraping Database.  This may take a while depending on how faster your internet is.");
         IPFS ipfs("config.cfg", false);
         ipfs.downloadFile("Qme6x3nU9TuLxjGhhBWNoKMcKWA44w2z1v5rSHZHd4j2jF", "chain.db", true);
         pauseHeight = 18738063; ///when updating images always set this to 1 greater than largest height in blocks table
@@ -95,6 +96,7 @@ int main() {
     ChainAnalyzer analyzer;
     analyzer.loadConfig();
     analyzer.start();
+    main->setChainAnalyzer(&analyzer);
     //analyzer.stop();
 
     /**
@@ -103,7 +105,7 @@ int main() {
 
     try {
         // Create and start the Bitcoin RPC server
-        BitcoinRpcServer server(dgb, analyzer);
+        BitcoinRpcServer server;
         server.start();
 
     } catch (const std::exception& e) {

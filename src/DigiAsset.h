@@ -63,7 +63,7 @@ public:
     static const unsigned int EXCHANGE_RATE_LENIENCY = 240; //number of blocks off exchange rate can be and still be excepted
     static const unsigned char AGGREGABLE = 0;
     static const unsigned char HYBRID = 1;
-    static const unsigned char DISTINCT = 2;
+    static const unsigned char DISPERSED = 2;
 
     static const ExchangeRate standardExchangeRates[];
     static const size_t standardExchangeRatesCount = 20;
@@ -96,6 +96,8 @@ public:
     uint8_t getDecimals() const;
 
     uint64_t getAssetIndex() const;
+    bool isAssetIndexSet() const;
+    void lookupAssetIndex(const std::string& txid, unsigned int vout);
     void setAssetIndex(uint64_t assetIndex);
     std::string getAssetId() const;
     std::string getCID() const;
@@ -109,7 +111,7 @@ public:
 
     bool isHybrid() const;
     bool isAggregable() const;
-    bool isDistinct() const;
+    bool isDispersed() const;
     bool isLocked() const;
 
     //functions that can only be used on assets we own and can be edited(or new assets not on chain)
@@ -160,6 +162,14 @@ public:
     public:
         char* what() {
             _lastErrorMessage = "Asset value is write protected"; //running setOwned may fix problem if it doesn't value can not be changed
+            return const_cast<char*>(_lastErrorMessage.c_str());
+        }
+    };
+
+    class exceptionUnknownAssetIndex : public exception {
+    public:
+        char* what() {
+            _lastErrorMessage = "The asset has either not been added to database yet or have not looked it up yet"; //running setOwned may fix problem if it doesn't value can not be changed
             return const_cast<char*>(_lastErrorMessage.c_str());
         }
     };

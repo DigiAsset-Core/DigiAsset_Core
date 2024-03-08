@@ -64,6 +64,8 @@ public:
     std::string getBlockHash(uint height);
     blockinfo_t getBlock(const std::string& hash);
     getrawtransaction_t getRawTransaction(const std::string& txid);
+    std::vector<unspenttxout_t> listUnspent(int minconf = 1, int maxconf = 99999999, const std::vector<std::string>& addresses={});
+    getaddressinfo_t getAddressInfo(const std::string& address);
 
 
     /* === Auxiliary functions === */
@@ -146,7 +148,7 @@ public:
     utxoinfo_t gettxout(const std::string& txid, int n, bool includemempool = true);
     utxosetinfo_t gettxoutsetinfo();
 
-    std::vector<unspenttxout_t> listunspent(int minconf = 1, int maxconf = 999999);
+    std::vector<unspenttxout_t> listunspent(int minconf = 1, int maxconf = 99999999, const std::vector<std::string>& addresses={});
     std::vector<txout_t> listlockunspent();
     bool lockunspent(bool unlock, const std::vector<txout_t>& outputs);
 

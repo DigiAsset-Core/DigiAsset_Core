@@ -64,6 +64,7 @@ public:
     DigiByteTransaction(const std::string& txid, unsigned int height = 0);
 
     void addToDatabase();
+    void lookupAssetIndexes();
 
     bool isStandardTransaction() const;
 
