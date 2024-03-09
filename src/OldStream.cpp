@@ -6,6 +6,7 @@
 #include "AppMain.h"
 #include "Database.h"
 #include "Log.h"
+#include "utils.h"
 #include <jsonrpccpp/client.h>
 #include <jsonrpccpp/client/connectors/httpclient.h>
 #include <set>
@@ -798,12 +799,14 @@ namespace OldStream {
 
 
 
-    Json::Value getKey(unsigned int key) {
-        string hash=AppMain::GetInstance()->getDigiByteCore()->getBlockHash(key);
-        return getDigiByteBlockData(hash);
-    }
     Json::Value getKey(const string& key) {
         if (key.empty()) return Json::objectValue;  //just return empty for empty key
+
+        //check if key is integer
+        if (utils::isInteger(key)) {
+            string hash=AppMain::GetInstance()->getDigiByteCore()->getBlockHash(atoi(key.c_str()));
+            return getDigiByteBlockData(hash);
+        }
 
         //check if key is a hash
         if (key.length()==64) {

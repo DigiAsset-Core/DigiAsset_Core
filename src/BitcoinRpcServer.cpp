@@ -931,12 +931,16 @@ void BitcoinRpcServer::defineMethods() {
                         }
 
                         //add to que
-                        string key = params[0].asString();
+                        string key;
+                        if (params[0].isInt()) {
+                            key= to_string(params[0].asInt());
+                        } else if (params[0].isString()){
+                            key = params[0].asString();
+                        } else {
+                            throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+                        }
                         _taskQueue.enqueue(key);
                         return _taskQueue.length();
-
-                        // Return a message indicating the operation is in progress
-                        return {true};
                     }},
             Method{
                     /**
@@ -957,7 +961,7 @@ void BitcoinRpcServer::defineMethods() {
 
                         // Check if the file exists
                         if (!utils::fileExists(filename)) {
-                            return Json::Value(false); // File does not exist
+                            return {false}; // File does not exist
                         }
 
                         // Open and read the file
@@ -970,7 +974,7 @@ void BitcoinRpcServer::defineMethods() {
                         } else {
                             // If the file exists but cannot be opened, return false
                             // This could indicate a permissions issue or a transient file system error
-                            return Json::Value(false);
+                            return {false};
                         }
                     }}};
 }

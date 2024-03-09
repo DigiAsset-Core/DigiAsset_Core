@@ -67,4 +67,16 @@ namespace utils {
         struct stat buffer {};
         return (stat(fileName.c_str(), &buffer) == 0);
     }
+
+    /**
+     * Returns if a string contains an integer
+     * @param s
+     * @return
+     */
+    bool isInteger(const std::string& s) {
+        std::istringstream iss(s);
+        int n;
+        iss >> n;
+        return iss.eof() && !iss.fail(); // Check if reading was successful and the entire string was consumed
+    }
 } // namespace utils

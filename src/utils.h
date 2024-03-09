@@ -18,6 +18,7 @@ namespace utils {
     std::vector<std::string> split(const std::string& s, char delimiter);
     std::string generateRandom(unsigned char length, CodeType type);
     bool fileExists(const std::string& fileName);
+    bool isInteger(const std::string& s);
 
 } // namespace utils
 
