@@ -23,6 +23,7 @@
 #include <jsonrpccpp/server/connectors/httpserver.h>
 #include "DigiByteCore.h"
 #include "ChainAnalyzer.h"
+#include "UniqueTaskQueue.h"
 
 using namespace std;
 using namespace jsonrpc;
@@ -34,6 +35,9 @@ struct Method {
 };
 
 class BitcoinRpcServer {
+    UniqueTaskQueue _taskQueue;
+    std::atomic<bool> _processingThreadStarted{false};
+
     boost::asio::io_service _io{};
     tcp::acceptor _acceptor{_io};
     std::string _username;

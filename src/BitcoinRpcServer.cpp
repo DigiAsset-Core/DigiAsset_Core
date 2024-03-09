@@ -891,49 +891,52 @@ void BitcoinRpcServer::defineMethods() {
                      *
                      *  params[0] - key(string)
                      *
-                     *  return matches https://github.com/digiassetX/digibyte-stream-types as close as possible
+                     *  returns the number of items in the job que
                      */
                     .name = "createoldstreamkey",
                     .func = [this](const Json::Value& params) -> Value {
                         if (params.size() != 1) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
 
-                        // Start a detached thread to handle the operation
-                        std::thread([params]() {
-                            //make sure output file does not exist
-                            std::string filename = "stream/"+params[0].asString() + ".json";
-                            if (utils::fileExists(filename)) remove(filename.c_str());
+                        //make sure que is being processed
+                        if (!_processingThreadStarted.exchange(true)) {
+                            std::thread([this]() {
+                                while (true) {
+                                    //get key
+                                    string key = _taskQueue.dequeue(); // This will block if the queue is empty
 
-                            //process request
-                            Json::Value result;
-                            if (params[0].isUInt()) {
-                                result = OldStream::getKey(params[0].asUInt());
-                            } else if (params[0].isString()) {
-                                result = OldStream::getKey(params[0].asString());
-                            } else {
-                                throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
-                            }
+                                    //process request
+                                    Json::Value result = OldStream::getKey(key);
 
-                            // Add cacheTime with the current epoch time in seconds
-                            if (result.isObject()) {
-                                auto now = std::chrono::system_clock::now();
-                                auto epoch = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
-                                result["cacheTime"] = static_cast<Json::Int64>(epoch);
-                            }
+                                    // Add cacheTime with the current epoch time in seconds
+                                    if (result.isObject()) {
+                                        auto now = std::chrono::system_clock::now();
+                                        auto epoch = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
+                                        result["cacheTime"] = static_cast<Json::Int64>(epoch);
+                                    }
 
-                            // Save the result to a file
-                            std::ofstream file(filename);
-                            if (file.is_open()) {
-                                Json::StreamWriterBuilder builder;
-                                const std::unique_ptr<Json::StreamWriter> writer(builder.newStreamWriter());
-                                writer->write(result, &file);
-                                file.close();
-                            } else {
-                                // Handle the error, e.g., throw an exception or log an error
-                            }
-                        }).detach();
+                                    // Save the result to a file
+                                    std::string filename = "stream/" + key + ".json";
+                                    if (utils::fileExists(filename)) remove(filename.c_str());
+                                    std::ofstream file(filename);
+                                    if (file.is_open()) {
+                                        Json::StreamWriterBuilder builder;
+                                        const std::unique_ptr<Json::StreamWriter> writer(builder.newStreamWriter());
+                                        writer->write(result, &file);
+                                        file.close();
+                                    } else {
+                                        // Handle the error, e.g., throw an exception or log an error
+                                    }
+                                }
+                            }).detach();
+                        }
+
+                        //add to que
+                        string key = params[0].asString();
+                        _taskQueue.enqueue(key);
+                        return _taskQueue.length();
 
                         // Return a message indicating the operation is in progress
-                        return Json::Value(true);
+                        return {true};
                     }},
             Method{
                     /**
@@ -943,6 +946,7 @@ void BitcoinRpcServer::defineMethods() {
                      *  params[0] - key(string)
                      *
                      *  return matches https://github.com/digiassetX/digibyte-stream-types as close as possible
+                     *  returns false if no cache created
                      */
                     .name = "getoldstreamkey",
                     .func = [this](const Json::Value& params) -> Value {

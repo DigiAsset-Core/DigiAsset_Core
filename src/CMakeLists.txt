@@ -55,6 +55,7 @@ set(HEADER_FILES
         CurlHandler.h
         Version.h
         OldStream.h
+        UniqueTaskQueue.h
         )
 
 set(SOURCE_FILES
@@ -84,6 +85,7 @@ set(SOURCE_FILES
         AppMain.cpp
         CurlHandler.cpp
         OldStream.cpp
+        UniqueTaskQueue.cpp
         )
 
 add_executable(digiasset_core main.cpp ${SOURCE_FILES} ${HEADER_FILES})

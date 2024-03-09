@@ -1262,6 +1262,7 @@ std::vector<AssetUTXO> Database::getAddressUTXOs(const string& address) {
                 entry.digibyte = 0;
                 entry.assets = {};
             }
+            lastTxid=txid;
 
             //add current row data
             if (assetIndex == 1) {
