@@ -957,7 +957,15 @@ void BitcoinRpcServer::defineMethods() {
                         if (params.size() != 1) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
 
                         // Construct the filename from the provided key
-                        std::string filename = "stream/" + params[0].asString() + ".json";
+                        string key;
+                        if (params[0].isInt()) {
+                            key= to_string(params[0].asInt());
+                        } else if (params[0].isString()){
+                            key = params[0].asString();
+                        } else {
+                            throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+                        }
+                        std::string filename = "stream/" + key + ".json";
 
                         // Check if the file exists
                         if (!utils::fileExists(filename)) {
