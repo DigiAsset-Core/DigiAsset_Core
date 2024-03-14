@@ -3,9 +3,11 @@
 //
 
 #include "utils.h"
+#include <jsoncpp/json/value.h>
 #include <random>
 #include <sstream>
 #include <sys/stat.h>
+#include <iostream>
 
 namespace utils {
 
@@ -78,5 +80,13 @@ namespace utils {
         int n;
         iss >> n;
         return iss.eof() && !iss.fail(); // Check if reading was successful and the entire string was consumed
+    }
+
+    /**
+     * Function to help debug Json values
+     * @param params
+     */
+    void printJson(const Json::Value& params) {
+        std::cout << params.toStyledString() << std::endl;
     }
 } // namespace utils

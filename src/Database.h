@@ -344,7 +344,7 @@ public:
     std::vector<std::string> getAssetTxHistory(const std::string& assetId);
 
     //utxo table address related
-    std::vector<AssetUTXO> getAddressUTXOs(const std::string& address);
+    std::vector<AssetUTXO> getAddressUTXOs(const std::string& address, unsigned int minConfirms=0, unsigned int maxConfrims=std::numeric_limits<unsigned int>::max());
     std::vector<std::string> getAddressTxList(const std::string& address);
     std::vector<uint64_t> getAssetsCreatedByAddress(const std::string& address);
 

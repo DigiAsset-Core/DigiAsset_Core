@@ -299,7 +299,7 @@ void Database::initializeClassValues() {
                                          "ORDER BY height ASC;");
 
     //statement to get valid utxos for a given address
-    _stmtGetValidUTXO.prepare(_db,"SELECT `txid`,`vout`,`aout`,`assetIndex`,`amount` FROM utxos WHERE heightDestroyed IS NULL AND address=? ORDER BY txid ASC, vout ASC, aout ASC;");
+    _stmtGetValidUTXO.prepare(_db,"SELECT `txid`,`vout`,`aout`,`assetIndex`,`amount` FROM utxos WHERE heightDestroyed IS NULL AND address=? AND heightCreated>=? AND heightCreated<=? ORDER BY txid ASC, vout ASC, aout ASC;");
 
 
 
@@ -1228,16 +1228,25 @@ AssetUTXO Database::getAssetUTXO(const string& txid, unsigned int vout) {
  * @param address
  * @return
  */
-std::vector<AssetUTXO> Database::getAddressUTXOs(const string& address) {
+std::vector<AssetUTXO> Database::getAddressUTXOs(const string& address, unsigned int minConfirms, unsigned int maxConfirms) {
     vector<AssetUTXO> results;
     AssetUTXO entry;
     entry.address=address;
+
+    //find acceptable search heights
+    DigiByteCore* dgb=AppMain::GetInstance()->getDigiByteCore();
+    unsigned int currentHeight=dgb->getBlockCount();
+    unsigned int minConfirmHeight=currentHeight-minConfirms+1;
+    unsigned int maxConfirmHeight=0;
+    if (maxConfirms<currentHeight) maxConfirmHeight=currentHeight-maxConfirms+1;
 
     //get all utxos that include DigiAssets
     Blob lastTxid{"00"};
     {
         auto getValidUTXO = _stmtGetValidUTXO.lock();
         getValidUTXO.bindText(1, address, SQLITE_STATIC);
+        getValidUTXO.bindInt(2,maxConfirmHeight);   //max confirms height will be lower bound
+        getValidUTXO.bindInt(3,minConfirmHeight);
         int lastVout=-1;
         while (getValidUTXO.executeStep() == SQLITE_ROW) {
             //get next row value
@@ -1283,10 +1292,9 @@ std::vector<AssetUTXO> Database::getAddressUTXOs(const string& address) {
     //check if there are any non asset utxo missing from the database
     if (getBeenPrunedNonAssetUTXOHistory()) {
         //see if we can get the rest of the data from the wallet
-        DigiByteCore* dgb=AppMain::GetInstance()->getDigiByteCore();
         vector<unspenttxout_t> walletUtxoData;
         try {
-            walletUtxoData=dgb->listUnspent(1,99999999,{address});
+            walletUtxoData=dgb->listUnspent(minConfirms,maxConfirms,{address});
         } catch (...) {
             //ignore errors
         }
