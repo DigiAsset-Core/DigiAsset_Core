@@ -1,4 +1,23 @@
-## install ubuntu
+## Table of Contents
+1. [Install Ubuntu](#install-ubuntu)
+2. [Increase Swap Size](#increase-swap-size)
+3. [Install DigiByte](#install-digibyte)
+4. [Install Dependencies](#install-dependencies)
+5. [Install VCPKG](#install-vcpkg)
+6. [Install Standard C++ Dependencies](#install-standard-c-dependencies)
+7. [Update CMAKE](#update-cmake)
+8. [Install IPFS Desktop](#install-ipfs-desktop)
+9. [Set IPFS to Run on Boot](#set-ipfs-to-run-on-boot)
+10. [Build DigiAsset Core](#build-digiasset-core)
+11. [Configure DigiAsset Core](#configure-digiasset-core)
+12. [Set DigiAsset Core to Run at Boot](#set-digiasset-core-to-run-at-boot)
+13. [Upgrading DigiAsset Core](#upgrading-digiasset-core)
+14. [Other Notes](#other-notes)
+15. [Special Thanks](#special-thanks)
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+## Install Ubuntu
 
 Ideally this should work on all OS. So far it has only been tested on:
 
@@ -275,11 +294,27 @@ Start the service
 sudo systemctl start digiasset_core.service
 ```
 
+## Upgrading DigiAsset Core
+
+When a new version is available you can upgrade by running the following commands
+```bash
+cd DigiAsset_Core/bin
+./digiasset_core-cli shutdown
+sudo systemctl stop digiasset_core.service
+git pull
+git submodule update --init --recursive
+cd build
+cmake -B . -S .. -DCMAKE_TOOLCHAIN_FILE=/opt/vcpkg/scripts/buildsystems/vcpkg.cmake
+cmake --build .
+mv src/digiasset_core ../bin
+mv cli/digiasset_core-cli ../bin
+cd ../bin
+sudo systemctl start digiasset_core.service
+```
+
 ### Other Notes
 
 - If submitting pull requests please utilize the .clang-format file to keep things standardized.
-
-- There are instructions on how to bootstrap the blockchain in bin/readme.md
 
 ---
 
