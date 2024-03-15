@@ -316,7 +316,7 @@ DigiAsset::DigiAsset(uint64_t assetIndex, const string& assetId, const string& c
             _aggregation = AGGREGABLE;
             break;
         case 'd':
-            _aggregation = DISTINCT;
+            _aggregation = DISPERSED;
             break;
         case 'h':
             _aggregation = HYBRID;
@@ -618,6 +618,7 @@ std::string DigiAsset::getCID() const {
  * 1 and up - assetIndex.  This value is only valid on this particular node.
  */
 uint64_t DigiAsset::getAssetIndex() const {
+    if (_assetIndex==0) throw exceptionUnknownAssetIndex();
     return _assetIndex;
 }
 
@@ -632,7 +633,7 @@ void DigiAsset::setAssetIndex(uint64_t assetIndex) {
 
 /**
  * Returns if hybrid asset
- * Hybrid is like a mixture of aggregable and distinct.  You can create multiple chunks of assets each chunk being a sub
+ * Hybrid is like a mixture of aggregable and dispersed.  You can create multiple chunks of assets each chunk being a sub
  * asset.  As you send assets they can be split up and tracked but they don't recombine to save space like aggregable assets do.
  */
 bool DigiAsset::isHybrid() const {
@@ -649,13 +650,13 @@ bool DigiAsset::isAggregable() const {
 }
 
 /**
- * Returns if the asset is distinct
- * Distinct assets can be individually tracked through the chain.
+ * Returns if the asset is dispersed
+ * Dispersed assets can be individually tracked through the chain.
  * Under most circumstances you would want them to be unlocked and issued 1 at a time so each is unique but all share the
  * same assetId.  assetIndex is used internally to tell them apart
  */
-bool DigiAsset::isDistinct() const {
-    return (_aggregation == DISTINCT);
+bool DigiAsset::isDispersed() const {
+    return (_aggregation == DISPERSED);
 }
 
 /**
@@ -1003,4 +1004,17 @@ Value DigiAsset::toJSON(bool simplified) const {
     result["issuer"] = kycObj;
 
     return result;
+}
+
+/**
+ * when loading already existing assets use this command to lookup assetIndex.
+ * Will do nothing if already known
+ */
+void DigiAsset::lookupAssetIndex(const string& txid, unsigned int vout) {
+    if (_assetIndex>0) return;
+    Database* db=AppMain::GetInstance()->getDatabase();
+    _assetIndex=db->getAssetIndex(_assetId,txid,vout);
+}
+bool DigiAsset::isAssetIndexSet() const {
+    return _assetIndex!=0;
 }

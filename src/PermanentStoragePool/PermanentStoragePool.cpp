@@ -5,6 +5,7 @@
 #include "PermanentStoragePool.h"
 #include "AppMain.h"
 #include "Config.h"
+#include "Log.h"
 #include "static_block.hpp"
 
 
@@ -29,7 +30,13 @@ void PermanentStoragePool::setPoolIndexAndInitialize(unsigned int index, const C
             vector<string> addresses = dgb->getaddressesbylabel(_payoutAddress);
             _payoutAddress = addresses[0];
         } catch (const DigiByteException& e) {
-            _payoutAddress = dgb->getnewaddress(_payoutAddress);
+            try {
+                _payoutAddress = dgb->getnewaddress(_payoutAddress);
+            } catch (const DigiByteException& e) {
+                Log* log=Log::GetInstance();
+                log->addMessage("Could not generate new PSP payout address",Log::CRITICAL);
+                throw;
+            }
         }
     }
 

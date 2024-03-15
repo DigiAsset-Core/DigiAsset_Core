@@ -9,8 +9,10 @@
 #include "DigiByteDomain.h"
 #include "DigiByteTransaction.h"
 #include "Log.h"
+#include "OldStream.h"
 #include "PermanentStoragePool/PermanentStoragePoolList.h"
 #include "Version.h"
+#include "utils.h"
 #include <iostream>
 #include <jsonrpccpp/client.h>
 #include <jsonrpccpp/client/connectors/httpclient.h>
@@ -40,10 +42,7 @@ private:
 ███████║███████╗   ██║   ╚██████╔╝██║
 ╚══════╝╚══════╝   ╚═╝    ╚═════╝ ╚═╝
  */
-BitcoinRpcServer::BitcoinRpcServer(DigiByteCore& api, ChainAnalyzer& analyzer, const string& fileName) {
-    _api = &api;
-    _analyzer = &analyzer;
-
+BitcoinRpcServer::BitcoinRpcServer(const string& fileName) {
     Config config = Config(fileName);
     _username = config.getString("rpcuser");
     _password = config.getString("rpcpassword");
@@ -215,7 +214,7 @@ Value BitcoinRpcServer::handleRpcRequest(const Value& request) {
         break;
     }
     if (!methodFound) {
-        response["result"] = _api->sendcommand(methodName, params);
+        response["result"] = AppMain::GetInstance()->getDigiByteCore()->sendcommand(methodName, params);
     }
 
     //add the null error value to show no errors and return
@@ -282,7 +281,7 @@ void BitcoinRpcServer::defineMethods() {
                         if (!params[0].isString()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
 
                         //get what core wallet has to say
-                        Value rawTransactionData = _api->sendcommand("getrawtransaction", params);
+                        Value rawTransactionData = AppMain::GetInstance()->getDigiByteCore()->sendcommand("getrawtransaction", params);
                         if ((params.size() == 1) || (params[1].isBool() && params[1].asBool() == false)) {
                             return rawTransactionData;
                         }
@@ -291,6 +290,7 @@ void BitcoinRpcServer::defineMethods() {
                         DigiByteTransaction tx{params[0].asString()};
 
                         //convert to a value and return
+                        tx.lookupAssetIndexes();
                         return tx.toJSON(rawTransactionData);
                     }},
             Method{
@@ -319,7 +319,7 @@ void BitcoinRpcServer::defineMethods() {
                         }
 
                         //send modified params to wallet
-                        return _api->sendcommand("send", newParams);
+                        return AppMain::GetInstance()->getDigiByteCore()->sendcommand("send", newParams);
                     }},
             Method{
                     /**
@@ -360,7 +360,7 @@ void BitcoinRpcServer::defineMethods() {
                         }
 
                         //send modified params to wallet
-                        return _api->sendcommand("sendmany", newParams);
+                        return AppMain::GetInstance()->getDigiByteCore()->sendcommand("sendmany", newParams);
                     }},
             Method{
                     /**
@@ -383,7 +383,205 @@ void BitcoinRpcServer::defineMethods() {
                         }
 
                         //send modified params to wallet
-                        return _api->sendcommand("sendtoaddress", newParams);
+                        return AppMain::GetInstance()->getDigiByteCore()->sendcommand("sendtoaddress", newParams);
+                    }},
+            Method{
+                    /**
+                     * Returns a list of utxos for the wallet or provided addresses
+                     *  params[0] - min confirms(optional default 1)
+                     *  params[1] - max confirms(optional default infinity)
+                     *  params[2] - address list(optional all wallet addresses)
+                     *  params[3] - include unsafe(optional - always true no matter what is put in here)
+                     *  params[4] - query options(optional object)
+                     *     {
+                     *       "minimumAmount": amount,       (numeric or string, optional, default=0) Minimum value of **EACH** UTXO in DGB
+                     *       "maximumAmount": amount,       (numeric or string, optional, default=unlimited) Maximum value of **EACH** UTXO in DGB
+                     *       "maximumCount": n,             (numeric, optional, default=unlimited) Maximum number of UTXOs
+                     *       "minimumSumAmount": amount,    (numeric or string, optional, default=unlimited) Minimum sum value of all UTXOs in DGB(stops processing once reached will still return what is found if not reached)
+                     *       "includeAsset": index,         (numeric, bool, or string, default=true) if as string returns only asset utxo with that assetId,
+                     *                                                                               if as integer returns only asset utxo with that assetIndex(faster),
+                     *                                                                               if true returns all utxo
+                     *                                                                               if false returns only funds utxos
+                     *       "detailedAssetData": bool      (bool, optional=false) if true includes detailed asset data.  if false use getassetdata to get
+                     *     }
+                     *
+                     *
+                     * if addresses provided that are not part of wallet it will only return asset utxo unless storenonassetutxo is true                     *
+                     */
+                    .name = "listunspent",
+                    .func = [this](const Json::Value& params) -> Value {
+                        if (params.size() >5) {
+                            throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+                        }
+
+                        //get min confirms default is 1
+                        unsigned int minConfirm=1;
+                        if (params.size()>0) {
+                            if (params[0].isUInt()) {
+                                minConfirm = params[0].asUInt();
+                            } else if (!params[0].isNull()) {
+                                throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+                            }
+                        }
+
+                        //get max confirms default is infinity
+                        unsigned int maxConfirm=std::numeric_limits<unsigned int>::max();
+                        if (params.size()>1) {
+                            if (params[1].isUInt()) {
+                                maxConfirm = params[1].asUInt();
+                            } else if (!params[1].isNull()) {
+                                throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+                            }
+                        }
+
+                        //get addresses
+                        vector<string> addresses;
+                        if ((params.size()>2)&&(!params[2].isNull())) {
+                            if (!params[2].isArray()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+
+                            //use provided list
+                            for (const auto& address: params[2]) {
+                                addresses.emplace_back(address.asString());
+                            }
+                        } else {
+                            //get list from wallet
+                            DigiByteCore* dgb=AppMain::GetInstance()->getDigiByteCore();
+                            auto labels=dgb->listlabels();
+                            for (const auto& label: labels) {
+                                auto addressList=dgb->getaddressesbylabel(label);
+                                for (const auto& address: addressList) {
+                                    addresses.emplace_back(address);
+                                }
+                            }
+                        }
+
+                        //get query options
+                        uint64_t minAmount=0;
+                        uint64_t maxAmount=std::numeric_limits<uint64_t>::max();
+                        unsigned int maxCount=std::numeric_limits<unsigned int>::max();
+                        double minSumAmount=INFINITY;
+                        bool returnDigiAssets=true;
+                        uint64_t restrictDigiAssetIndex=0;
+                        string restrictDigiAsset;
+                        bool detailedAssetData=false;
+                        if (params.size()==5) {
+                            if (!params[4].isObject()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+
+                            if (params[4].isMember("minimumAmount")) {
+                                if (params[4]["minimumAmount"].isDouble()) {
+                                    minAmount=params[4]["minimumAmount"].asDouble();//todo convert to sats
+                                } else {
+                                    throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+                                }
+                            }
+
+                            if (params[4].isMember("maximumAmount")) {
+                                if (params[4]["maximumAmount"].isDouble()) {
+                                    maxAmount=params[4]["maximumAmount"].asDouble();//todo convert to sats
+                                } else {
+                                    throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+                                }
+                                if (maxAmount<minAmount) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+                            }
+
+                            if (params[4].isMember("minimumSumAmount")) {
+                                if (params[4]["minimumSumAmount"].isDouble()) {
+                                    minSumAmount=params[4]["minimumSumAmount"].asDouble();
+                                } else {
+                                    throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+                                }
+                            }
+
+                            if (params[4].isMember("includeAsset")) {
+                                if (params[4]["includeAsset"].isUInt64()) {
+                                    restrictDigiAssetIndex=params[4]["includeAsset"].asUInt64();
+                                } else if (params[4]["includeAsset"].isString()) {
+                                    restrictDigiAsset = params[4]["includeAsset"].asString();
+                                } else if (params[4]["includeAsset"].isBool()) {
+                                    returnDigiAssets = params[4]["includeAsset"].asBool();
+                                } else {
+                                    throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+                                }
+                            }
+
+                            if (params[4].isMember("detailedAssetData")) {
+                                if (!params[4]["detailedAssetData"].isBool()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+                                detailedAssetData = params[4]["detailedAssetData"].asBool();
+                            }
+                        }
+
+                        //get desired utxos
+                        std::vector<AssetUTXO> utxos;
+                        Database* db=AppMain::GetInstance()->getDatabase();
+                        for (const auto& address: addresses) {
+                            auto addressUTXOs=db->getAddressUTXOs(address,minConfirm,maxConfirm);
+
+                            //filter out undesired utxos
+                            for (const auto& utxo : addressUTXOs) {
+
+                                // Check if the UTXO meets the minimum and maximum amount criteria
+                                if (utxo.assets.empty()) {
+
+                                    //if DigiByte UTXO check balance in requested range
+                                    if (utxo.digibyte < minAmount || utxo.digibyte > maxAmount) {
+                                        continue; // Skip UTXOs outside the desired amount range
+                                    }
+
+                                } else if (returnDigiAssets) {
+
+                                    //is an asset utxo and returning at least some asset utxo
+                                    bool assetMatchFound = false;
+                                    for (const auto& asset : utxo.assets) {
+                                        if (!restrictDigiAsset.empty()) {
+
+                                            //match based on assetId
+                                            if (asset.getAssetId() == restrictDigiAsset) {
+                                                assetMatchFound = true;
+                                                break;
+                                            }
+
+                                        } else if (restrictDigiAssetIndex != 0) {
+
+                                            //match based on assetIndex
+                                            if (asset.getAssetIndex() == restrictDigiAssetIndex) {
+                                                assetMatchFound = true;
+                                                break;
+                                            }
+
+                                        } else {
+
+                                            //what asset not filtered
+                                            assetMatchFound = true;
+
+                                        }
+                                    }
+                                    if (!assetMatchFound) continue;
+
+                                } else {
+
+                                    //digiasset utxo but not wanting digiasset utxos
+                                    continue;
+
+                                }
+
+                                // Add the UTXO to the list if it passed all filters
+                                utxos.push_back(utxo);
+
+                                // Check if we've collected enough UTXOs to meet the 'maximumCount' or 'minimumSumAmount' criteria
+                                if (utxos.size() >= maxCount) goto end_loop;
+                                double totalAmount = std::accumulate(utxos.begin(), utxos.end(), 0.0,
+                                                                     [](double sum, const AssetUTXO& utxo) { return sum + utxo.digibyte; });
+                                if (totalAmount >= minSumAmount) goto end_loop;
+                            }
+                        }
+
+                        //convert results to json
+                        end_loop:
+                        Json::Value result=Json::arrayValue;
+                        for (const auto& utxo: utxos) {
+                            result.append(utxo.toJSON(!detailedAssetData));
+                        }
+                        return result;
                     }},
 
 
@@ -392,26 +590,27 @@ void BitcoinRpcServer::defineMethods() {
             Method{
                     .name = "shutdown",
                     .func = [this](const Json::Value& params) -> Value {
-                        _analyzer->stop();
-                        AppMain::GetInstance()->getIPFS()->stop();
+                        AppMain* main=AppMain::GetInstance();
+                        main->getChainAnalyzer()->stop();
+                        main->getIPFS()->stop();
                         Log* log = Log::GetInstance();
                         log->addMessage("Safe to shut down", Log::CRITICAL);
                         return true;
                     }},
             Method{
                     /**
-                     * Returns a list of assetIndexs that belong to a specific assetId(most will have only 1)
+                     * Returns a list of assetIndexes that belong to a specific assetId(most will have only 1)
                      *
                      * @return array of unsigned ints
                      */
-                    .name = "getassetindexs",
+                    .name = "getassetindexes",
                     .func = [this](const Json::Value& params) -> Value {
                         if (params.size() != 1) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
                         if (!params[0].isString()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
 
                         //look up holders
                         Database* db = AppMain::GetInstance()->getDatabase();
-                        vector<uint64_t> results=db->getAssetIndexs(params[0].asString());
+                        vector<uint64_t> results= db->getAssetIndexes(params[0].asString());
 
                         //convert to json
                         Value jsonArray=Json::arrayValue;
@@ -526,16 +725,17 @@ void BitcoinRpcServer::defineMethods() {
                     .name = "getexchangerates",
                     .func = [this](const Json::Value& params) -> Value {
                         unsigned int height;
+                        ChainAnalyzer* analyzer=AppMain::GetInstance()->getChainAnalyzer();
                         if (params.size() == 1) {
                             //use height provided
                             if (!params[0].isUInt()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
                             height=params[0].asUInt();
-                            if (height>_analyzer->getSyncHeight()) throw DigiByteException(RPC_MISC_ERROR, "Height out of range");
+                            if (height>analyzer->getSyncHeight()) throw DigiByteException(RPC_MISC_ERROR, "Height out of range");
 
                         } else if (params.size() == 0) {
                             //find current height
-                            if (_analyzer->getSync()<-120) throw DigiByteException(RPC_MISC_ERROR,"To far behind to get current exchange rate");
-                            height=_analyzer->getSyncHeight();
+                            if (analyzer->getSync()<-120) throw DigiByteException(RPC_MISC_ERROR,"To far behind to get current exchange rate");
+                            height=analyzer->getSyncHeight();
 
                         } else {
                             throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
@@ -569,19 +769,20 @@ void BitcoinRpcServer::defineMethods() {
                      */
                     .name = "getdgbequivalent",
                     .func = [this](const Json::Value& params) -> Value {
+                        AppMain* main=AppMain::GetInstance();
                         unsigned int height;
                         if (params.size() != 3) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
                         if (!params[0].isString()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
                         if (!params[1].isUInt()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
                         if (!params[2].isUInt64()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
-                        if (_analyzer->getSync()<-120) throw DigiByteException(RPC_MISC_ERROR,"To far behind to get current exchange rate");
+                        if (main->getChainAnalyzer()->getSync()<-120) throw DigiByteException(RPC_MISC_ERROR,"To far behind to get current exchange rate");
 
                         string address=params[0].asString();
                         uint8_t index=params[1].asUInt();
                         uint64_t amount=params[2].asUInt64();
 
                         //get desired exchange rates
-                        Database* db = AppMain::GetInstance()->getDatabase();
+                        Database* db = main->getDatabase();
                         double rate = db->getCurrentExchangeRate({address,index});
 
                         //calculate number of DGB sats
@@ -655,8 +856,9 @@ void BitcoinRpcServer::defineMethods() {
                     .name = "syncstate",
                     .func = [this](const Json::Value& params) -> Value {
                         Value result = Value(Json::objectValue);
-                        result["count"] = _api->getBlockCount();
-                        result["sync"] = _analyzer->getSync();
+                        AppMain* main=AppMain::GetInstance();
+                        result["count"] = main->getDigiByteCore()->getBlockCount();
+                        result["sync"] = main->getChainAnalyzer()->getSync();
                         return result;
                     }},
             Method{
@@ -879,6 +1081,107 @@ void BitcoinRpcServer::defineMethods() {
                     .func = [this](const Json::Value& params) -> Value {
                         Database* db = AppMain::GetInstance()->getDatabase();
                         return db->getIPFSJobCount();
+                    }},
+            Method{
+                    /**
+                     * This function will be depricated eventually and should not be used for new projects
+                     * Simulates old DigiAsset Stream
+                     *
+                     *  params[0] - key(string)
+                     *
+                     *  returns the number of items in the job que
+                     */
+                    .name = "createoldstreamkey",
+                    .func = [this](const Json::Value& params) -> Value {
+                        if (params.size() != 1) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+
+                        //make sure que is being processed
+                        if (!_processingThreadStarted.exchange(true)) {
+                            std::thread([this]() {
+                                while (true) {
+                                    //get key
+                                    string key = _taskQueue.dequeue(); // This will block if the queue is empty
+
+                                    //process request
+                                    Json::Value result = OldStream::getKey(key);
+
+                                    // Add cacheTime with the current epoch time in seconds
+                                    if (result.isObject()) {
+                                        auto now = std::chrono::system_clock::now();
+                                        auto epoch = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
+                                        result["cacheTime"] = static_cast<Json::Int64>(epoch);
+                                    }
+
+                                    // Save the result to a file
+                                    std::string filename = "stream/" + key + ".json";
+                                    if (utils::fileExists(filename)) remove(filename.c_str());
+                                    std::ofstream file(filename);
+                                    if (file.is_open()) {
+                                        Json::StreamWriterBuilder builder;
+                                        const std::unique_ptr<Json::StreamWriter> writer(builder.newStreamWriter());
+                                        writer->write(result, &file);
+                                        file.close();
+                                    } else {
+                                        // Handle the error, e.g., throw an exception or log an error
+                                    }
+                                }
+                            }).detach();
+                        }
+
+                        //add to que
+                        string key;
+                        if (params[0].isInt()) {
+                            key= to_string(params[0].asInt());
+                        } else if (params[0].isString()){
+                            key = params[0].asString();
+                        } else {
+                            throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+                        }
+                        _taskQueue.enqueue(key);
+                        return _taskQueue.length();
+                    }},
+            Method{
+                    /**
+                     * This function will be depricated eventually and should not be used for new projects
+                     * Simulates old DigiAsset Stream
+                     *
+                     *  params[0] - key(string)
+                     *
+                     *  return matches https://github.com/digiassetX/digibyte-stream-types as close as possible
+                     *  returns false if no cache created
+                     */
+                    .name = "getoldstreamkey",
+                    .func = [this](const Json::Value& params) -> Value {
+                        if (params.size() != 1) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+
+                        // Construct the filename from the provided key
+                        string key;
+                        if (params[0].isInt()) {
+                            key= to_string(params[0].asInt());
+                        } else if (params[0].isString()){
+                            key = params[0].asString();
+                        } else {
+                            throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+                        }
+                        std::string filename = "stream/" + key + ".json";
+
+                        // Check if the file exists
+                        if (!utils::fileExists(filename)) {
+                            return {false}; // File does not exist
+                        }
+
+                        // Open and read the file
+                        std::ifstream file(filename);
+                        if (file.is_open()) {
+                            Json::Value result;
+                            file >> result;
+                            file.close();
+                            return result; // Return the contents of the file
+                        } else {
+                            // If the file exists but cannot be opened, return false
+                            // This could indicate a permissions issue or a transient file system error
+                            return {false};
+                        }
                     }}};
 }
 

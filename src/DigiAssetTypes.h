@@ -7,6 +7,7 @@
 
 
 #include <cstdint>
+#include <jsoncpp/json/value.h>
 #include <string>
 
 class DigiAsset; //forward declaration
@@ -22,6 +23,8 @@ struct AssetUTXO {
     std::string address;
     uint64_t digibyte; //in sats
     std::vector<DigiAsset> assets;
+
+    Json::Value toJSON(bool simplified = true) const;
 };
 
 struct Signer {

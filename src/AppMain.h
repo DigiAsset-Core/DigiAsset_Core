@@ -7,6 +7,7 @@
 
 
 
+#include "ChainAnalyzer.h"
 #include "Database.h"
 #include "PermanentStoragePool/PermanentStoragePoolList.h"
 #include <mutex>
@@ -37,6 +38,7 @@ private:
     IPFS* _ipfs = nullptr;
     DigiByteCore* _dgb = nullptr;
     PermanentStoragePoolList* _psp = nullptr;
+    ChainAnalyzer* _analyzer = nullptr;
 
 public:
     void setDatabase(Database* db);
@@ -51,6 +53,9 @@ public:
 
     void setPermanentStoragePoolList(PermanentStoragePoolList* psp);
     PermanentStoragePoolList* getPermanentStoragePoolList();
+
+    void setChainAnalyzer(ChainAnalyzer* analyzer);
+    ChainAnalyzer* getChainAnalyzer();
 
     void reset();
 };

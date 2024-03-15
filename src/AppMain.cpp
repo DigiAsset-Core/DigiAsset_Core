@@ -87,3 +87,15 @@ PermanentStoragePoolList* AppMain::getPermanentStoragePoolList() {
     }
     return _psp;
 }
+
+void AppMain::setChainAnalyzer(ChainAnalyzer* analyzer) {
+    _analyzer = analyzer;
+}
+ChainAnalyzer* AppMain::getChainAnalyzer() {
+    if (_analyzer == nullptr) {
+        Log* log = Log::GetInstance();
+        log->addMessage("Tried to get Chain Analyzer without first loading", Log::CRITICAL);
+        throw runtime_error("Not available");
+    }
+    return _analyzer;
+}

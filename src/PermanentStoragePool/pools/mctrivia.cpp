@@ -235,6 +235,10 @@ void mctrivia::_callServer(ServerCalls command, const string& extra) {
                             {"peerId", peerId},
                             {"visible", (_visible ? "v" : "h")},
                             {"secret", _secretCode}});
+    if (command==KEEP_ALIVE) {
+        Log* log=Log::GetInstance();
+        log->addMessage("Reported online to ipfs.digiassetx.com with server id: "+peerId);
+    }
 
     //update the bad list
     updateBadList();

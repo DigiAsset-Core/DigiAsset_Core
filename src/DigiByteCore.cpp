@@ -178,6 +178,36 @@ getrawtransaction_t DigiByteCore::getRawTransaction(const string& txid) {
     });
 }
 
+vector<unspenttxout_t> DigiByteCore::listUnspent(int minconf, int maxconf, const vector<string>& addresses) {
+    return errorCheckAPI([&] {
+        return listunspent(minconf,maxconf,addresses);
+    });
+}
+
+
+getaddressinfo_t DigiByteCore::getAddressInfo(const string& address) {
+    return errorCheckAPI([&] {
+        //get results from wallet
+        Json::Value params=Json::arrayValue;
+        params.append(Json::Value(address));
+        Json::Value walletResult= sendcommand("getaddressinfo",params);
+
+        //populate struct
+        getaddressinfo_t result;
+        result.address=address;
+        result.scriptPubKey=walletResult["scriptPubKey"].asString();
+        result.ismine=walletResult["ismine"].asBool();
+        result.iswatchonly=walletResult["iswatchonly"].asBool();
+        result.isscript=walletResult["isscript"].asBool();
+        result.iswitness=walletResult["iswitness"].asBool();
+        for (const auto& label:walletResult["labels"]) {
+            result.labels.emplace_back(label.asString());
+        }
+        return result;
+    });
+}
+
+
 
 Value DigiByteCore::sendcommand(const string& command, const Value& params) {
     Value result;
@@ -936,13 +966,20 @@ string DigiByteCore::sendmany(const string& fromaccount, const map<string, doubl
     return result.asString();
 }
 
-vector<unspenttxout_t> DigiByteCore::listunspent(int minconf, int maxconf) {
+vector<unspenttxout_t> DigiByteCore::listunspent(int minconf, int maxconf, const vector<string>& addresses) {
     string command = "listunspent";
     Value params, result;
     vector<unspenttxout_t> ret;
 
     params.append(minconf);
     params.append(maxconf);
+    if (!addresses.empty()) {
+        Json::Value addressList=Json::arrayValue;
+        for (const auto& address : addresses) {
+            addressList.append(address); // Append each string to the Json array
+        }
+        params.append(addressList);
+    }
     result = sendcommand(command, params);
 
     for (ValueIterator it = result.begin(); it != result.end(); it++) {
