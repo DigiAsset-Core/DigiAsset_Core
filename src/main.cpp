@@ -32,8 +32,8 @@ int main() {
     if (config.getBool("bootstrapchainstate", true) && !utils::fileExists("chain.db")) {
         log->addMessage("Bootstraping Database.  This may take a while depending on how faster your internet is.");
         IPFS ipfs("config.cfg", false);
-        ipfs.downloadFile("Qme6x3nU9TuLxjGhhBWNoKMcKWA44w2z1v5rSHZHd4j2jF", "chain.db", true);
-        pauseHeight = 18738063; ///when updating images always set this to 1 greater than largest height in blocks table
+        ipfs.downloadFile("QmVYaAEq5Whh1951RtRrBx1aFXiLuPoho4apRRa9tX6BDM", "chain.db", true);
+        pauseHeight = 18927358; ///when updating images always set this to 1 greater than largest height in blocks table
     }
 
     /*

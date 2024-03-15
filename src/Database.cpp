@@ -129,24 +129,9 @@ void Database::buildTables(unsigned int dbVersionNumber) {
 
             //Define what is changed from version 4 to version 5
             [&]() {
-                //todo this upgrade is unspported also but leaving in as stop gap while servers compute other database changes
-                char* zErrMsg = nullptr;
-                int rc;
-
-                //add column to flag is issuance
-                const char* sql1 =
-                        //chain data tables
-                        "BEGIN TRANSACTION;"
-                        "ALTER TABLE utxos ADD COLUMN issuance INTEGER;"
-                        "ALTER TABLE utxos ADD COLUMN spentTXID BLOB DEFAULT null;"
-                        "UPDATE `flags` SET `value`=5 WHERE `key`='dbVersion';"
-                        "COMMIT";
-                rc = sqlite3_exec(_db, sql1, Database::defaultCallback, nullptr, &zErrMsg);
-                skipUpToVersion = 4; //tell not to execute steps until version 4 to 5 transition
-                if (rc != SQLITE_OK) {
-                    sqlite3_free(zErrMsg);
-                    throw exceptionFailedToCreateTable();
-                }
+                Log* log=Log::GetInstance();
+                log->addMessage("Unsupported database version.",Log::CRITICAL);
+                throw runtime_error("Unsupported database version.");
             }
 
             /*  To modify table structure place a comma after the last } above and then place the bellow code.
