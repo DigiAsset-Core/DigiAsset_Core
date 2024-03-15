@@ -12,6 +12,9 @@
 #define RPC_INVALID_PARAMS (-32602)
 #define RPC_PARSE_ERROR (-32700)
 #define RPC_FORBIDDEN_BY_SAFE_MODE  (-2)
+#define RPC_MISC_ERROR (-1)
+
+
 
 
 #include <string>
@@ -19,6 +22,8 @@
 #include <jsonrpccpp/server.h>
 #include <jsonrpccpp/server/connectors/httpserver.h>
 #include "DigiByteCore.h"
+#include "ChainAnalyzer.h"
+#include "UniqueTaskQueue.h"
 
 using namespace std;
 using namespace jsonrpc;
@@ -30,7 +35,8 @@ struct Method {
 };
 
 class BitcoinRpcServer {
-    DigiByteCore* _api;
+    UniqueTaskQueue _taskQueue;
+    std::atomic<bool> _processingThreadStarted{false};
 
     boost::asio::io_service _io{};
     tcp::acceptor _acceptor{_io};
@@ -46,14 +52,14 @@ class BitcoinRpcServer {
 
     //functions to handle requests
     Value parseRequest(tcp::socket& socket);
-    void accept();
+    [[noreturn]] void accept();
     Value handleRpcRequest(const Value& request);
     Value createErrorResponse(int code, const std::string& message, const Value& request);
     void sendResponse(tcp::socket& socket, const Value& response);
     bool basicAuth(const std::string& header);
     static std::string getHeader(const std::string& headers, const std::string& wantedHeader);
 public:
-    BitcoinRpcServer(DigiByteCore& api, const std::string& fileName = "config.cfg");
+    BitcoinRpcServer(const std::string& fileName = "config.cfg");
 
     void start();
     unsigned int getPort();

@@ -2,7 +2,7 @@
 // Created by mctrivia on 30/01/23.
 //
 #ifndef SHA256_LENGTH
-#define SHA256_LENGTH   32
+#define SHA256_LENGTH 32
 #endif
 
 #ifndef STRINGIZE
@@ -18,115 +18,224 @@
 
 #define DIGIBYTECORE_DATABASE_CHAIN_WATCH_MAX 20
 
-//if any structure changes are made to database this must be incremented as well as code added to update old version to new
-#define DIGIASSETCORE_DATABASE_VERSION_NUMBER 1
-#define DIGIASSETCORE_DATABASE_VERSION_STR STRINGIZE_VALUE_OF(DIGIASSETCORE_DATABASE_VERSION_NUMBER)
 
+#include "BitIO.h"
+#include "Blob.h"
+#include "DigiAssetRules.h"
+#include "DigiAssetTypes.h"
+#include "DigiByteCore.h"
+#include "IPFS.h"
+#include "KYC.h"
+#include <future>
+#include <mutex>
 #include <sqlite3.h>
 #include <string>
 #include <vector>
-#include "KYC.h"
-#include "BitIO.h"
-#include "DigiAssetTypes.h"
-#include "DigiAssetRules.h"
-#include "IPFS.h"
-#include "DigiByteCore.h"
-#include "UTXOCache.h"
-#include <mutex>
-#include <future>
 
-/**
- * commands to run on database
+struct AddressStats {
+    unsigned int time;            //time block start
+    unsigned int created;         //number of addresses created for the first time
+    unsigned int used;            //number of addresses used during time block
+    unsigned int withAssets;      //number of addresses with assets
+    unsigned int over0;           //address count with any DGB
+    unsigned int over1;           //address count with at least 1 DGB
+    unsigned int over1k;          //address count with at least 1000 DGB
+    unsigned int over1m;          //address count with at least 1000000 DGB
+    unsigned int quantumInsecure; //number of addresses a quantum computer could steel from
+    unsigned int total;           //total number of addresses that have ever existed up to this point
+};
 
-CREATE INDEX kyc_height_index ON kyc(height);
-DROP TABLE assetMetaHistory;
-DROP TABLE assets;
-CREATE TABLE "assets" ("assetIndex" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "assetId" TEXT NOT NULL, "cid" TEXT, "issueAddress" TEXT NOT NULL, "rules" BLOB, "heightCreated" INTEGER NOT NULL, "heightUpdated" INTEGER NOT NULL, "expires" INTEGER, "bad" BOOL);
-INSERT INTO "assets" VALUES (1,'DigiByte','QmfSVLAntanDUKrEHUnTXRh53GLUBHFfxk5x6LH4zz9PM4','STANDARD',NULL,1,1,NULL,false);
+struct AlgoStats {
+    unsigned int time;   //time block start
+    unsigned int algo;   //algo number
+    unsigned int blocks; //number of blocks created with that algo
+    double difficultyMin;
+    double difficultyMax;
+    double difficultyAvg;
+};
 
- *
- */
+struct VoteCount {
+    std::string address;
+    uint64_t count;
+};
 
+
+class LockedStatement {
+public:
+    LockedStatement(sqlite3_stmt* stmt, std::mutex& mtx)
+        : _stmt(stmt), _lock(mtx) {
+        // The lock is acquired as soon as an object of this class is created
+        reset();
+    }
+
+    void reset() {
+        sqlite3_reset(_stmt);
+    }
+
+    // Bind methods remember indexes start at 1
+    void bindInt(int index, int value) {
+        sqlite3_bind_int(_stmt, index, value);
+    }
+    
+    void bindInt64(int index, int64_t value) {
+        sqlite3_bind_int64(_stmt, index, value);
+    }
+
+    void bindDouble(int index, double value) {
+        sqlite3_bind_double(_stmt, index, value);
+    }
+
+    void bindText(int index, const std::string& value, void (*copyType)(void*) = SQLITE_TRANSIENT) {
+        sqlite3_bind_text(_stmt, index, value.c_str(), -1, copyType);
+    }
+
+    void bindBlob(int index, const Blob& blob, void (*copyType)(void*) = SQLITE_TRANSIENT) {
+        sqlite3_bind_blob(_stmt, index, blob.data(), blob.length(), copyType);
+    }
+
+    void bindNull(int index) {
+        sqlite3_bind_null(_stmt, index);
+    }
+
+    // Get column methods remember indexes start at 0
+    int getColumnInt(int index) {
+        return sqlite3_column_int(_stmt, index);
+    }
+
+    int64_t getColumnInt64(int index) {
+        return sqlite3_column_int64(_stmt, index);
+    }
+
+    double getColumnDouble(int index) {
+        return sqlite3_column_double(_stmt, index);
+    }
+
+    std::string getColumnText(int index) {
+        const unsigned char* text = sqlite3_column_text(_stmt, index);
+        return std::string(reinterpret_cast<const char*>(text));
+    }
+
+    Blob getColumnBlob(int index) {
+        const void* data = sqlite3_column_blob(_stmt, index);
+        int length = sqlite3_column_bytes(_stmt, index);
+        return Blob(data, length);
+    }
+
+    // Execute step
+    int executeStep() {
+        return sqlite3_step(_stmt);
+    }
+
+private:
+    sqlite3_stmt* _stmt;
+    std::unique_lock<std::mutex> _lock; // Automatically releases the lock when destroyed
+};
+
+class Statement {
+public:
+    Statement()=default;
+
+    ~Statement() {
+        if (_stmt!= nullptr) sqlite3_finalize(_stmt);
+    }
+    
+    void prepare(sqlite3* db, const std::string& query) {
+        if (_stmt!= nullptr) throw std::runtime_error("Statement already prepared");    //code is wrong if this executes
+        const char* tail;
+        int rc = sqlite3_prepare_v2(db, query.c_str(), -1, &_stmt, &tail);
+        if (rc != SQLITE_OK) {
+            throw std::runtime_error("Failed to prepare statement");
+        }
+    }
+
+    LockedStatement lock() {
+        if (_stmt== nullptr) throw std::runtime_error("Statement not prepared");    //code is wrong if this executes
+        return {_stmt, _mutex};
+    }
+
+private:
+    sqlite3_stmt* _stmt = nullptr;
+    std::mutex _mutex;
+};
 
 
 class Database {
-/**
- * Singleton Start
- */
-private:
-    static Database* _pinstance;
-    static std::mutex _mutex;
-
-protected:
-    Database() = default;
-    ~Database();
-
-public:
-    Database(Database& other) = delete;
-    void operator=(const Database&) = delete;
-    static Database* GetInstance();
-    static Database* GetInstance(const std::string& fileName);
-
-/**
- * Singleton End
- */
 private:
     sqlite3* _db = nullptr;
-    sqlite3_stmt* _stmtCheckFlag = nullptr;
-    sqlite3_stmt* _stmtSetFlag = nullptr;
-    sqlite3_stmt* _stmtGetBlockHeight = nullptr;
-    sqlite3_stmt* _stmtSetBlockHash = nullptr;
-    sqlite3_stmt* _stmtGetBlockHash = nullptr;
-    sqlite3_stmt* _stmtCreateUTXO = nullptr;
-    sqlite3_stmt* _stmtSpendUTXO = nullptr;
-    sqlite3_stmt* _stmtIsWatchAddress = nullptr;
-    sqlite3_stmt* _stmtAddWatchAddress = nullptr;
-    sqlite3_stmt* _stmtGetSpendingAddress = nullptr;
-    sqlite3_stmt* _stmtAddExchangeRate = nullptr;
-    sqlite3_stmt* _stmtAddKYC = nullptr;
-    sqlite3_stmt* _stmtRevokeKYC = nullptr;
-    sqlite3_stmt* _stmtPruneUTXOs = nullptr;
-    sqlite3_stmt* _stmtExchangeRatesAtHeight = nullptr;
-    sqlite3_stmt* _stmtPruneExchangeRate = nullptr;
-    sqlite3_stmt* _stmtGetVoteCount = nullptr;
-    sqlite3_stmt* _stmtPruneVote = nullptr;
-    sqlite3_stmt* _stmtAddVote = nullptr;
-    sqlite3_stmt* _stmtGetAssetUTXO = nullptr;
-    sqlite3_stmt* _stmtGetAssetHolders = nullptr;
-    sqlite3_stmt* _stmtAddAsset = nullptr;
-    sqlite3_stmt* _stmtUpdateAsset = nullptr;
-    sqlite3_stmt* _stmtGetAssetIndex = nullptr;
-    sqlite3_stmt* _stmtGetAssetIndexOnUTXO = nullptr;
-    sqlite3_stmt* _stmtGetHeightAssetCreated = nullptr;
-    sqlite3_stmt* _stmtGetAssetRules = nullptr;
-    sqlite3_stmt* _stmtGetAsset = nullptr;
-    sqlite3_stmt* _stmtGetKYC = nullptr;
-    sqlite3_stmt* _stmtGetValidExchangeRate = nullptr;
-    sqlite3_stmt* _stmtGetCurrentExchangeRate = nullptr;
-    sqlite3_stmt* _stmtGetNextIPFSJob = nullptr;
-    sqlite3_stmt* _stmtSetIPFSPauseSync = nullptr;
-    sqlite3_stmt* _stmtClearNextIPFSJob_a = nullptr;
-    sqlite3_stmt* _stmtClearNextIPFSJob_b = nullptr;
-    sqlite3_stmt* _stmtInsertIPFSJob = nullptr;
-    sqlite3_stmt* _stmtClearIPFSPause = nullptr;
-    sqlite3_stmt* _stmtSetIPFSLockSync = nullptr;
-    sqlite3_stmt* _stmtSetIPFSLockJob = nullptr;
-    sqlite3_stmt* _stmtSetIPFSPauseJob = nullptr;
-    sqlite3_stmt* _stmtGetDomainAssetId = nullptr;
-    sqlite3_stmt* _stmtAddDomain = nullptr;
-    sqlite3_stmt* _stmtRevokeDomain = nullptr;
-    sqlite3_stmt* _stmtSetDomainMasterAssetId_a = nullptr;
-    sqlite3_stmt* _stmtSetDomainMasterAssetId_b = nullptr;
-    sqlite3_stmt* _stmtGetPermanentPaid;
-    sqlite3_stmt* _stmtRemoveNonReachable;
-
-    //core wallet pointer
-    DigiByteCore* _dgb = nullptr;
+    Statement _stmtCheckFlag;
+    Statement _stmtSetFlag;
+    Statement _stmtGetBlockHeight;
+    Statement _stmtInsertBlock;
+    Statement _stmtGetBlockHash;
+    Statement _stmtCreateUTXO;
+    Statement _stmtSpendUTXO;
+    Statement _stmtIsWatchAddress;
+    Statement _stmtAddWatchAddress;
+    Statement _stmtGetSpendingAddress;
+    Statement _stmtAddExchangeRate;
+    Statement _stmtAddKYC;
+    Statement _stmtRevokeKYC;
+    Statement _stmtPruneUTXOs;
+    Statement _stmtExchangeRatesAtHeight;
+    Statement _stmtPruneExchangeRate;
+    Statement _stmtGetVoteCountAtHeight;
+    Statement _stmtPruneVote;
+    Statement _stmtAddVote;
+    Statement _stmtGetVoteCount;
+    Statement _stmtGetAssetUTXO;
+    Statement _stmtGetAssetHolders;
+    Statement _stmtAddAsset;
+    Statement _stmtUpdateAsset;
+    Statement _stmtGetAssetIndex;
+    Statement _stmtGetAssetIndexOnUTXO;
+    Statement _stmtGetHeightAssetCreated;
+    Statement _stmtGetAssetRules;
+    Statement _stmtGetAsset;
+    Statement _stmtGetKYC;
+    Statement _stmtGetValidExchangeRate;
+    Statement _stmtGetCurrentExchangeRate;
+    Statement _stmtGetNextIPFSJob;
+    Statement _stmtSetIPFSPauseSync;
+    Statement _stmtClearNextIPFSJob_a;
+    Statement _stmtClearNextIPFSJob_b;
+    Statement _stmtInsertIPFSJob;
+    Statement _stmtClearIPFSPause;
+    Statement _stmtSetIPFSLockSync;
+    Statement _stmtSetIPFSLockJob;
+    Statement _stmtSetIPFSPauseJob;
+    Statement _stmtGetDomainAssetId;
+    Statement _stmtAddDomain;
+    Statement _stmtRevokeDomain;
+    Statement _stmtSetDomainMasterAssetId_a;
+    Statement _stmtSetDomainMasterAssetId_b;
+    Statement _stmtGetPermanentPaid;
+    Statement _stmtRemoveNonReachable;
+    Statement _stmtInsertPermanent;
+    Statement _stmtRepinAssets;
+    Statement _stmtRepinPermanentSpecific;
+    Statement _stmtAddAssetToPool;
+    Statement _stmtIsAssetInPool;
+    Statement _stmtIsAssetInAPool;
+    Statement _stmtPSPFindBadAsset;
+    Statement _stmtPSPDeleteBadAsset;
+    Statement _stmtDeletePermanent;
+    Statement _stmtIsInPermanent;
+    Statement _stmtNumberOfIPFSJobs;
+    Statement _stmtGetTotalAssetCounta;
+    Statement _stmtGetTotalAssetCountb;
+    Statement _stmtGetOriginalAssetCounta;
+    Statement _stmtGetOriginalAssetCountb;
+    Statement _stmtGetAssetTxHistorya;
+    Statement _stmtGetAssetTxHistoryb;
+    Statement _stmtGetAddressTxHistory;
+    Statement _stmtGetAssetCreateByAddress;
+    Statement _stmtGetValidUTXO;
 
     //locks
     std::mutex _mutexGetNextIPFSJob;
+    std::mutex _mutexRemoveIPFSJob;
 
-    void buildTables();
+    void buildTables(unsigned int dbVersionNumber = 0);
     void initializeClassValues();
 
     //flag table
@@ -140,26 +249,30 @@ private:
     //TestHelpers
     static int defaultCallback(void* NotUsed, int argc, char** argv, char** azColName);
 
-    //change database
-    void load(const std::string& newFileName = "chain.db"); //used for testing
+    //helpers
+    static int executeSqliteStepWithRetry(sqlite3_stmt* stmt, int maxRetries = 3, int sleepDurationMs = 100);
+    void executeSQLStatement(const std::string& query, const std::exception& errorToThrowOnFail);
 
     //ipfs ram db values
     std::vector<std::pair<std::string, uint64_t>> _ipfsCurrentlyPaused;
-    std::map<std::string, IPFSCallbackFunction> _ipfsCallbacks = {
-            {"",
-             [](const std::string&, const std::string&, const std::string&, bool) {}}    //generic do nothing callback
-    };
-
-    //utxo cache(helps speed up spam sections)
-    UTXOCache _recentNonAssetUTXO{100000};
+    static std::map<std::string, IPFSCallbackFunction> _ipfsCallbacks;
 
     //DigiBYte Domain ram values
     std::vector<std::string> _masterDomainAssetId = {};
+
 public:
     static std::string _lastErrorMessage;
 
-    //link Core wallet
-    void setDigiByteCore(DigiByteCore& core);
+    struct exchangeRateHistoryValue {
+        unsigned int height;
+        std::string address;
+        unsigned char index;
+        double value;
+    };
+
+    //constructor
+    Database(const std::string& newFileName = "chain.db");
+    ~Database();
 
     //performance related
     void startTransaction();
@@ -168,41 +281,43 @@ public:
     disableWriteVerification(); //on power failure not all commands may be written.  If using need to check at startup
 
     //reset database
-    void reset();   //used in case of roll back exceeding pruned history
+    void reset(); //used in case of roll back exceeding pruned history
 
     //assets table
     uint64_t addAsset(const DigiAsset& asset);
-    DigiAsset getAsset(uint64_t assetIndex, uint64_t amount = 0) const;
-    uint64_t getAssetIndex(const std::string& assetId, const std::string& txid = "", unsigned int vout = 0) const;
+    DigiAsset getAsset(uint64_t assetIndex, uint64_t amount = 0);
+    uint64_t getAssetIndex(const std::string& assetId, const std::string& txid = "", unsigned int vout = 0);
+    std::vector<uint64_t> getAssetIndexes(const std::string& assetId);
 
     //assets table not to be used on assets that may have more than one assetIndex
-    DigiAssetRules getRules(const std::string& assetId) const;
+    DigiAssetRules getRules(const std::string& assetId);
     unsigned int getAssetHeightCreated(const std::string& assetId, unsigned int backupHeight, uint64_t& assetIndex);
 
     //block table
-    void setBlockHash(uint height, const std::string& hash);
-    std::string getBlockHash(uint height) const;
-    uint getBlockHeight() const;
+    void insertBlock(uint height, const std::string& hash, unsigned int time, unsigned char algo, double difficulty);
+    std::string getBlockHash(uint height);
+    uint getBlockHeight();
     void clearBlocksAboveHeight(uint height);
 
     //exchange table
     void addExchangeRate(const std::string& address, unsigned int index, unsigned int height, double exchangeRate);
     void pruneExchange(unsigned int height);
-    double getAcceptedExchangeRate(const ExchangeRate& rate, unsigned int height) const;
-    double getCurrentExchangeRate(const ExchangeRate& rate) const;
+    double getAcceptedExchangeRate(const ExchangeRate& rate, unsigned int height);
+    double getCurrentExchangeRate(const ExchangeRate& rate);
+    std::vector<exchangeRateHistoryValue> getExchangeRatesAtHeight(unsigned int height);
 
     //exchange watch table
-    bool isWatchAddress(const std::string& address) const;
+    bool isWatchAddress(const std::string& address);
     void addWatchAddress(const std::string& address);
 
     //flag table
-    int getBeenPrunedExchangeHistory();   //-1 = never, above=height which anything below may be pruned
-    int getBeenPrunedUTXOHistory();   //-1 = never, above=height which anything below may be pruned
-    int getBeenPrunedVoteHistory();   //-1 = never, above=height which anything below may be pruned
+    int getBeenPrunedExchangeHistory(); //-1 = never, above=height which anything below may be pruned
+    int getBeenPrunedUTXOHistory();     //-1 = never, above=height which anything below may be pruned
+    int getBeenPrunedVoteHistory();     //-1 = never, above=height which anything below may be pruned
     bool getBeenPrunedNonAssetUTXOHistory();
-    void setBeenPrunedExchangeHistory(int height);   //-1 = never
-    void setBeenPrunedUTXOHistory(int height);   //-1 = never
-    void setBeenPrunedVoteHistory(int height);   //-1 = never
+    void setBeenPrunedExchangeHistory(int height); //-1 = never
+    void setBeenPrunedUTXOHistory(int height);     //-1 = never
+    void setBeenPrunedVoteHistory(int height);     //-1 = never
     void setBeenPrunedNonAssetUTXOHistory(bool state);
 
     //kyc table
@@ -210,23 +325,36 @@ public:
     addKYC(const std::string& address, const std::string& country, const std::string& name, const std::string& hash,
            unsigned int height);
     void revokeKYC(const std::string& address, unsigned int height);
-    KYC getAddressKYC(const std::string& address) const;
+    KYC getAddressKYC(const std::string& address);
 
     //utxos table
-    void createUTXO(const AssetUTXO& value, unsigned int heightCreated);
-    void spendUTXO(const std::string& txid, unsigned int vout, unsigned int heightSpent);  //returns total amount spent
+    void createUTXO(const AssetUTXO& value, unsigned int heightCreated, bool assetIssuance);
+    void spendUTXO(const std::string& txid, unsigned int vout, unsigned int heightSpent, const std::string& spentTXID);
     std::string getSendingAddress(const std::string& txid, unsigned int vout);
     void pruneUTXO(unsigned int height);
+
+    //utxo table asset related
     AssetUTXO getAssetUTXO(const std::string& txid, unsigned int vout);
-    std::vector<AssetHolder> getAssetHolders(uint64_t assetIndex) const;
-    unsigned int getPermanentSize(const std::string& txid);
+    std::vector<AssetHolder> getAssetHolders(uint64_t assetIndex);
+    uint64_t getTotalAssetCount(uint64_t assetIndex); //returns total count of specific variant
+    uint64_t getTotalAssetCount(const std::string& assetId); //returns total count of specific asset(sum of all variants)
+    uint64_t getOriginalAssetCount(uint64_t assetIndex);
+    uint64_t getOriginalAssetCount(const std::string& assetId);
+    std::vector<std::string> getAssetTxHistory(uint64_t assetIndex);
+    std::vector<std::string> getAssetTxHistory(const std::string& assetId);
+
+    //utxo table address related
+    std::vector<AssetUTXO> getAddressUTXOs(const std::string& address, unsigned int minConfirms=0, unsigned int maxConfrims=std::numeric_limits<unsigned int>::max());
+    std::vector<std::string> getAddressTxList(const std::string& address);
+    std::vector<uint64_t> getAssetsCreatedByAddress(const std::string& address);
 
     //vote table
     void addVote(const std::string& address, unsigned int assetIndex, uint64_t count, unsigned int height);
     void pruneVote(unsigned int height);
+    std::vector<VoteCount> getVoteCounts(unsigned int assetIndex);
 
     //IPFS table
-    void registerIPFSCallback(const std::string& callbackSymbol, const IPFSCallbackFunction& callback);
+    static void registerIPFSCallback(const std::string& callbackSymbol, const IPFSCallbackFunction& callback);
     void getNextIPFSJob(unsigned int& jobIndex, std::string& cid, std::string& sync, std::string& extra,
                         unsigned int& maxSleep, IPFSCallbackFunction& callback);
     void pauseIPFSSync(unsigned int jobIndex, const std::string& sync, unsigned int pauseLengthInSeconds = 3600);
@@ -236,18 +364,35 @@ public:
     std::promise<std::string>
     addIPFSJobPromise(const std::string& cid, const std::string& sync = "", unsigned int maxTime = 0);
     IPFSCallbackFunction& getIPFSCallback(const std::string& callbackSymbol);
+    unsigned int getIPFSJobCount();
 
     //DigiByte Domain table(these should only ever be called by DigiByteDomain.cpp
     void revokeDomain(const std::string& domain);
     void addDomain(const std::string& domain, const std::string& assetId);
-    std::string getDomainAssetId(const std::string& domain,
-                                 bool returnErrorIfRevoked = true) const;
-    std::string getDomainAddress(const std::string& domain) const;
+    std::string getDomainAssetId(const std::string& domain, bool returnErrorIfRevoked = true);
+    std::string getDomainAddress(const std::string& domain);
     bool isMasterDomainAssetId(const std::string& assetId) const;
     bool isActiveMasterDomainAssetId(const std::string& assetId) const;
     void setMasterDomainAssetId(const std::string& assetId);
     void setDomainCompromised();
     bool isDomainCompromised() const;
+
+    //Permanent table
+    void addToPermanent(unsigned int poolIndex, const std::string& cid);
+    void removeFromPermanent(unsigned int poolIndex, const std::string& cid, bool unpin);
+    void repinPermanent(unsigned int poolIndex);
+    void unpinPermanent(unsigned int poolIndex);
+    void addAssetToPool(unsigned int poolIndex, unsigned int assetIndex);
+    void removeAssetFromPool(unsigned int poolIndex, const std::string& assetId, bool unpin);
+    bool isAssetInPool(unsigned int poolIndex, unsigned int assetIndex);
+
+    //stats table
+    //warning a new stats table is created for every timeFrame.  It is not recommended to allow users direct access to this value
+    void updateStats(unsigned int timeFrame = 86400);
+    bool canGetAlgoStats();
+    bool canGetAddressStats();
+    std::vector<AlgoStats> getAlgoStats(unsigned int start = 0, unsigned int end = std::numeric_limits<unsigned int>::max(), unsigned int timeFrame = 86400);
+    std::vector<AddressStats> getAddressStats(unsigned int start = 0, unsigned int end = std::numeric_limits<unsigned int>::max(), unsigned int timeFrame = 86400);
 
     /*
     ███████╗██████╗ ██████╗  ██████╗ ██████╗ ███████╗
@@ -261,7 +406,7 @@ public:
     class exception : public std::exception {
     public:
         char* what() {
-            _lastErrorMessage = "Something went wrong with IPFS controller";
+            _lastErrorMessage = "Something went wrong with database";
             return const_cast<char*>(_lastErrorMessage.c_str());
         }
     };

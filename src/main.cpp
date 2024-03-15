@@ -1,45 +1,103 @@
-#include "DigiByteCore.h"
-#include "Database.h"
-#include "ChainAnalyzer.h"
-#include "IPFS.h"
+#include "AppMain.h"
 #include "BitcoinRpcServer.h"
+#include "ChainAnalyzer.h"
+#include "Config.h"
+#include "Database.h"
+#include "DigiByteCore.h"
+#include "IPFS.h"
+#include "Log.h"
+#include "utils.h"
 #include <iostream>
+#include "Version.h"
 
 
 int main() {
     /*
-     * Start IPFS
+     * Start Log
      */
-    //IPFS* ipfs = IPFS::GetInstance();
-    //ipfs->start();
-    //IPFS::get("bafkreicr2pggml4j5bjv3hhxi5i5ud4rgnnaqphrfs2mtoub77zfiwbhju", "temp.json");
+    Log* log = Log::GetInstance("debug.log");
+    Config config = Config("config.cfg");
+    log->setMinLevelToScreen(static_cast<Log::LogLevel>(config.getInteger("logscreen", static_cast<int>(Log::INFO))));
+    log->setMinLevelToFile(static_cast<Log::LogLevel>(config.getInteger("logfile", static_cast<int>(Log::WARNING))));
+
+    /*
+     * Print starting message
+     */
+    log->addMessage("Starting DigiAsset Core " + getVersionString());
+
+    /*
+     * Predownload database files if config files allow and database missing
+     */
+    unsigned int pauseHeight = 0;
+    if (config.getBool("bootstrapchainstate", true) && !utils::fileExists("chain.db")) {
+        log->addMessage("Bootstraping Database.  This may take a while depending on how faster your internet is.");
+        IPFS ipfs("config.cfg", false);
+        ipfs.downloadFile("QmVYaAEq5Whh1951RtRrBx1aFXiLuPoho4apRRa9tX6BDM", "chain.db", true);
+        pauseHeight = 18927358; ///when updating images always set this to 1 greater than largest height in blocks table
+    }
+
+    /*
+     * Create AppMain
+     */
+    AppMain* main = AppMain::GetInstance();
 
     /*
      * Connect to core wall
      */
 
-    DigiByteCore api = DigiByteCore();
-    api.setFileName("config.cfg");
-    api.makeConnection();
-    std::cout << "\n(temp in main)Current Block Height: " << api.getBlockCount();
+    DigiByteCore dgb;
+    log->addMessage("Checking for DigiByte Core");
+    dgb.setFileName("config.cfg");
+    bool online = false;
+    while (!online) {
+        //connect to DigiByte Core
+        try {
+            dgb.makeConnection();
+            log->addMessage("DigiByte Core Online");
+            online = true;
+        } catch (const DigiByteCore::exceptionCoreOffline& e) {
+            log->addMessage("DigiByte Core Offline try again in 30 sec");
+            online = false;
+            this_thread::sleep_for(chrono::seconds(30)); //Don't hammer wallet
+        }
+    }
+    main->setDigiByteCore(&dgb);
 
+    //make sure if we predownloaded data from ipfs that the wallet is synced past the point image was syned to
+    if (pauseHeight > 0) {
+        while (dgb.getBlockCount() < pauseHeight) {
+            log->addMessage("DigiByte Core Syncing try again in 2 minutes");
+            this_thread::sleep_for(chrono::minutes(2)); //Don't hammer wallet
+        }
+    }
 
     /**
      * Connect to Database
      * Make sure it is initialized with correct database
      */
-    Database* db = Database::GetInstance("chain.db");
+    Database db("chain.db");
+    main->setDatabase(&db);
 
+    /**
+     * Connect to IPFS
+     */
+    IPFS ipfs("config.cfg");
+    main->setIPFS(&ipfs);
+
+    /**
+     * Connect to Permanent Storage Pools
+     */
+    PermanentStoragePoolList psp("config.cfg");
+    main->setPermanentStoragePoolList(&psp);
 
     /**
      * Start Chain Analyzer
      */
-
-    ChainAnalyzer analyzer(api);
+    ChainAnalyzer analyzer;
     analyzer.loadConfig();
     analyzer.start();
+    main->setChainAnalyzer(&analyzer);
     //analyzer.stop();
-    std::cout << "\nChain Analyzer Running";
 
     /**
      * Start RPC Server
@@ -47,10 +105,9 @@ int main() {
 
     try {
         // Create and start the Bitcoin RPC server
-        BitcoinRpcServer server(api);
+        BitcoinRpcServer server;
         server.start();
 
-        std::cout << "Bitcoin RPC server started on port " << server.getPort() << std::endl;
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
     }

@@ -3,17 +3,16 @@
 //
 
 #include "DigiByteCore.h"
-#include "UserInput.h"
 #include "Config.h"
-#include <iostream>
 #include <fstream>
+#include <iostream>
 #include <thread>
 
-#include <string>
-#include <stdexcept>
 #include <cmath>
 #include <jsonrpccpp/client.h>
 #include <jsonrpccpp/client/connectors/httpclient.h>
+#include <stdexcept>
+#include <string>
 
 
 using jsonrpc::Client;
@@ -36,9 +35,10 @@ DigiByteCore::~DigiByteCore() {
  * Changes what config file we should use
  * @param fileName
  */
-void DigiByteCore::setFileName(const std::string& fileName) {
+void DigiByteCore::setFileName(const std::string& fileName, bool useAssetPort) {
     //make change
     _configFileName = fileName;
+    _useAssetPort = useAssetPort;
 
     //drop connection
     dropConnection();
@@ -67,10 +67,10 @@ void DigiByteCore::setConfig(const std::string& username, const std::string& pas
  * Drops the connection to core
  */
 void DigiByteCore::dropConnection() {
-    delete httpClient;
-    httpClient = nullptr;
-    delete client;
-    client = nullptr;
+    if (httpClient != nullptr)
+        httpClient.reset();
+    if (client != nullptr)
+        client.reset();
 }
 
 /**
@@ -89,13 +89,12 @@ void DigiByteCore::makeConnection() {
 
     //see if core is online and config if valid
     try {
-        httpClient = new jsonrpc::HttpClient(
+        httpClient.reset(new jsonrpc::HttpClient(
                 "http://" + config.getString("rpcuser") + ":" +
                 config.getString("rpcpassword") + "@" +
                 config.getString("rpcbind", "127.0.0.1") + ":" +
-                std::to_string(config.getInteger("rpcport", 14022))
-        );
-        client = new jsonrpc::Client(*httpClient, jsonrpc::JSONRPC_CLIENT_V1);
+                std::to_string(_useAssetPort ? config.getInteger("rpcassetport", 14023) : config.getInteger("rpcport", 14022))));
+        client.reset(new jsonrpc::Client(*httpClient, jsonrpc::JSONRPC_CLIENT_V1));
         httpClient->SetTimeout(config.getInteger("rpctimeout", 50000));
         getblockcount();
     } catch (DigiByteException& e) {
@@ -179,15 +178,44 @@ getrawtransaction_t DigiByteCore::getRawTransaction(const string& txid) {
     });
 }
 
+vector<unspenttxout_t> DigiByteCore::listUnspent(int minconf, int maxconf, const vector<string>& addresses) {
+    return errorCheckAPI([&] {
+        return listunspent(minconf,maxconf,addresses);
+    });
+}
+
+
+getaddressinfo_t DigiByteCore::getAddressInfo(const string& address) {
+    return errorCheckAPI([&] {
+        //get results from wallet
+        Json::Value params=Json::arrayValue;
+        params.append(Json::Value(address));
+        Json::Value walletResult= sendcommand("getaddressinfo",params);
+
+        //populate struct
+        getaddressinfo_t result;
+        result.address=address;
+        result.scriptPubKey=walletResult["scriptPubKey"].asString();
+        result.ismine=walletResult["ismine"].asBool();
+        result.iswatchonly=walletResult["iswatchonly"].asBool();
+        result.isscript=walletResult["isscript"].asBool();
+        result.iswitness=walletResult["iswitness"].asBool();
+        for (const auto& label:walletResult["labels"]) {
+            result.labels.emplace_back(label.asString());
+        }
+        return result;
+    });
+}
+
+
 
 Value DigiByteCore::sendcommand(const string& command, const Value& params) {
     Value result;
 
-    std::lock_guard<std::mutex> lock(_mutex);   //we can only run one at a time or bad things happen
+    std::lock_guard<std::mutex> lock(_mutex); //we can only run one at a time or bad things happen
     try {
         result = client->CallMethod(command, params);
-    }
-    catch (JsonRpcException& e) {
+    } catch (JsonRpcException& e) {
         DigiByteException err(e.GetCode(), e.GetMessage());
         throw err;
     }
@@ -487,10 +515,25 @@ multisig_t DigiByteCore::createmultisig(int nrequired, const vector<string>& key
     return ret;
 }
 
-string DigiByteCore::getnewaddress(const string& account) {
+string DigiByteCore::getnewaddress(const string& label, AddressTypes type) {
+    string typeStr;
+    switch (type) {
+        case LEGACY:
+            typeStr = "legacy";
+            break;
+
+        case SEGWIT:
+            typeStr = "p2sh-segwit";
+            break;
+
+        case BECH32:
+            typeStr = "bech32";
+            break;
+    }
     string command = "getnewaddress";
     Value params, result;
-    params.append(account);
+    params.append(label);
+    params.append(typeStr);
     result = sendcommand(command, params);
     return result.asString();
 }
@@ -768,63 +811,48 @@ vector<transactioninfo_t> DigiByteCore::listtransactions(const string& account, 
     return ret;
 }
 
-string DigiByteCore::getaccount(const string& digibyteaddress) {
-    string command = "getaccount";
-    Value params, result;
-    params.append(digibyteaddress);
-    result = sendcommand(command, params);
-    return result.asString();
-}
 
-string DigiByteCore::getaccountaddress(const string& account) {
-    string command = "getaccountaddress";
-    Value params, result;
-    params.append(account);
-    result = sendcommand(command, params);
-    return result.asString();
-}
-
-
-vector<std::string> DigiByteCore::getaddressesbyaccount(const string& account) {
-    string command = "getaddressesbyaccount";
+vector<std::string> DigiByteCore::getaddressesbylabel(const string& label, const string& type) {
+    string command = "getaddressesbylabel";
     Value params, result;
     vector<string> ret;
 
-    params.append(account);
+    params.append(label);
     result = sendcommand(command, params);
 
-    for (ValueIterator it = result.begin(); it != result.end(); it++) {
-        ret.push_back((*it).asString());
+    // Iterate through the result object
+    for (Json::ValueIterator it = result.begin(); it != result.end(); ++it) {
+        // Check if the address matches the specified type, if type is not empty
+        if (type.empty() || it->get("purpose", "").asString() == type) {
+            ret.push_back(it.key().asString());
+        }
     }
 
     return ret;
 }
 
-map<string, double> DigiByteCore::listaccounts(int minconf) {
-    string command = "listaccounts";
+std::vector<std::string> DigiByteCore::listlabels(const std::string& purpose) {
+    string command = "listlabels";
     Value params, result;
     Value account, amount;
-    map<string, double> ret;
+    vector<string> ret;
 
-    params.append(minconf);
+    params.append(purpose);
     result = sendcommand(command, params);
 
     for (ValueIterator it = result.begin(); it != result.end(); it++) {
         Value val = (*it);
-        std::pair<string, double> tmp;
-
-        tmp.first = it.key().asString();
-        tmp.second = result[tmp.first].asDouble();
-        ret.insert(tmp);
+        ;
+        ret.push_back(val.asString());
     }
 
     return ret;
 }
 
-vector<vector<addressgrouping_t> > DigiByteCore::listaddressgroupings() {
+vector<vector<addressgrouping_t>> DigiByteCore::listaddressgroupings() {
     string command = "listaddressgroupings";
     Value params, result;
-    vector<vector<addressgrouping_t> > ret;
+    vector<vector<addressgrouping_t>> ret;
     result = sendcommand(command, params);
 
     for (ValueIterator it1 = result.begin(); it1 != result.end(); it1++) {
@@ -845,44 +873,6 @@ vector<vector<addressgrouping_t> > DigiByteCore::listaddressgroupings() {
     }
 
     return ret;
-}
-
-bool DigiByteCore::move(const string& fromaccount, const string& toaccount, double amount, int minconf) {
-    string command = "move";
-    Value params, result;
-
-    params.append(fromaccount);
-    params.append(toaccount);
-    params.append(RoundDouble(amount));
-    params.append(minconf);
-    result = sendcommand(command, params);
-
-    return result.asBool();
-}
-
-bool DigiByteCore::move(const string& fromaccount, const string& toaccount, double amount, const string& comment,
-                        int minconf) {
-    string command = "move";
-    Value params, result;
-
-    params.append(fromaccount);
-    params.append(toaccount);
-    params.append(RoundDouble(amount));
-    params.append(minconf);
-    params.append(comment);
-    result = sendcommand(command, params);
-
-    return result.asBool();
-}
-
-void DigiByteCore::setaccount(const string& digibyteaddress, const string& account) {
-    string command = "setaccount";
-    Value params;
-
-    params.append(digibyteaddress);
-    params.append(account);
-
-    sendcommand(command, params);
 }
 
 string DigiByteCore::sendtoaddress(const string& digibyteaddress, double amount) {
@@ -976,13 +966,20 @@ string DigiByteCore::sendmany(const string& fromaccount, const map<string, doubl
     return result.asString();
 }
 
-vector<unspenttxout_t> DigiByteCore::listunspent(int minconf, int maxconf) {
+vector<unspenttxout_t> DigiByteCore::listunspent(int minconf, int maxconf, const vector<string>& addresses) {
     string command = "listunspent";
     Value params, result;
     vector<unspenttxout_t> ret;
 
     params.append(minconf);
     params.append(maxconf);
+    if (!addresses.empty()) {
+        Json::Value addressList=Json::arrayValue;
+        for (const auto& address : addresses) {
+            addressList.append(address); // Append each string to the Json array
+        }
+        params.append(addressList);
+    }
     result = sendcommand(command, params);
 
     for (ValueIterator it = result.begin(); it != result.end(); it++) {
@@ -1075,6 +1072,7 @@ blockinfo_t DigiByteCore::getblock(const string& blockhash) {
     ret.weight = result["weight"].asInt();
     ret.height = result["height"].asInt();
     ret.version = result["version"].asInt();
+    ret.algo = result["pow_algo_id"].asUInt();
     ret.merkleroot = result["merkleroot"].asString();
 
     for (ValueIterator it = result["tx"].begin(); it != result["tx"].end(); it++) {
@@ -1227,8 +1225,8 @@ getrawtransaction_t DigiByteCore::getrawtransaction(const string& txid, bool ver
             vout_t output;
 
             output.value = val["value"].asDouble();
-            output.valueS = (uint64_t) round(val["value"].asDouble() * 100000000);  //todo temp fix
-//            output.valueS= _dgbToSat(val["value"].asString());
+            output.valueS = (uint64_t) round(val["value"].asDouble() * 100000000); //todo temp fix
+                                                                                   //            output.valueS= _dgbToSat(val["value"].asString());
             output.n = val["n"].asUInt();
             output.scriptPubKey.assm = val["scriptPubKey"]["asm"].asString();
             output.scriptPubKey.hex = val["scriptPubKey"]["hex"].asString();
@@ -1308,7 +1306,7 @@ decoderawtransaction_t DigiByteCore::decoderawtransaction(const string& hexStrin
         vout_t output;
 
         output.value = val["value"].asDouble();
-        output.valueS = (uint64_t) round(val["value"].asDouble() * 100000000);  //todo temp fix
+        output.valueS = (uint64_t) round(val["value"].asDouble() * 100000000); //todo temp fix
         //output.valueS= _dgbToSat(val["value"].asString());
         output.n = val["n"].asUInt();
         output.scriptPubKey.assm = val["scriptPubKey"]["asm"].asString();
@@ -1540,7 +1538,7 @@ uint64_t DigiByteCore::_dgbToSat(std::string value) {
     if (ePosition != std::string::npos) {
         //value is in scientific notation
         decimalOffset = stoi(value.substr(ePosition + 1));
-        value.erase(ePosition);     //erase any characters beyond e(inclusive)
+        value.erase(ePosition); //erase any characters beyond e(inclusive)
     }
 
     //convert to satoshi string value
@@ -1549,9 +1547,9 @@ uint64_t DigiByteCore::_dgbToSat(std::string value) {
         value.append(".0"); //if no decimal add one
         decimalPosition = value.length() - 2;
     }
-    value.append("0000000");    //make sure there are at least 8 decimals
-    value.erase(decimalPosition, 1);   //erase the decimal
-    value.erase(decimalPosition + 8 + decimalOffset);     //erase any characters beyond 1 decimal
+    value.append("0000000");                          //make sure there are at least 8 decimals
+    value.erase(decimalPosition, 1);                  //erase the decimal
+    value.erase(decimalPosition + 8 + decimalOffset); //erase any characters beyond 1 decimal
 
 
     //convert to 64-bit number

@@ -7,22 +7,27 @@
 #define DIGIBYTECORE_CONFIGDIGIBYTECORE_H
 
 
-#include <string>
-#include <mutex>
 #include "DigiByteCore_Exception.h"
 #include "DigiByteCore_Types.h"
+#include <jsonrpccpp/client.h>
+#include <jsonrpccpp/client/connectors/httpclient.h>
+#include <mutex>
+#include <random>
+#include <string>
+
 
 namespace jsonrpc {
     class HttpClient;
 
     class Client;
-}
+} // namespace jsonrpc
 
 class DigiByteCore {
-    jsonrpc::HttpClient* httpClient = nullptr;
-    jsonrpc::Client* client = nullptr;
+    std::unique_ptr<jsonrpc::HttpClient> httpClient = nullptr;
+    std::unique_ptr<jsonrpc::Client> client = nullptr;
     uint64_t _dgbToSat(std::string value);
     static std::mutex _mutex;
+    bool _useAssetPort = false;
 
 
     static std::string _lastErrorMessage;
@@ -32,18 +37,24 @@ class DigiByteCore {
     auto errorCheckAPI(fn_t fn) -> decltype(fn());
 
 public:
+    enum AddressTypes {
+        LEGACY,
+        SEGWIT,
+        BECH32
+    };
+
     //constructor/destructor
     DigiByteCore() = default;
     ~DigiByteCore();
 
     //functions that drop connection
-    void setFileName(const std::string& fileName);
+    void setFileName(const std::string& fileName, bool useAssetPort = false);
     void setConfig(const std::string& username, const std::string& password, const std::string& address = "127.0.0.1",
                    uint port = 14022);
     void dropConnection();
 
     //functions that create connection
-    void makeConnection();  //will throw an error if we can't connect
+    void makeConnection(); //will throw an error if we can't connect
 
     //config based getter
     std::string getFileName();
@@ -53,6 +64,8 @@ public:
     std::string getBlockHash(uint height);
     blockinfo_t getBlock(const std::string& hash);
     getrawtransaction_t getRawTransaction(const std::string& txid);
+    std::vector<unspenttxout_t> listUnspent(int minconf = 1, int maxconf = 99999999, const std::vector<std::string>& addresses={});
+    getaddressinfo_t getAddressInfo(const std::string& address);
 
 
     /* === Auxiliary functions === */
@@ -85,7 +98,7 @@ public:
     std::string addmultisigaddress(int nrequired, const std::vector<std::string>& keys);
     std::string addmultisigaddress(int nrequired, const std::vector<std::string>& keys, const std::string& account);
     multisig_t createmultisig(int nrequired, const std::vector<std::string>& keys);
-    std::string getnewaddress(const std::string& account = "");
+    std::string getnewaddress(const std::string& label = "", AddressTypes type = BECH32);
     validateaddress_t validateaddress(const std::string& digibyteaddress);
 
     void keypoolrefill();
@@ -114,18 +127,10 @@ public:
     std::vector<transactioninfo_t> listtransactions();
     std::vector<transactioninfo_t> listtransactions(const std::string& account, int count = 10, int from = 0);
 
-    std::string getaccount(const std::string& digibyteaddress);
-    std::string getaccountaddress(const std::string& account);
-    std::vector<std::string> getaddressesbyaccount(const std::string& account);
 
-    std::map<std::string, double> listaccounts(int minconf = 1);
-    std::vector<std::vector<addressgrouping_t> > listaddressgroupings();
-
-    bool move(const std::string& fromaccount, const std::string& toaccount, double amount, int minconf = 1);
-    bool move(const std::string& fromaccount, const std::string& toaccount, double amount,
-              const std::string& comment, int minconf = 1);
-
-    void setaccount(const std::string& digibyteaddress, const std::string& account);
+    std::vector<std::string> getaddressesbylabel(const std::string& label, const std::string& type = "");
+    std::vector<std::string> listlabels(const std::string& purpose = "");
+    std::vector<std::vector<addressgrouping_t>> listaddressgroupings();
 
     std::string sendtoaddress(const std::string& digibyteaddress, double amount);
     std::string sendtoaddress(const std::string& digibyteaddress, double amount, const std::string& comment,
@@ -143,7 +148,7 @@ public:
     utxoinfo_t gettxout(const std::string& txid, int n, bool includemempool = true);
     utxosetinfo_t gettxoutsetinfo();
 
-    std::vector<unspenttxout_t> listunspent(int minconf = 1, int maxconf = 999999);
+    std::vector<unspenttxout_t> listunspent(int minconf = 1, int maxconf = 99999999, const std::vector<std::string>& addresses={});
     std::vector<txout_t> listlockunspent();
     bool lockunspent(bool unlock, const std::vector<txout_t>& outputs);
 
@@ -197,6 +202,7 @@ public:
     class exception : public std::exception {
     private:
         std::string _message;
+
     public:
         exception(const std::string& message = "unknown error") {
             _message = "Something went wrong with DigiByte Core: " + message;

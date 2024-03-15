@@ -5,29 +5,23 @@
 #ifndef DIGIBYTECORE_CHAINANALYZER_H
 #define DIGIBYTECORE_CHAINANALYZER_H
 
-#define CHAINANALYZER_CALLBACK_NEWMETADATA_ID  "ChainAnalyzer::_callbackNewMetadata"
 #define DIGIBYTE_BLOCK1_HASH "4da631f2ac1bed857bd968c67c913978274d8aabed64ab2bcebc1665d7f4d3a0";
-
-#define CHAINANALYZER_DEFAULT_PINASSETICON 100000
-#define CHAINANALYZER_DEFAULT_PINASSETDESCRIPTION 100000
-#define CHAINANALYZER_DEFAULT_PINASSETEXTRA 0
-#define CHAINANALYZER_DEFAULT_PINPERMANENT 1
 
 #define PRUNE_INTERVAL_DIVISOR 8
 //higher numbers will prune more often.  Do not set higher then 100
 
-#include <cmath>
-#include <thread>
 #include "Database.h"
 #include "DigiByteCore.h"
 #include "Threaded.h"
+#include <cmath>
+#include <thread>
 
 class ChainAnalyzer : public Threaded {
     static std::string _lastErrorMessage;
 
 public:
     //constructor/destructor
-    explicit ChainAnalyzer(DigiByteCore& digibyteCore);
+    explicit ChainAnalyzer();
     ~ChainAnalyzer();
 
     //load/save config
@@ -36,7 +30,7 @@ public:
     void loadConfig();
 
     //set config values
-    void setPruneAge(int age);  //-1 disable pruning
+    void setPruneAge(int age); //-1 disable pruning
     void setPruneExchangeHistory(bool shouldPrune);
     void setPruneUTXOHistory(bool shouldPrune);
     void setPruneVoteHistory(bool shouldPrune);
@@ -51,18 +45,17 @@ public:
     static const int INITIALIZING = 2;
     static const int REWINDING = 3;
 
+    //get state
+    int getSync() const;
+    unsigned int getSyncHeight() const;
 
+private:
+    std::string _configFileName = "config.cfg";
+
+    //thread overrides
     void startupFunction() override;
     void mainFunction() override;
     void shutdownFunction() override;
-
-    ///public because needs to be but should only be used by DigiByteDomain.cpp
-    static void
-    _callbackNewMetadata(const std::string& cid, const std::string& extra, const std::string& content, bool failed);
-
-private:
-    DigiByteCore* _dgb;
-    std::string _configFileName = "config.cfg";
 
     //config functions
     void resetConfig();
@@ -78,7 +71,7 @@ private:
     std::string _nextHash;
 
     //config variables(chain data)
-    int _pruneAge;           //number of blocks to keep for roll back protection(-1 don't prune, default is 1 day)
+    int _pruneAge; //number of blocks to keep for roll back protection(-1 don't prune, default is 1 day)
     int _pruneInterval;
     bool _pruneExchangeHistory; //if true prune "exchange"
     bool _pruneUTXOHistory;     //if true prune "utxos"
@@ -102,7 +95,6 @@ private:
 
     //helper function
     static unsigned int configSizeToInt(unsigned int value);
-    static bool isIPFSLink(const std::string& url);
     static unsigned int extraFileLengthByMimeType(const std::string& mimeType);
 
 public:
@@ -117,6 +109,7 @@ public:
     class exception : public std::exception {
     private:
         std::string _message;
+
     public:
         exception(const std::string& message = "unknown error") {
             _message = "Something went wrong with chain analyzer: " + message;

@@ -2,9 +2,9 @@
 // Created by mctrivia on 27/05/23.
 //
 
-#include <cmath>
-#include "gtest/gtest.h"
 #include "Database.h"
+#include "gtest/gtest.h"
+#include <cmath>
 
 using namespace std;
 
@@ -14,12 +14,10 @@ TEST(DatabaseChain, Constructor) {
 
     //create a new database
 
-    Database* db = Database::GetInstance("../tests/testFiles/_testNew.db");
+    Database db("../tests/testFiles/_testNew.db");
     EXPECT_TRUE(true);
 
     //todo check structure is as expected
-
-
 }
 
 
@@ -35,7 +33,7 @@ TEST(DatabaseChain, getPermanentSize) {
 
 
     //open test db
-    Database* db = Database::GetInstance("../tests/testFiles/_testNew.db");
+    Database* db("../tests/testFiles/_testNew.db");
     db->setDigiByteCore(api);
     db->setBeenPrunedNonAssetUTXOHistory(true);
     //todo need to inject exchange rate data

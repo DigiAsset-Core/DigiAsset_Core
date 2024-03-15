@@ -5,27 +5,25 @@
 #ifndef DIGIASSET_CORE_DIGIASSET_H
 #define DIGIASSET_CORE_DIGIASSET_H
 
-#define DIGIASSET_CALLBACK_GETVOTELABELS_ID "DigiAsset::_callbackGetVoteLabels"
 #define DIGIASSET_JSON_IPFS_MAX_WAIT 1000
 
-#include <string>
-#include <map>
-#include <jsonrpccpp/server.h>
+//todo check if min length is longer (OP_RETURN - 8bit)(OP_RETURN LENGTH - 8 bit)(DigiAsset Header - 16 bit)(version - 8 bit)(OP_CODE - 8bit)?
+#define DIGIASSET_MIN_POSSIBLE_LENGTH 48
+
 #include "BitIO.h"
 #include "Database.h"
-#include "KYC.h"
 #include "DigiAssetRules.h"
 #include "DigiAssetTypes.h"
+#include "KYC.h"
+#include <jsonrpccpp/server.h>
+#include <map>
+#include <string>
 
 class DigiAsset {
     static std::string _lastErrorMessage;
 
-    bool _existingAsset = false;   //set to true if an existing asset
-    bool _enableWrite = true;     //set to false if existing asset.  can be turned back to true if unlocked asset
-
-    //censoring
-    bool _bad = false;  //used to flag assets that are illegal or undesirable
-    //todo add mechanism to flag(suggest table of watch addresses that can publish list and config so users can add or remove)
+    bool _existingAsset = false; //set to true if an existing asset
+    bool _enableWrite = true;    //set to false if existing asset.  can be turned back to true if unlocked asset
 
     //asset data
     std::string _assetId;
@@ -49,7 +47,7 @@ class DigiAsset {
     //functions to help process chain data
     bool
     processIssuance(const getrawtransaction_t& txData, unsigned int height, unsigned char version, unsigned char opcode,
-                    BitIO& opReturnData);
+                    BitIO& dataStream);
     std::string calculateAssetId(const vin_t& firstVin, uint8_t issuanceFlags) const;
     static std::vector<uint8_t> calcSimpleScriptPubKey(const vin_t& vinData);
     static void insertSRHash(const std::string& dataToHash, std::vector<uint8_t>& result, size_t startIndex);
@@ -62,10 +60,10 @@ class DigiAsset {
 
 public:
     //constants
-    static const unsigned int EXCHANGE_RATE_LENIENCY = 240;   //number of blocks off exchange rate can be and still be excepted
+    static const unsigned int EXCHANGE_RATE_LENIENCY = 240; //number of blocks off exchange rate can be and still be excepted
     static const unsigned char AGGREGABLE = 0;
     static const unsigned char HYBRID = 1;
-    static const unsigned char DISTINCT = 2;
+    static const unsigned char DISPERSED = 2;
 
     static const ExchangeRate standardExchangeRates[];
     static const size_t standardExchangeRatesCount = 20;
@@ -74,13 +72,17 @@ public:
 
     //constructors
     DigiAsset() = default;
-    DigiAsset(const getrawtransaction_t& txData, unsigned int height, unsigned char version, unsigned char opcode,
-              BitIO& opReturnData);
+    DigiAsset(const getrawtransaction_t& txData, unsigned int height, unsigned char version,
+              unsigned char opcode, BitIO& dataStream);
+
+    //helper functions for preprocessing asset
+    static void decodeAssetTxHeader(const getrawtransaction_t& txData, unsigned char& version, unsigned char& opcode,
+                                    BitIO& dataStream);
 
     //constructor intended for use by Database only
     DigiAsset(uint64_t assetIndex, const std::string& assetId, const std::string& cid, const KYC& issuer,
               const DigiAssetRules& rules,
-              unsigned int heightCreated, unsigned int heightUpdated, bool bad, uint64_t amount);
+              unsigned int heightCreated, unsigned int heightUpdated, uint64_t amount);
 
     //comparison
     bool operator==(const DigiAsset& rhs) const;
@@ -94,6 +96,8 @@ public:
     uint8_t getDecimals() const;
 
     uint64_t getAssetIndex() const;
+    bool isAssetIndexSet() const;
+    void lookupAssetIndex(const std::string& txid, unsigned int vout);
     void setAssetIndex(uint64_t assetIndex);
     std::string getAssetId() const;
     std::string getCID() const;
@@ -102,12 +106,12 @@ public:
     unsigned int getHeightCreated() const;
     unsigned int getHeightUpdated() const;
     uint64_t getExpiry() const;
-    bool isBad() const;
+    bool isBad(int poolIndex = -1) const;
 
 
     bool isHybrid() const;
     bool isAggregable() const;
-    bool isDistinct() const;
+    bool isDispersed() const;
     bool isLocked() const;
 
     //functions that can only be used on assets we own and can be edited(or new assets not on chain)
@@ -120,7 +124,7 @@ public:
     Value toJSON(bool simplified = false) const;
 
 
-/*
+    /*
    ███████╗██████╗ ██████╗  ██████╗ ██████╗ ███████╗
    ██╔════╝██╔══██╗██╔══██╗██╔═══██╗██╔══██╗██╔════╝
    █████╗  ██████╔╝██████╔╝██║   ██║██████╔╝███████╗
@@ -157,7 +161,23 @@ public:
     class exceptionWriteProtected : public exception {
     public:
         char* what() {
-            _lastErrorMessage = "Asset value is write protected";   //running setOwned may fix problem if it doesn't value can not be changed
+            _lastErrorMessage = "Asset value is write protected"; //running setOwned may fix problem if it doesn't value can not be changed
+            return const_cast<char*>(_lastErrorMessage.c_str());
+        }
+    };
+
+    class exceptionUnknownAssetIndex : public exception {
+    public:
+        char* what() {
+            _lastErrorMessage = "The asset has either not been added to database yet or have not looked it up yet"; //running setOwned may fix problem if it doesn't value can not be changed
+            return const_cast<char*>(_lastErrorMessage.c_str());
+        }
+    };
+
+    class exceptionInvalidMetaData : public exception {
+    public:
+        char* what() {
+            _lastErrorMessage = "MetaData Invalid";
             return const_cast<char*>(_lastErrorMessage.c_str());
         }
     };
@@ -165,6 +185,7 @@ public:
     class exceptionRuleFailed : public exceptionInvalidTransfer {
     private:
         std::string _message;
+
     public:
         exceptionRuleFailed(const std::string& rule) {
             _message = "Transaction failed because " + rule + " rule failed";

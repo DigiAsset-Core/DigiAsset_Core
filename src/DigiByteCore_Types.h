@@ -78,6 +78,16 @@ struct addressinfo_t : accountinfo_t {
     std::vector<std::string> txids;
 };
 
+struct getaddressinfo_t {
+    std::string address;
+    std::string scriptPubKey;
+    bool ismine;
+    bool iswatchonly;
+    bool isscript;
+    bool iswitness;
+    std::vector<std::string> labels;
+};
+
 struct transactioninfo_t : accountinfo_t {
     std::string address;
     std::string category;
@@ -250,6 +260,7 @@ struct blockinfo_t {
     int weight;
     int height;
     int version;
+    unsigned char algo;
     std::string merkleroot;
     std::vector<std::string> tx;
     unsigned int time;

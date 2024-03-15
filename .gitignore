@@ -1,4 +1,9 @@
 cmake-build-debug
-bin\*
-*\_*
-tests\testFiles\assetTest.*
+bin/*
+bin/stream/*
+build
+build/*
+src/Version.h
+*/_*
+tests/testFiles/assetTest.*
+!*/.gitkeep

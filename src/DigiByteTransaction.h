@@ -5,14 +5,11 @@
 #ifndef DIGIASSET_CORE_DIGIBYTETRANSACTION_H
 #define DIGIASSET_CORE_DIGIBYTETRANSACTION_H
 
-//todo check if min length is longer (OP_RETURN - 8bit)(OP_RETURN LENGTH - 8 bit)(DigiAsset Header - 16 bit)(version - 8 bit)(OP_CODE - 8bit)?
-#define DIGIASSET_MIN_POSSIBLE_LENGTH 48
 
-
-#include "DigiAsset.h"
-#include <jsonrpccpp/server.h>
 #include "Database.h"
+#include "DigiAsset.h"
 #include "DigiAssetTypes.h"
+#include <jsonrpccpp/server.h>
 
 struct UTXO {
     std::string txid;
@@ -32,13 +29,13 @@ class DigiByteTransaction {
     std::vector<AssetUTXO> _inputs;
     std::vector<AssetUTXO> _outputs;
     DigiAsset _newAsset;
-    unsigned char _txType = STANDARD;   //must default to STANDARD since not set in code if STANDARD
+    unsigned char _txType = STANDARD; //must default to STANDARD since not set in code if STANDARD
     bool _assetFound;
     bool _unintentionalBurn = false;
     unsigned int _height;
-    std::string _txid;      //if set tx is not writable(existing)
+    std::string _txid; //if set tx is not writable(existing)
     std::string _blockHash;
-    uint64_t _time;  //internal use only it will only be correct for transactions built from tx data or new constructed transactions         //todo
+    uint64_t _time; //internal use only it will only be correct for transactions built from tx data or new constructed transactions
 
     //type KYC_* Only
     KYC _kycData;
@@ -51,21 +48,23 @@ class DigiByteTransaction {
 
 
     //tx process TestHelpers
-    void processAssetTX(const getrawtransaction_t& txData);
-    bool processExchangeRate(const getrawtransaction_t& txData);
-    bool processKYC(const getrawtransaction_t& txData);
+    void decodeAssetTX(const getrawtransaction_t& txData);
+    bool decodeExchangeRate(const getrawtransaction_t& txData);
+    bool decodeKYC(const getrawtransaction_t& txData);
 
     //asset process TestHelpers
-    void processAssetTransfer(BitIO& dataStream, const std::vector<AssetUTXO>& inputAssets, uint8_t type);
+    void decodeAssetTransfer(BitIO& dataStream, const std::vector<AssetUTXO>& inputAssets, uint8_t type);
     void checkRulesPass() const;
     void addAssetToOutput(size_t output, const DigiAsset& asset);
 
 public:
+    static std::string _lastErrorMessage;
 
     explicit DigiByteTransaction();
-    DigiByteTransaction(const string& txid, DigiByteCore& core, unsigned int height = 0);
+    DigiByteTransaction(const std::string& txid, unsigned int height = 0);
 
-    void addToDatabase(const std::string& optionalMetaCallbackSymbol = "");
+    void addToDatabase();
+    void lookupAssetIndexes();
 
     bool isStandardTransaction() const;
 
@@ -89,9 +88,41 @@ public:
 
     AssetUTXO getInput(size_t n) const;
     AssetUTXO getOutput(size_t n) const;
+    unsigned int getInputCount() const;
+    unsigned int getOutputCount() const;
+    unsigned int getHeight() const;
+
+    void addDigiByteOutput(const std::string& address, uint64_t amount);
+    void addDigiAssetOutput(const std::string& address, const std::vector<DigiAsset>& assets);
 
     Value toJSON(const Value& original = Json::objectValue) const;
 
+
+
+    /*
+    ███████╗██████╗ ██████╗  ██████╗ ██████╗ ███████╗
+    ██╔════╝██╔══██╗██╔══██╗██╔═══██╗██╔══██╗██╔════╝
+    █████╗  ██████╔╝██████╔╝██║   ██║██████╔╝███████╗
+    ██╔══╝  ██╔══██╗██╔══██╗██║   ██║██╔══██╗╚════██║
+    ███████╗██║  ██║██║  ██║╚██████╔╝██║  ██║███████║
+    ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝
+     */
+
+    class exception : public std::exception {
+    public:
+        char* what() {
+            _lastErrorMessage = "Something went wrong with DigiByte Transaction";
+            return const_cast<char*>(_lastErrorMessage.c_str());
+        }
+    };
+
+    class exceptionNotEnoughFunds : public exception {
+    public:
+        char* what() {
+            _lastErrorMessage = "There where not enough funds to add the output and still pay needed fees";
+            return const_cast<char*>(_lastErrorMessage.c_str());
+        }
+    };
 };
 
 

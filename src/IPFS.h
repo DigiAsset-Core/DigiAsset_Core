@@ -5,17 +5,17 @@
 #ifndef DIGIASSET_CORE_IPFS_H
 #define DIGIASSET_CORE_IPFS_H
 
-#include <sys/stat.h>
-#include <vector>
-#include <string>
-#include <thread>
 #include "DigiAssetRules.h"
+#include "DigiByteCore_Types.h"
 #include "Threaded.h"
-#include <sqlite3.h>
-#include <mutex>
 #include <functional>
 #include <future>
-#include "DigiByteCore_Types.h"
+#include <mutex>
+#include <sqlite3.h>
+#include <string>
+#include <sys/stat.h>
+#include <thread>
+#include <vector>
 
 /**
  * cid,extra,content,failed
@@ -24,49 +24,38 @@ using IPFSCallbackFunction = std::function<void(const std::string&, const std::s
 
 
 class IPFS : public Threaded {
-/**
- * Singleton Start
- */
-private:
-    static IPFS* _pinstance;
-    static std::mutex _mutex;
-
-    static std::string _nodePrefix;
-    static unsigned int _timeoutPin;
-    static unsigned int _timeoutDownload;
-    static unsigned int _timeoutRetry;
-    static unsigned int _maxParallel;
-
-protected:
-    IPFS();
-    ~IPFS();
-
-public:
-    IPFS(IPFS& other) = delete;
-    void operator=(const IPFS&) = delete;
-    static IPFS* GetInstance();
-    static IPFS* GetInstance(const std::string& configFile);
-/**
- * Singleton End
- */
 
 private:
+    const static std::vector<std::string> _knownLostCID;
+    std::string _nodePrefix = "http://localhost:5001/api/v0/";
 
-    bool _processOff = false; //used for making bootstrap database only
+    ///timeout times are in seconds
+    unsigned int _timeoutPin = 1200;
+    unsigned int _timeoutDownload = 3600;
+    unsigned int _timeoutRetry = 3600;
+    unsigned int _maxParallel = 10;
 
     void mainFunction() override;
+    static std::string getIP();
+    static std::string findPublicAddress(const std::vector<std::string>& addresses, const std::string& ip);
+    static std::vector<std::string> extractAddresses(const std::string& idString) ;
 
     //TestHelpers
-    static std::string
-    _command(const std::string& command, const std::map<std::string, std::string>& data = {}, unsigned int timeout = 0);
+    std::string
+    _command(const std::string& command, const std::map<std::string, std::string>& data = {}, unsigned int timeout = 0, const std::string& outputPath = "") const;
 
 
 public:
+    IPFS(const std::string& configFile, bool runStart = true);
     static std::string _lastErrorMessage;
 
     //helpers
     static std::string sha256ToCID(BitIO& hash);
     static std::string sha256ToCID(const std::string& hash);
+    static bool isIPFSurl(const std::string& url);
+    static std::string getCID(const std::string& url);
+    static bool isLostCID(const std::string& cid);
+    static bool isValidCID(const std::string& cid);
 
     //called by initializing code
     static void registerCallback(const std::string& callbackSymbol, const IPFSCallbackFunction& callback);
@@ -77,11 +66,13 @@ public:
     std::promise<std::string>
     callOnDownloadPromise(const std::string& cid, const std::string& sync = "", unsigned int maxTime = 0);
     std::string callOnDownloadSync(const std::string& cid, const std::string& sync = "", unsigned int maxTime = 0);
-    void pin(const std::string& cid, unsigned int maxSize = 1);   //1 is any size
+    void pin(const std::string& cid, unsigned int maxSize = 1); //1 is any size
 
     //synchronous requests
     bool isPinned(const std::string& cid) const;
     unsigned int getSize(const std::string& cid) const;
+    void downloadFile(const std::string& cid, const std::string& filePath, bool pinAlso = false);
+    std::string getPeerId() const;
 
 
     /*
@@ -104,6 +95,14 @@ public:
     public:
         char* what() {
             _lastErrorMessage = "IPFS Command Timed";
+            return const_cast<char*>(_lastErrorMessage.c_str());
+        }
+    };
+
+    class exceptionInvalidCID : public exception {
+    public:
+        char* what() {
+            _lastErrorMessage = "Invalid CID provided";
             return const_cast<char*>(_lastErrorMessage.c_str());
         }
     };

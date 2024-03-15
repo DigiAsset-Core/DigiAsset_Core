@@ -2,58 +2,64 @@
 // Created by mctrivia on 07/07/23.
 // This test sweet tests all historical DigiAsset, KYC, and Exchange transactions up to block todo ???????
 
-#include <cmath>
-#include "gtest/gtest.h"
+#include "AppMain.h"
 #include "DigiAsset.h"
 #include "DigiAssetRules.h"
 #include "DigiByteCore.h"
 #include "DigiByteTransaction.h"
-#include "TestHelpers.h"
 #include "IPFS.h"
+#include "Log.h"
+#include "TestHelpers.h"
+#include "gtest/gtest.h"
+#include <cmath>
 
-#include <vector>
-#include <random>
-#include <string>
 #include <algorithm>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <fstream>
+#include <random>
+#include <string>
 #include <thread>
+#include <vector>
 
 using namespace std;
 
 
 
 TEST(DigiAssetTransaction, existingAssetTransactions) {
-    const bool showAll = true;        ///set true if debugging and want it to show the txid before doing each test
+    Log* log = Log::GetInstance("debug.log");
+    log->setMinLevelToFile(Log::INFO);
+
+    const bool showAll = true; ///set true if debugging and want it to show the txid before doing each test
     string errorList = "";
 
-    //clone test database before start
-    ifstream in("../tests/testFiles/assetTest.db", ios::binary);
-    ofstream out("../tests/testFiles/assetTest_copy.db", ios::binary);
-    if (in.is_open() && out.is_open()) {
-        while (!in.eof()) {
-            out.put(in.get());
-        }
-    }
-    in.close();
-    out.close();
+    //delete old test database if still exists
+    try {
+        remove("../tests/testFiles/assetTest.db");
+    } catch (...) {}
 
-    //connect to database and core
-    Database* db = Database::GetInstance("../tests/testFiles/assetTest_copy.db");
-    DigiByteCore api;
-    api.setFileName("config.cfg");
-    api.makeConnection();
+    IPFS ipfs("config.cfg", false);
+    ipfs.downloadFile("QmNPyr5tkm48cUu5iMbReiM8GN8AW6PRpzUztPFadaxC8j", "../tests/testFiles/assetTest.csv", true);
+    ipfs.downloadFile("QmPkTkEipf8Ae9XWrbgmkTWWTTrgp7piwdeBuZRYgVnCNm", "../tests/testFiles/assetTest.db", true);
 
-    //create new ipfs database and run
-    IPFS* ipfs = IPFS::GetInstance();
-    ipfs->start();
+    //initialize prerequisites
+    AppMain* main = AppMain::GetInstance();
+    DigiByteCore dgb;
+    dgb.setFileName("config.cfg");
+    dgb.makeConnection();
+    main->setDigiByteCore(&dgb);
+    Database db("../tests/testFiles/assetTest.db");
+    main->setDatabase(&db);
+    main->setIPFS(&ipfs);
+    ipfs.start();
+    PermanentStoragePoolList psp("config.cfg");
+    main->setPermanentStoragePoolList(&psp);
 
+
+    //download test files
     string txid;
     size_t testNumber = 0;
     size_t testTotal = 0;
-    vector<char> display = {'/', '-', '\\', '|'};
-    unsigned int displayPos = 0;
     string lineText;
     try {
         std::ifstream file("../tests/testFiles/assetTest.csv");
@@ -62,9 +68,6 @@ TEST(DigiAssetTransaction, existingAssetTransactions) {
             DigiByteTransaction test;
             while (std::getline(file, line)) {
                 if ((!showAll) && (testNumber % 100 == 0)) {
-                    //cout << display[displayPos];
-                    //displayPos++;
-                    //if (displayPos==4) displayPos=0;
                     cout << "*";
                     std::cout.flush();
                 }
@@ -74,12 +77,12 @@ TEST(DigiAssetTransaction, existingAssetTransactions) {
                 DigiAsset ua;
                 DigiAssetRules ur;
                 vector<uint8_t> serializedRule;
-                size_t i, oi, ai, inputCount, outputCount, assetCount;
+                size_t i, inputCount, outputCount, assetCount;
                 AssetUTXO tau;
                 unsigned int height;
                 string address;
                 string flags;
-                size_t li = 2;    //first value is always a char so lets scip
+                size_t li = 2; //first value is always a char so lets scip
                 string temp;
 
 
@@ -88,7 +91,7 @@ TEST(DigiAssetTransaction, existingAssetTransactions) {
                     testTotal = stoi(TestHelpers::getCSVValue(line, li));
                     continue;
                 }
-                string lineText = "";
+                lineText = "";
                 if ((type != 'N') && (type != 'R')) {
                     txid = TestHelpers::getCSVValue(line, li);
                     height = stoi(TestHelpers::getCSVValue(line, li));
@@ -96,8 +99,7 @@ TEST(DigiAssetTransaction, existingAssetTransactions) {
                     map<char, string> typeLong = {
                             {'T', "Asset Transaction"},
                             {'K', "KYC Transaction"},
-                            {'E', "Exchange Transaction"}
-                    };
+                            {'E', "Exchange Transaction"}};
                     lineText = "Test: " + to_string(testNumber) + " of " + to_string(testTotal) + " - txid:" + txid +
                                " - " + typeLong[type];
                     if (showAll) std::cout << lineText << "\n";
@@ -110,7 +112,7 @@ TEST(DigiAssetTransaction, existingAssetTransactions) {
                         flags = TestHelpers::getCSVValue(line, li);
 
                         //construct the transaction object and check type flags match
-                        test = DigiByteTransaction(txid, api, height);
+                        test = DigiByteTransaction(txid, height);
                         test.addToDatabase();
 
                         if (test.isNonAssetTransaction() != (flags[0] == '1')) passed += " isNonAssetTransaction";
@@ -192,7 +194,7 @@ TEST(DigiAssetTransaction, existingAssetTransactions) {
 
                     case 'K': //KYC
                         address = TestHelpers::getCSVValue(line, li);
-                        test = DigiByteTransaction(txid, api, height);
+                        test = DigiByteTransaction(txid, height);
                         test.addToDatabase();
 
                         if (test.isTransfer()) passed += " isTransfer";
@@ -209,7 +211,7 @@ TEST(DigiAssetTransaction, existingAssetTransactions) {
                         temp = TestHelpers::getCSVValue(line, li);
                         if (test.getKYC().getCountry() != temp) passed += " getKYC.getCountry";
                         temp = TestHelpers::getCSVValue(line, li);
-                        if (temp == "null") temp = "";  //todo fix csv file
+                        if (temp == "null") temp = ""; //todo fix csv file
                         if (test.getKYC().getName() != temp) passed += " getKYC.getName";
                         temp = TestHelpers::getCSVValue(line, li);
                         if (temp.find('\0') != string::npos) temp = temp.substr(0, temp.find('\0', 0));
@@ -220,7 +222,7 @@ TEST(DigiAssetTransaction, existingAssetTransactions) {
 
                     case 'E': //exchange rate
                         address = TestHelpers::getCSVValue(line, li);
-                        test = DigiByteTransaction(txid, api, height);
+                        test = DigiByteTransaction(txid, height);
                         test.addToDatabase();
 
                         if (!test.isExchangeTransaction()) passed += " isExchangeTransaction";
@@ -245,16 +247,12 @@ TEST(DigiAssetTransaction, existingAssetTransactions) {
                         } catch (const exception& e) {
                             //some don't have test values
                         }
-
-
                 }
                 EXPECT_EQ(passed, "");
                 if (!passed.empty()) {
                     cout << lineText << " - " << passed << "\n";
                     errorList += (lineText + " - " + passed + "\n");
                 }
-
-
             }
             cout << "\n";
             file.close();
@@ -263,16 +261,21 @@ TEST(DigiAssetTransaction, existingAssetTransactions) {
             EXPECT_TRUE(false); //test file failed to open
         }
     } catch (const exception& e) {
-        std::cout << "\n\nMajor Error Thrown In: \n" << lineText << "\n";
+        std::cout << "\n\nMajor Error Thrown In: \n"
+                  << lineText << "\n";
         std::cout << e.what() << "\n";
 
         EXPECT_TRUE(false);
     }
     if (!errorList.empty()) {
-        std::cout << "\n\nFailed Tests: \n" << errorList << "\n";
+        std::cout << "\n\nFailed Tests: \n"
+                  << errorList << "\n";
     }
 
-    //delete modified database
-    //remove("../tests/testFiles/assetTest_copy.db");
-}
+    //pause to let IPFS catch up
+    chrono::minutes dura(30);
+    this_thread::sleep_for(dura);
 
+    //clean up
+    main->reset();
+}

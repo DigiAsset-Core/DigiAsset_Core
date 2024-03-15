@@ -7,9 +7,10 @@
 
 
 #include <cstdint>
+#include <jsoncpp/json/value.h>
 #include <string>
 
-class DigiAsset;    //forward declaration
+class DigiAsset; //forward declaration
 
 struct AssetHolder {
     std::string address;
@@ -20,8 +21,10 @@ struct AssetUTXO {
     std::string txid;
     uint16_t vout;
     std::string address;
-    uint64_t digibyte;  //in sats
+    uint64_t digibyte; //in sats
     std::vector<DigiAsset> assets;
+
+    Json::Value toJSON(bool simplified = true) const;
 };
 
 struct Signer {
@@ -37,8 +40,7 @@ struct Signer {
     bool operator!=(const Signer& b) const {
         return !(
                 (b.address == address) &&
-                (b.weight == weight)
-        );
+                (b.weight == weight));
     }
 };
 
@@ -49,7 +51,7 @@ void deserialize(const std::vector<uint8_t>& serializedData, size_t& i, Signer& 
 struct ExchangeRate {
     std::string address;
     uint8_t index;
-    std::string name;  //not tested in comparison
+    std::string name; //not tested in comparison
 
     bool enabled() const {
         return (!address.empty());
@@ -63,11 +65,10 @@ struct ExchangeRate {
     }
 
     bool operator!=(const ExchangeRate& b) const {
-        if (b.address.empty() && address.empty()) return false;   //both disabled
+        if (b.address.empty() && address.empty()) return false; //both disabled
         return !(
                 (b.address == address) &&
-                (b.index == index)
-        );
+                (b.index == index));
     }
 };
 
@@ -88,8 +89,7 @@ struct Royalty {
     bool operator!=(const Royalty& b) const {
         return !(
                 (b.address == address) &&
-                (b.amount == amount)
-        );
+                (b.amount == amount));
     }
 };
 
@@ -99,7 +99,7 @@ void deserialize(const std::vector<uint8_t>& serializedData, size_t& i, Royalty&
 
 struct VoteOption {
     std::string address;
-    std::string label;  //not tested in comparison
+    std::string label; //not tested in comparison
 
     bool operator==(const VoteOption& b) const {
         return (b.address == address);
