@@ -7,6 +7,31 @@ configure_file(
         "${CMAKE_CURRENT_SOURCE_DIR}/Version.h"
 )
 
+#Build BitcoinRpcServerMethods.h
+file(GLOB RPC_METHOD_SOURCES RPC_Methods/*.cpp)
+set(METHOD_MAP_CONTENT "#include <map>\n#include <functional>\n#include \"jsoncpp/json/value.h\"\n\n")
+set(METHOD_MAP_CONTENT "${METHOD_MAP_CONTENT}namespace RPCMethods {\n")
+foreach(SOURCE_FILE ${RPC_METHOD_SOURCES})
+    get_filename_component(METHOD_NAME ${SOURCE_FILE} NAME_WE)
+    set(METHOD_MAP_CONTENT "${METHOD_MAP_CONTENT}    extern const Json::Value ${METHOD_NAME}(const Json::Value& params);\n")
+endforeach()
+set(METHOD_MAP_CONTENT "${METHOD_MAP_CONTENT}}\n")
+set(METHOD_MAP_CONTENT "${METHOD_MAP_CONTENT}\nstd::map<std::string, std::function<Json::Value(const Json::Value&)>> rpcMethods = {\n")
+foreach(SOURCE_FILE ${RPC_METHOD_SOURCES})
+    get_filename_component(METHOD_NAME ${SOURCE_FILE} NAME_WE)
+    set(METHOD_MAP_CONTENT "${METHOD_MAP_CONTENT}    {\"${METHOD_NAME}\", RPCMethods::${METHOD_NAME}},\n")
+endforeach()
+set(METHOD_MAP_CONTENT "${METHOD_MAP_CONTENT}};\n")
+file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/BitcoinRpcServerMethods.h "${METHOD_MAP_CONTENT}")
+
+
+
+
+
+
+
+
+
 
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
@@ -88,7 +113,7 @@ set(SOURCE_FILES
         UniqueTaskQueue.cpp
         )
 
-add_executable(digiasset_core main.cpp ${SOURCE_FILES} ${HEADER_FILES})
+add_executable(digiasset_core main.cpp ${SOURCE_FILES} ${HEADER_FILES} RPC_Methods/getrawtransaction.cpp BitcoinRpcServerMethods.h RPC_Methods/send.cpp RPC_Methods/sendmany.cpp RPC_Methods/sendtoaddress.cpp RPC_Methods/listunspent.cpp RPC_Methods/shutdown.cpp RPC_Methods/getassetindexes.cpp RPC_Methods/getassetdata.cpp RPC_Methods/getdomainaddress.cpp RPC_Methods/getassetholders.cpp RPC_Methods/getexchangerates.cpp RPC_Methods/getdgbequivalent.cpp RPC_Methods/getaddresskyc.cpp RPC_Methods/resyncmetadata.cpp RPC_Methods/syncstate.cpp RPC_Methods/addressstats.cpp RPC_Methods/algostats.cpp RPC_Methods/version.cpp RPC_Methods/getipfscount.cpp RPC_Methods/createoldstreamkey.cpp RPC_Methods/getoldstreamkey.cpp)
 
 
 target_link_libraries(digiasset_core PRIVATE CURL::libcurl)

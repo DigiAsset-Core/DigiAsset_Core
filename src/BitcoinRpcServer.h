@@ -14,6 +14,8 @@
 #define RPC_FORBIDDEN_BY_SAFE_MODE  (-2)
 #define RPC_MISC_ERROR (-1)
 
+// Macro definition in a common header or the RPC server file
+#define REGISTER_RPC_METHOD(methodName) registerMethod(#methodName, &std::methodName)
 
 
 
@@ -35,8 +37,6 @@ struct Method {
 };
 
 class BitcoinRpcServer {
-    UniqueTaskQueue _taskQueue;
-    std::atomic<bool> _processingThreadStarted{false};
 
     boost::asio::io_service _io{};
     tcp::acceptor _acceptor{_io};
@@ -45,10 +45,6 @@ class BitcoinRpcServer {
     unsigned int _port;
     std::map<std::string, bool> _allowedRPC;
     int8_t _allowRPCDefault = -1;    //unknown
-
-    //allowed functions
-    std::vector<Method> _methods;
-    void defineMethods();
 
     //functions to handle requests
     Value parseRequest(tcp::socket& socket);

@@ -1,9 +1,11 @@
 cmake-build-debug
+.idea
 bin/*
 bin/stream/*
 build
 build/*
 src/Version.h
+src/BitcoinRpcServerMethods.h
 */_*
 tests/testFiles/assetTest.*
 !*/.gitkeep
