@@ -40,7 +40,7 @@ TEST(DigiAssetTransaction, existingAssetTransactions) {
 
     IPFS ipfs("config.cfg", false);
     ipfs.downloadFile("QmNPyr5tkm48cUu5iMbReiM8GN8AW6PRpzUztPFadaxC8j", "../tests/testFiles/assetTest.csv", true);
-    ipfs.downloadFile("QmPkTkEipf8Ae9XWrbgmkTWWTTrgp7piwdeBuZRYgVnCNm", "../tests/testFiles/assetTest.db", true);
+    ipfs.downloadFile("QmY34pNFnmtEoJLTtiuAtKsGMf9AkJQPtuA3MzgBzZrMoB", "../tests/testFiles/assetTest.db", true);
 
     //initialize prerequisites
     AppMain* main = AppMain::GetInstance();
