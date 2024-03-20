@@ -40,7 +40,7 @@ TEST(DigiAssetTransaction, existingAssetTransactions) {
 
     IPFS ipfs("config.cfg", false);
     ipfs.downloadFile("QmNPyr5tkm48cUu5iMbReiM8GN8AW6PRpzUztPFadaxC8j", "../tests/testFiles/assetTest.csv", true);
-    ipfs.downloadFile("QmPkTkEipf8Ae9XWrbgmkTWWTTrgp7piwdeBuZRYgVnCNm", "../tests/testFiles/assetTest.db", true);
+    ipfs.downloadFile("QmY34pNFnmtEoJLTtiuAtKsGMf9AkJQPtuA3MzgBzZrMoB", "../tests/testFiles/assetTest.db", true);
 
     //initialize prerequisites
     AppMain* main = AppMain::GetInstance();
@@ -105,7 +105,6 @@ TEST(DigiAssetTransaction, existingAssetTransactions) {
                     if (showAll) std::cout << lineText << "\n";
                 }
 
-
                 string passed;
                 switch (type) {
                     case 'T': //Test
@@ -156,17 +155,20 @@ TEST(DigiAssetTransaction, existingAssetTransactions) {
                                 passed += failPrefix + ".digibyte";
                             }
                             assetCount = stoi(TestHelpers::getCSVValue(line, li));
-                            if (tau.assets.size() != assetCount) passed += failPrefix + ".assets.size";
-                            for (size_t ii = 0; ii < assetCount; ii++) {
-                                if (to_string(tau.assets[ii].getCount()) != TestHelpers::getCSVValue(line, li)) {
-                                    passed += failPrefix + ".assets[" + to_string(ii) + "].getCount";
-                                }
-                                if (tau.assets[ii].getAssetId() != TestHelpers::getCSVValue(line, li)) {
-                                    passed += failPrefix + ".assets[" + to_string(ii) + "].getDomainAssetId";
-                                }
-                                if (to_string(tau.assets[ii].getAssetIndex()) !=
-                                    TestHelpers::getCSVValue(line, li)) {
-                                    passed += failPrefix + ".assets[" + to_string(ii) + "].getAssetIndex";
+                            if (tau.assets.size() != assetCount) {
+                                passed += failPrefix + ".assets.size";
+                            } else {
+                                for (size_t ii = 0; ii < assetCount; ii++) {
+                                    if (to_string(tau.assets[ii].getCount()) != TestHelpers::getCSVValue(line, li)) {
+                                        passed += failPrefix + ".assets[" + to_string(ii) + "].getCount";
+                                    }
+                                    if (tau.assets[ii].getAssetId() != TestHelpers::getCSVValue(line, li)) {
+                                        passed += failPrefix + ".assets[" + to_string(ii) + "].getDomainAssetId";
+                                    }
+                                    if (to_string(tau.assets[ii].getAssetIndex()) !=
+                                        TestHelpers::getCSVValue(line, li)) {
+                                        passed += failPrefix + ".assets[" + to_string(ii) + "].getAssetIndex";
+                                    }
                                 }
                             }
                         }

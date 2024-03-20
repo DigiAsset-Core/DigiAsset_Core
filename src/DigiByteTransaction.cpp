@@ -461,7 +461,7 @@ void DigiByteTransaction::addAssetToOutput(size_t output, const DigiAsset& asset
     //see if asset already in output
     if (asset.isAggregable() && (!_outputs[output].assets.empty())) {
         for (DigiAsset& existingOutput: _outputs[output].assets) {
-            if (existingOutput.getAssetIndex() == asset.getAssetIndex()) {
+            if (existingOutput.getAssetIndex(true) == asset.getAssetIndex(true)) {
                 existingOutput.addCount(asset.getCount());
                 return;
             }
