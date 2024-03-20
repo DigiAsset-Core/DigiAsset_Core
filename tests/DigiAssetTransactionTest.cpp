@@ -105,7 +105,6 @@ TEST(DigiAssetTransaction, existingAssetTransactions) {
                     if (showAll) std::cout << lineText << "\n";
                 }
 
-
                 string passed;
                 switch (type) {
                     case 'T': //Test
@@ -156,17 +155,20 @@ TEST(DigiAssetTransaction, existingAssetTransactions) {
                                 passed += failPrefix + ".digibyte";
                             }
                             assetCount = stoi(TestHelpers::getCSVValue(line, li));
-                            if (tau.assets.size() != assetCount) passed += failPrefix + ".assets.size";
-                            for (size_t ii = 0; ii < assetCount; ii++) {
-                                if (to_string(tau.assets[ii].getCount()) != TestHelpers::getCSVValue(line, li)) {
-                                    passed += failPrefix + ".assets[" + to_string(ii) + "].getCount";
-                                }
-                                if (tau.assets[ii].getAssetId() != TestHelpers::getCSVValue(line, li)) {
-                                    passed += failPrefix + ".assets[" + to_string(ii) + "].getDomainAssetId";
-                                }
-                                if (to_string(tau.assets[ii].getAssetIndex()) !=
-                                    TestHelpers::getCSVValue(line, li)) {
-                                    passed += failPrefix + ".assets[" + to_string(ii) + "].getAssetIndex";
+                            if (tau.assets.size() != assetCount) {
+                                passed += failPrefix + ".assets.size";
+                            } else {
+                                for (size_t ii = 0; ii < assetCount; ii++) {
+                                    if (to_string(tau.assets[ii].getCount()) != TestHelpers::getCSVValue(line, li)) {
+                                        passed += failPrefix + ".assets[" + to_string(ii) + "].getCount";
+                                    }
+                                    if (tau.assets[ii].getAssetId() != TestHelpers::getCSVValue(line, li)) {
+                                        passed += failPrefix + ".assets[" + to_string(ii) + "].getDomainAssetId";
+                                    }
+                                    if (to_string(tau.assets[ii].getAssetIndex()) !=
+                                        TestHelpers::getCSVValue(line, li)) {
+                                        passed += failPrefix + ".assets[" + to_string(ii) + "].getAssetIndex";
+                                    }
                                 }
                             }
                         }

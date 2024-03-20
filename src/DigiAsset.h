@@ -95,7 +95,7 @@ public:
     std::string getStrCount() const;
     uint8_t getDecimals() const;
 
-    uint64_t getAssetIndex() const;
+    uint64_t getAssetIndex(bool allowUnknownAssetIndex=false) const;
     bool isAssetIndexSet() const;
     void lookupAssetIndex(const std::string& txid, unsigned int vout);
     void setAssetIndex(uint64_t assetIndex);

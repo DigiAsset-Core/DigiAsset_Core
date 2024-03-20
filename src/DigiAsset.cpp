@@ -617,7 +617,8 @@ std::string DigiAsset::getCID() const {
  * 0 - not yet set
  * 1 and up - assetIndex.  This value is only valid on this particular node.
  */
-uint64_t DigiAsset::getAssetIndex() const {
+uint64_t DigiAsset::getAssetIndex(bool allowUnknownAssetIndex) const {
+    if (allowUnknownAssetIndex) return _assetIndex;
     if (_assetIndex==0) throw exceptionUnknownAssetIndex();
     return _assetIndex;
 }

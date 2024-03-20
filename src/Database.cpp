@@ -275,11 +275,11 @@ void Database::initializeClassValues() {
                                          "FROM ( "
                                              "SELECT txid AS tx, heightCreated AS height "
                                              "FROM utxos "
-                                             "WHERE address=? "
+                                             "WHERE address=? AND heightCreated >=? and heightCreated <=?"
                                              "UNION "
                                              "SELECT spentTXID AS tx, heightDestroyed AS height "
                                              "FROM utxos "
-                                             "WHERE address=? AND spentTXID IS NOT NULL "
+                                             "WHERE address=? AND spentTXID IS NOT NULL AND heightDestroyed >= ? AND heightDestroyed <= ?"
                                          ") "
                                          "ORDER BY height ASC;");
 
@@ -1425,14 +1425,20 @@ std::vector<std::string> Database::getAssetTxHistory(const string& assetId) {
 /**
  * Returns list of TXIDs that involve an address
  * @param address
+ * @param minHeight - optional minimum height to return
+ * @param maxHeight - optional maximum height to return
  * @return
  */
-std::vector<std::string> Database::getAddressTxList(const string& address) {
+std::vector<std::string> Database::getAddressTxList(const string& address, unsigned int minHeight, unsigned int maxHeight) {
     if (getBeenPrunedUTXOHistory()>-1) throw exceptionDataPruned();
     vector<string> results;
     auto getAddressTxHistory=_stmtGetAddressTxHistory.lock();
     getAddressTxHistory.bindText(1, address, SQLITE_STATIC);
-    getAddressTxHistory.bindText(2, address, SQLITE_STATIC);
+    getAddressTxHistory.bindInt(2, minHeight);
+    getAddressTxHistory.bindInt(3, maxHeight);
+    getAddressTxHistory.bindText(4, address, SQLITE_STATIC);
+    getAddressTxHistory.bindInt(5, minHeight);
+    getAddressTxHistory.bindInt(6, maxHeight);
     while (getAddressTxHistory.executeStep() == SQLITE_ROW) {
         Blob txid=getAddressTxHistory.getColumnBlob(0);
         results.push_back(txid.toHex());

@@ -89,7 +89,7 @@ namespace RPCMethods {
 
             if (params[4].isMember("minimumAmount")) {
                 if (params[4]["minimumAmount"].isDouble()) {
-                    minAmount=params[4]["minimumAmount"].asDouble();//todo convert to sats
+                    minAmount=floor(params[4]["minimumAmount"].asDouble()*100000000);
                 } else {
                     throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
                 }
@@ -97,7 +97,7 @@ namespace RPCMethods {
 
             if (params[4].isMember("maximumAmount")) {
                 if (params[4]["maximumAmount"].isDouble()) {
-                    maxAmount=params[4]["maximumAmount"].asDouble();//todo convert to sats
+                    maxAmount=ceil(params[4]["maximumAmount"].asDouble()*100000000);
                 } else {
                     throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
                 }
