@@ -83,6 +83,8 @@ set(HEADER_FILES
         Version.h
         OldStream.h
         UniqueTaskQueue.h
+        Database_Statement.h
+        Database_LockedStatement.h
         )
 
 set(SOURCE_FILES
@@ -113,6 +115,8 @@ set(SOURCE_FILES
         CurlHandler.cpp
         OldStream.cpp
         UniqueTaskQueue.cpp
+        Database_Statement.cpp
+        Database_LockedStatement.cpp
         )
 
 add_executable(digiasset_core main.cpp ${SOURCE_FILES} ${HEADER_FILES} ${RPC_METHODS_FILES})

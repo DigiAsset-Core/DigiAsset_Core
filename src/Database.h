@@ -27,10 +27,13 @@
 #include "IPFS.h"
 #include "KYC.h"
 #include <future>
+#include <iomanip>
 #include <mutex>
 #include <sqlite3.h>
 #include <string>
 #include <vector>
+#include "Database_Statement.h"
+#include "Database_LockedStatement.h"
 
 struct AddressStats {
     unsigned int time;            //time block start
@@ -60,103 +63,13 @@ struct VoteCount {
 };
 
 
-class LockedStatement {
-public:
-    LockedStatement(sqlite3_stmt* stmt, std::mutex& mtx)
-        : _stmt(stmt), _lock(mtx) {
-        // The lock is acquired as soon as an object of this class is created
-        reset();
-    }
 
-    void reset() {
-        sqlite3_reset(_stmt);
-    }
 
-    // Bind methods remember indexes start at 1
-    void bindInt(int index, int value) {
-        sqlite3_bind_int(_stmt, index, value);
-    }
-    
-    void bindInt64(int index, int64_t value) {
-        sqlite3_bind_int64(_stmt, index, value);
-    }
 
-    void bindDouble(int index, double value) {
-        sqlite3_bind_double(_stmt, index, value);
-    }
 
-    void bindText(int index, const std::string& value, void (*copyType)(void*) = SQLITE_TRANSIENT) {
-        sqlite3_bind_text(_stmt, index, value.c_str(), -1, copyType);
-    }
 
-    void bindBlob(int index, const Blob& blob, void (*copyType)(void*) = SQLITE_TRANSIENT) {
-        sqlite3_bind_blob(_stmt, index, blob.data(), blob.length(), copyType);
-    }
 
-    void bindNull(int index) {
-        sqlite3_bind_null(_stmt, index);
-    }
 
-    // Get column methods remember indexes start at 0
-    int getColumnInt(int index) {
-        return sqlite3_column_int(_stmt, index);
-    }
-
-    int64_t getColumnInt64(int index) {
-        return sqlite3_column_int64(_stmt, index);
-    }
-
-    double getColumnDouble(int index) {
-        return sqlite3_column_double(_stmt, index);
-    }
-
-    std::string getColumnText(int index) {
-        const unsigned char* text = sqlite3_column_text(_stmt, index);
-        return std::string(reinterpret_cast<const char*>(text));
-    }
-
-    Blob getColumnBlob(int index) {
-        const void* data = sqlite3_column_blob(_stmt, index);
-        int length = sqlite3_column_bytes(_stmt, index);
-        return Blob(data, length);
-    }
-
-    // Execute step
-    int executeStep() {
-        return sqlite3_step(_stmt);
-    }
-
-private:
-    sqlite3_stmt* _stmt;
-    std::unique_lock<std::mutex> _lock; // Automatically releases the lock when destroyed
-};
-
-class Statement {
-public:
-    Statement()=default;
-
-    ~Statement() {
-        if (_stmt!= nullptr) sqlite3_finalize(_stmt);
-    }
-    
-    void prepare(sqlite3* db, const std::string& query) {
-        if (_stmt!= nullptr) throw std::runtime_error("Statement already prepared");    //code is wrong if this executes
-        const char* tail;
-        int rc = sqlite3_prepare_v2(db, query.c_str(), -1, &_stmt, &tail);
-        if (rc != SQLITE_OK) {
-            throw std::runtime_error("Failed to prepare statement");
-        }
-    }
-
-    LockedStatement lock() {
-        if (_stmt== nullptr) throw std::runtime_error("Statement not prepared");    //code is wrong if this executes
-        return {_stmt, _mutex};
-    }
-
-private:
-    sqlite3_stmt* _stmt = nullptr;
-    std::mutex _mutex;
-};
 
 
 class Database {
@@ -230,6 +143,105 @@ private:
     Statement _stmtGetAddressTxHistory;
     Statement _stmtGetAssetCreateByAddress;
     Statement _stmtGetValidUTXO;
+
+public:
+    std::string printProfilingInfo() {
+        // Header
+        std::ostringstream oss;
+        oss << std::right << std::setw(30) << "Statement Name"
+                  << std::setw(20) << "Total Time (us)"
+                  << std::setw(20) << "Time/Transaction (us)"
+                  << std::setw(20) << "Transactions" << std::endl;
+        std::cout << std::string(90, '-') << std::endl; // Separator
+        std::string result=oss.str();
+
+        // Print info for each statement
+        result+=printStatementInfo("_stmtCheckFlag", _stmtCheckFlag);
+        result+=printStatementInfo("_stmtSetFlag", _stmtSetFlag);
+        result+=printStatementInfo("_stmtGetBlockHeight", _stmtGetBlockHeight);
+        result+=printStatementInfo("_stmtInsertBlock", _stmtInsertBlock);
+        result+=printStatementInfo("_stmtGetBlockHash", _stmtGetBlockHash);
+        result+=printStatementInfo("_stmtCreateUTXO", _stmtCreateUTXO);
+        result+=printStatementInfo("_stmtSpendUTXO", _stmtSpendUTXO);
+        result+=printStatementInfo("_stmtIsWatchAddress", _stmtIsWatchAddress);
+        result+=printStatementInfo("_stmtAddWatchAddress", _stmtAddWatchAddress);
+        result+=printStatementInfo("_stmtGetSpendingAddress", _stmtGetSpendingAddress);
+        result+=printStatementInfo("_stmtAddExchangeRate", _stmtAddExchangeRate);
+        result+=printStatementInfo("_stmtAddKYC", _stmtAddKYC);
+        result+=printStatementInfo("_stmtRevokeKYC", _stmtRevokeKYC);
+        result+=printStatementInfo("_stmtPruneUTXOs", _stmtPruneUTXOs);
+        result+=printStatementInfo("_stmtExchangeRatesAtHeight", _stmtExchangeRatesAtHeight);
+        result+=printStatementInfo("_stmtPruneExchangeRate", _stmtPruneExchangeRate);
+        result+=printStatementInfo("_stmtGetVoteCountAtHeight", _stmtGetVoteCountAtHeight);
+        result+=printStatementInfo("_stmtPruneVote", _stmtPruneVote);
+        result+=printStatementInfo("_stmtAddVote", _stmtAddVote);
+        result+=printStatementInfo("_stmtGetVoteCount", _stmtGetVoteCount);
+        result+=printStatementInfo("_stmtGetAssetUTXO", _stmtGetAssetUTXO);
+        result+=printStatementInfo("_stmtGetAssetHolders", _stmtGetAssetHolders);
+        result+=printStatementInfo("_stmtAddAsset", _stmtAddAsset);
+        result+=printStatementInfo("_stmtUpdateAsset", _stmtUpdateAsset);
+        result+=printStatementInfo("_stmtGetAssetIndex", _stmtGetAssetIndex);
+        result+=printStatementInfo("_stmtGetAssetIndexOnUTXO", _stmtGetAssetIndexOnUTXO);
+        result+=printStatementInfo("_stmtGetHeightAssetCreated", _stmtGetHeightAssetCreated);
+        result+=printStatementInfo("_stmtGetAssetRules", _stmtGetAssetRules);
+        result+=printStatementInfo("_stmtGetAsset", _stmtGetAsset);
+        result+=printStatementInfo("_stmtGetKYC", _stmtGetKYC);
+        result+=printStatementInfo("_stmtGetValidExchangeRate", _stmtGetValidExchangeRate);
+        result+=printStatementInfo("_stmtGetCurrentExchangeRate", _stmtGetCurrentExchangeRate);
+        result+=printStatementInfo("_stmtGetNextIPFSJob", _stmtGetNextIPFSJob);
+        result+=printStatementInfo("_stmtSetIPFSPauseSync", _stmtSetIPFSPauseSync);
+        result+=printStatementInfo("_stmtClearNextIPFSJob_a", _stmtClearNextIPFSJob_a);
+        result+=printStatementInfo("_stmtClearNextIPFSJob_b", _stmtClearNextIPFSJob_b);
+        result+=printStatementInfo("_stmtInsertIPFSJob", _stmtInsertIPFSJob);
+        result+=printStatementInfo("_stmtClearIPFSPause", _stmtClearIPFSPause);
+        result+=printStatementInfo("_stmtSetIPFSLockSync", _stmtSetIPFSLockSync);
+        result+=printStatementInfo("_stmtSetIPFSLockJob", _stmtSetIPFSLockJob);
+        result+=printStatementInfo("_stmtSetIPFSPauseJob", _stmtSetIPFSPauseJob);
+        result+=printStatementInfo("_stmtGetDomainAssetId", _stmtGetDomainAssetId);
+        result+=printStatementInfo("_stmtAddDomain", _stmtAddDomain);
+        result+=printStatementInfo("_stmtRevokeDomain", _stmtRevokeDomain);
+        result+=printStatementInfo("_stmtSetDomainMasterAssetId_a", _stmtSetDomainMasterAssetId_a);
+        result+=printStatementInfo("_stmtSetDomainMasterAssetId_b", _stmtSetDomainMasterAssetId_b);
+        result+=printStatementInfo("_stmtGetPermanentPaid", _stmtGetPermanentPaid);
+        result+=printStatementInfo("_stmtRemoveNonReachable", _stmtRemoveNonReachable);
+        result+=printStatementInfo("_stmtInsertPermanent", _stmtInsertPermanent);
+        result+=printStatementInfo("_stmtRepinAssets", _stmtRepinAssets);
+        result+=printStatementInfo("_stmtRepinPermanentSpecific", _stmtRepinPermanentSpecific);
+        result+=printStatementInfo("_stmtAddAssetToPool", _stmtAddAssetToPool);
+        result+=printStatementInfo("_stmtIsAssetInPool", _stmtIsAssetInPool);
+        result+=printStatementInfo("_stmtIsAssetInAPool", _stmtIsAssetInAPool);
+        result+=printStatementInfo("_stmtPSPFindBadAsset", _stmtPSPFindBadAsset);
+        result+=printStatementInfo("_stmtPSPDeleteBadAsset", _stmtPSPDeleteBadAsset);
+        result+=printStatementInfo("_stmtDeletePermanent", _stmtDeletePermanent);
+        result+=printStatementInfo("_stmtIsInPermanent", _stmtIsInPermanent);
+        result+=printStatementInfo("_stmtNumberOfIPFSJobs", _stmtNumberOfIPFSJobs);
+        result+=printStatementInfo("_stmtGetTotalAssetCounta", _stmtGetTotalAssetCounta);
+        result+=printStatementInfo("_stmtGetTotalAssetCountb", _stmtGetTotalAssetCountb);
+        result+=printStatementInfo("_stmtGetOriginalAssetCounta", _stmtGetOriginalAssetCounta);
+        result+=printStatementInfo("_stmtGetOriginalAssetCountb", _stmtGetOriginalAssetCountb);
+        result+=printStatementInfo("_stmtGetAssetTxHistorya", _stmtGetAssetTxHistorya);
+        result+=printStatementInfo("_stmtGetAssetTxHistoryb", _stmtGetAssetTxHistoryb);
+        result+=printStatementInfo("_stmtGetAddressTxHistory", _stmtGetAddressTxHistory);
+        result+=printStatementInfo("_stmtGetAssetCreateByAddress", _stmtGetAssetCreateByAddress);
+        result+=printStatementInfo("_stmtGetValidUTXO", _stmtGetValidUTXO);
+        return result;
+    }
+
+    std::string printStatementInfo(const std::string& name, const Statement& stmt) {
+        long long totalDuration = stmt.getTotalLockDuration();
+        int transactions = stmt.getLockCount();
+        long long avgDuration = transactions > 0 ? totalDuration / transactions : 0;
+
+        std::ostringstream oss;
+        oss << std::right << std::setw(30) << name
+            << std::setw(20) << totalDuration
+            << std::setw(20) << avgDuration
+            << std::setw(20) << transactions << std::endl;
+
+        return oss.str();
+    }
+private:
+
 
     //locks
     std::mutex _mutexGetNextIPFSJob;
