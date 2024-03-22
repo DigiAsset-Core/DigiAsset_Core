@@ -39,15 +39,19 @@ namespace RPCMethods {
             }
         }
 
-        std::vector<string> assetIDs;
         Database* db=AppMain::GetInstance()->getDatabase();
-        auto assetIDs=db->getAssetIDsOrderedByIssuanceHeight(numberOfRecords, startIndex);
+        auto assets=db->getAssetIDsOrderedByIssuanceHeight(numberOfRecords, startIndex);
 
-        Json::Value result=Json::arrayValue;
-        for (const auto& assetId: assetIDs) {
-            result.append(assetId);
+        Value jsonArray=Json::arrayValue;
+        for (const auto& asset: assets) {
+            Json::Value assetJSON(Json::objectValue);
+            assetJSON["assetIndex"] = asset.assetIndex;
+            assetJSON["assetId"] = asset.assetId;
+            assetJSON["cid"] = asset.cid;
+            assetJSON["height"] = asset.height;
+            jsonArray.append(assetJSON);
         }
-        return result;
+        return jsonArray;
 
     }
 }

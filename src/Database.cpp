@@ -352,8 +352,8 @@ void Database::initializeClassValues() {
     //statement to get assetIndex(don't use for non-aggregable)
     _stmtGetAssetIndex.prepare(_db,"SELECT assetIndex FROM assets WHERE assetId=?");
 
-    //statement to get assetIDs ordered by issuance height
-    _stmtGetAssetIDsOrderedByHeight.prepare(_db,"SELECT assetId FROM assets order by heightCreated asc limit ? offset ?;");
+    //statement to get assets ordered by issuance height
+    _stmtGetAssetIDsOrderedByHeight.prepare(_db,"SELECT assetIndex, assetId, cid, heightCreated FROM assets order by heightCreated asc limit ? offset ?;");
 
     //statement to get height created
     _stmtGetHeightAssetCreated.prepare(_db,"SELECT assetIndex,heightCreated FROM assets WHERE assetId=?");
@@ -821,16 +821,21 @@ vector<uint64_t> Database::getAssetIndexes(const std::string& assetId) {
 }
 
 /**
- * Returns a list of assetIDs ordered by the issuance height
+ * Returns a list of {assetIndex, assetId, cid, height} ordered by the issuance height
  * @return
  */
-std::vector<string> Database::getAssetIDsOrderedByIssuanceHeight(unsigned int amount, unsigned int offset) {
-    vector<string> results;
+std::vector<AssetBasics> Database::getAssetIDsOrderedByIssuanceHeight(unsigned int amount, unsigned int offset) {
+    std::vector<AssetBasics> results;
     LockedStatement getAssetIDsOrderedByHeight{_stmtGetAssetIDsOrderedByHeight};
     getAssetIDsOrderedByHeight.bindInt(1, amount);
     getAssetIDsOrderedByHeight.bindInt(2, offset);
     while (getAssetIDsOrderedByHeight.executeStep() == SQLITE_ROW) {
-        results.push_back(getAssetIDsOrderedByHeight.getColumnText(0));
+        AssetBasics asset;
+        asset.assetIndex = getAssetIDsOrderedByHeight.getColumnInt(0);
+        asset.assetId = getAssetIDsOrderedByHeight.getColumnText(1);
+        asset.cid = getAssetIDsOrderedByHeight.getColumnText(2);
+        asset.height = getAssetIDsOrderedByHeight.getColumnInt(3);
+        results.push_back(asset);
     }
     return results;
 }

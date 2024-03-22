@@ -302,7 +302,7 @@ public:
     DigiAsset getAsset(uint64_t assetIndex, uint64_t amount = 0);
     uint64_t getAssetIndex(const std::string& assetId, const std::string& txid = "", unsigned int vout = 0);
     std::vector<uint64_t> getAssetIndexes(const std::string& assetId);
-    std::vector<string> getAssetIDsOrderedByIssuanceHeight(unsigned int amount, unsigned int offset);
+    std::vector<AssetBasics> getAssetIDsOrderedByIssuanceHeight(unsigned int amount, unsigned int offset);
 
     //assets table not to be used on assets that may have more than one assetIndex
     DigiAssetRules getRules(const std::string& assetId);
