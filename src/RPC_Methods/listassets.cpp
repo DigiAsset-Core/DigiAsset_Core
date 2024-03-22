@@ -14,7 +14,7 @@ namespace RPCMethods {
      *
      * @return list of assetIDs
      */
-    extern const Json::Value getassetlist(const Json::Value& params) {
+    extern const Json::Value listassets(const Json::Value& params) {
         if (params.size() > 2) {
             throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
         }
