@@ -1,0 +1,53 @@
+//
+// Created by RenzoDD on 21/03/24.
+//
+
+#include "AppMain.h"
+#include "BitcoinRpcServer.h"
+#include <jsoncpp/json/value.h>
+
+namespace RPCMethods {
+    /**
+     * Returns a list of assetIDs ordered by issuance height
+     *  params[0] - numberOfRecords(unsigned int) - default is infinity
+     *  params[1] - startIndex(unsigned int) - default is 1
+     *
+     * @return list of assetIDs
+     */
+    extern const Json::Value getassetlist(const Json::Value& params) {
+        if (params.size() > 2) {
+            throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+        }
+
+        //get number of records default is infinity
+        unsigned int numberOfRecords=std::numeric_limits<unsigned int>::max();;
+        if (params.size()>0) {
+            if (params[0].isUInt()) {
+                numberOfRecords = params[0].asUInt();
+            } else if (!params[0].isNull()) {
+                throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+            }
+        }
+
+        //get start index default is 1
+        unsigned int startIndex=1;
+        if (params.size()>1) {
+            if (params[1].isUInt()) {
+                startIndex = params[1].asUInt();
+            } else if (!params[1].isNull()) {
+                throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+            }
+        }
+
+        std::vector<string> assetIDs;
+        Database* db=AppMain::GetInstance()->getDatabase();
+        auto assetIDs=db->getAssetIDsOrderedByIssuanceHeight(numberOfRecords, startIndex);
+
+        Json::Value result=Json::arrayValue;
+        for (const auto& assetId: assetIDs) {
+            result.append(assetId);
+        }
+        return result;
+
+    }
+}
