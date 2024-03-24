@@ -191,7 +191,6 @@ void ChainAnalyzer::startupFunction() {
 
     //find block we left off at
     _height = db->getBlockHeight();
-    if (_height>5) _height-=5;   //todo (should only do this if last time was not a clean shut down)retract 5 block to make sure the blocks where stored properly.  Do to caching there is a possibility not everything got written to hard drive correctly
     _nextHash = dgb->getBlockHash(_height);
 
     //clear the block we left off on just in case it was partially processed

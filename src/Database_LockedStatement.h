@@ -27,9 +27,9 @@ public:
 
     void bindDouble(int index, double value);
 
-    void bindText(int index, const std::string& value, void (*copyType)(void*) = SQLITE_TRANSIENT);
+    void bindText(int index, const std::string& value);
 
-    void bindBlob(int index, const Blob& blob, void (*copyType)(void*) = SQLITE_TRANSIENT);
+    void bindBlob(int index, const Blob& blob);
 
     void bindNull(int index);
 

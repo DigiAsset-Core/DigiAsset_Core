@@ -34,12 +34,12 @@ void LockedStatement::bindDouble(int index, double value) {
     sqlite3_bind_double(_stmt, index, value);
 }
 
-void LockedStatement::bindText(int index, const std::string& value, void (*copyType)(void*)) {
-    sqlite3_bind_text(_stmt, index, value.c_str(), -1, copyType);
+void LockedStatement::bindText(int index, const std::string& value) {
+    sqlite3_bind_text(_stmt, index, value.c_str(), -1, SQLITE_TRANSIENT);
 }
 
-void LockedStatement::bindBlob(int index, const Blob& blob, void (*copyType)(void*)) {
-    sqlite3_bind_blob(_stmt, index, blob.data(), blob.length(), copyType);
+void LockedStatement::bindBlob(int index, const Blob& blob) {
+    sqlite3_bind_blob(_stmt, index, blob.data(), blob.length(), SQLITE_TRANSIENT);
 }
 
 void LockedStatement::bindNull(int index) {
