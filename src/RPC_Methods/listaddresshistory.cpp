@@ -15,6 +15,7 @@ namespace RPCMethods {
      * params[0] - address(string)
      * params[1] - minHeight(optional unsigned int default 1)
      * params[2] - maxHeight(optional unsigned int default infinity)
+     * params[3] - limit(optional unsigned int default infinity)
      */
     extern const Json::Value listaddresshistory(const Json::Value& params) {
         //get paramas
@@ -31,10 +32,15 @@ namespace RPCMethods {
             if (!params[2].isUInt()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
             maxHeight=params[2].asUInt();
         }
+        unsigned int limit=std::numeric_limits<unsigned int>::max();
+        if (params.size()>3) {
+            if (!params[3].isUInt()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+            limit=params[3].asUInt();
+        }
 
         //lookup transactions in database
         Database* db=AppMain::GetInstance()->getDatabase();
-        auto txList=db->getAddressTxList(address,minHeight,maxHeight);
+        auto txList=db->getAddressTxList(address,minHeight,maxHeight,limit);
 
         //convert to json
         Json::Value result=Json::arrayValue;

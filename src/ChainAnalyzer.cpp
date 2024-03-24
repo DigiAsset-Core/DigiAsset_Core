@@ -191,10 +191,14 @@ void ChainAnalyzer::startupFunction() {
 
     //find block we left off at
     _height = db->getBlockHeight();
+    if (_height>5) _height-=5;   //todo (should only do this if last time was not a clean shut down)retract 5 block to make sure the blocks where stored properly.  Do to caching there is a possibility not everything got written to hard drive correctly
     _nextHash = dgb->getBlockHash(_height);
 
     //clear the block we left off on just in case it was partially processed
+    Log* log=Log::GetInstance();
+    log->addMessage("Repairing database from shutdown");
     db->clearBlocksAboveHeight(_height);
+    log->addMessage("Repair complete");
 
     //make sure database knows if we want to store non asset utxos
     if (!shouldStoreNonAssetUTXO()) {
@@ -224,7 +228,6 @@ void ChainAnalyzer::shutdownFunction() {
 void ChainAnalyzer::phaseRewind() {
     Log* log = Log::GetInstance();
     log->addMessage("Rewinding");
-    log->addMessage("Rewind start height: " + to_string(_height), Log::DEBUG);
 
     AppMain* main = AppMain::GetInstance();
     Database* db = main->getDatabase();
@@ -245,7 +248,7 @@ void ChainAnalyzer::phaseRewind() {
                 _nextHash = db->getBlockHash(_height);
             } catch (const Database::exceptionDataPruned& e) {
                 //we rolled back to point that has been pruned so restart chain analyser
-                log->addMessage("Rewinded blocks past prune point.  Need to restart sync", Log::WARNING);
+                log->addMessage("Rewound blocks past prune point.  Need to restart sync", Log::WARNING);
                 restart();
                 return;
             }
@@ -254,12 +257,10 @@ void ChainAnalyzer::phaseRewind() {
         //delete all data above & including _height
         db->clearBlocksAboveHeight(_height);
     }
-    log->addMessage("Rewind end height: " + to_string(_height), Log::DEBUG);
 }
 
 void ChainAnalyzer::phaseSync() {
     Log* log = Log::GetInstance();
-    log->addMessage("Starting sync phase at height: " + to_string(_height), Log::DEBUG);
 
     AppMain* main = AppMain::GetInstance();
     Database* db = main->getDatabase();
@@ -350,6 +351,9 @@ void ChainAnalyzer::phaseSync() {
 
         //if fully synced pause until new block
         while (blockData.nextblockhash.empty()) {
+            //see if any performance indexes need to be added(do before marking as synced will set state to OPTIMIZING if there is anything to do)
+            db->executePerformanceIndex(_state);
+
             //mark as synced
             _state = SYNCED;
             totalProcessed = 0; //don't track waiting time

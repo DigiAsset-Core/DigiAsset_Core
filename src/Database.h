@@ -35,6 +35,10 @@
 #include "Database_Statement.h"
 #include "Database_LockedStatement.h"
 
+struct PerformanceIndex {
+    std::string name;
+    std::string command;
+};
 struct AddressStats {
     unsigned int time;            //time block start
     unsigned int created;         //number of addresses created for the first time
@@ -152,7 +156,7 @@ public:
                   << std::setw(20) << "Total Time (us)"
                   << std::setw(20) << "Time/Transaction (us)"
                   << std::setw(20) << "Transactions" << std::endl;
-        std::cout << std::string(90, '-') << std::endl; // Separator
+        oss << std::string(90, '-') << std::endl; // Separator
         std::string result=oss.str();
 
         // Print info for each statement
@@ -241,6 +245,7 @@ public:
         return oss.str();
     }
 private:
+    std::vector<PerformanceIndex> _performanceIndexes;
 
 
     //locks
@@ -291,6 +296,47 @@ public:
     void endTransaction();
     void
     disableWriteVerification(); //on power failure not all commands may be written.  If using need to check at startup
+
+    //indexes
+    bool indexExists(const std::string& indexName);
+    template<typename... Columns>
+    void addPerformanceIndex(const std::string& table, Columns... cols) {
+        // Generate the index name
+        std::stringstream indexName;
+        indexName << "idx_" << table;
+        // Use an initializer list to append underscores and column names to the index name
+        auto appendWithUnderscore = [&indexName](const std::string& col) {
+            indexName << "_" << col;
+        };
+        std::initializer_list<int> dummy = { (appendWithUnderscore(cols), 0)... };
+        static_cast<void>(dummy); // Avoid unused variable warning
+
+        //check if index exists
+        if (indexExists(indexName.str())) return;
+
+        // Create SQL command using a lambda
+        std::stringstream indexCommand;
+        indexCommand << "CREATE INDEX " << indexName.str() << " ON " << table << "(";
+        bool first = true;
+        auto appendColumn = [&indexCommand, &first](const std::string& col) {
+            if (!first) {
+                indexCommand << ", ";
+            }
+            indexCommand << col;
+            first = false;
+        };
+        // Use an initializer list to iterate over cols and append them to the command
+        std::initializer_list<int> dummy2 = { (appendColumn(cols), 0)... };
+        static_cast<void>(dummy2); // Avoid unused variable warning
+        indexCommand << ");";
+
+        // Store the index creation command for later use
+        _performanceIndexes.emplace_back(PerformanceIndex{
+                .name =  indexName.str(),
+                .command =  indexCommand.str()
+        });
+    }
+    void executePerformanceIndex(int& state);
 
     //reset database
     void reset(); //used in case of roll back exceeding pruned history
@@ -357,7 +403,7 @@ public:
 
     //utxo table address related
     std::vector<AssetUTXO> getAddressUTXOs(const std::string& address, unsigned int minConfirms=0, unsigned int maxConfirms=std::numeric_limits<unsigned int>::max());
-    std::vector<std::string> getAddressTxList(const std::string& address, unsigned int minHeight=1, unsigned int maxHeight=std::numeric_limits<unsigned int>::max());
+    std::vector<std::string> getAddressTxList(const std::string& address, unsigned int minHeight=1, unsigned int maxHeight=std::numeric_limits<unsigned int>::max(), unsigned int limit=1000);
     std::vector<uint64_t> getAssetsCreatedByAddress(const std::string& address);
 
     //vote table

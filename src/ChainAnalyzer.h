@@ -44,6 +44,7 @@ public:
     static const int STOPPED = 1;
     static const int INITIALIZING = 2;
     static const int REWINDING = 3;
+    static const int OPTIMIZING = 4;
 
     //get state
     int getSync() const;

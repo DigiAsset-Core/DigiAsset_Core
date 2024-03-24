@@ -73,7 +73,6 @@ void Database::buildTables(unsigned int dbVersionNumber) {
                         "INSERT INTO \"flags\" VALUES (\"dbVersion\",5);"
 
                         "CREATE TABLE \"kyc\" (\"address\" TEXT NOT NULL, \"country\" TEXT NOT NULL, \"name\" TEXT NOT NULL, \"hash\" BLOB NOT NULL, \"height\" INTEGER NOT NULL, \"revoked\" INTEGER, PRIMARY KEY(\"address\"));"
-                        "CREATE INDEX kyc_height_index ON kyc(height);"
 
                         "CREATE TABLE \"utxos\" (\"address\" TEXT NOT NULL, \"txid\" BLOB NOT NULL, \"vout\" INTEGER NOT NULL, \"aout\" INTEGER, \"assetIndex\" Integer NOT NULL, \"amount\" INTEGER NOT NULL, \"heightCreated\" INTEGER NOT NULL, \"heightDestroyed\" INTEGER, issuance INTEGER, spentTXID BLOB DEFAULT null, PRIMARY KEY(\"address\",\"txid\",\"vout\",\"aout\"));"
                         "CREATE INDEX idx_utxos_txid_vout ON utxos(txid, vout);"
@@ -83,8 +82,8 @@ void Database::buildTables(unsigned int dbVersionNumber) {
 
                         //IPFS job tables
                         "CREATE TABLE \"ipfs\" (\"jobIndex\" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, \"sync\" TEXT NOT NULL, \"lock\" BOOL NOT NULL, \"cid\" TEXT NOT NULL, \"extra\" TEXT, \"callback\" TEXT NOT NULL, \"pause\" INTEGER, \"maxTime\" INTEGER);"
-                        "INSERT INTO \"ipfs\" VALUES (1,'pin',false,'QmfSVLAntanDUKrEHUnTXRh53GLUBHFfxk5x6LH4zz9PM4','','',NULL,NULL);"
-                        "INSERT INTO \"ipfs\" VALUES (2,'pin',false,'QmSAcz2H7veyeuuSyACLkSj9ts9EWm1c9v7uTqbHynsVbj','','',NULL,NULL);"
+                        "INSERT INTO \"ipfs\" VALUES (1,'pin',false,'QmfSVLAntanDUKrEHUnTXRh53GLUBHFfxk5x6LH4zz9PM4','','',NULL,NULL);" //DigiByte Native Coin data
+                        "INSERT INTO \"ipfs\" VALUES (2,'pin',false,'QmSAcz2H7veyeuuSyACLkSj9ts9EWm1c9v7uTqbHynsVbj','','',NULL,NULL);" //DigiByte Logo
 
                         //PSP tables
                         "CREATE TABLE \"pspFiles\" (\"cid\" TEXT NOT NULL,\"poolIndex\");"
@@ -95,7 +94,7 @@ void Database::buildTables(unsigned int dbVersionNumber) {
                         "CREATE TABLE \"domainsMasters\" (\"assetId\" TEXT NOT NULL, \"active\" BOOL NOT NULL);"
                         "INSERT INTO \"domainsMasters\" VALUES (\"Ua7Bd7UVtrzavSHhpHxHZ2nzS2hGaHXRMT9sqy\",true);"
 
-                        "COMMIT";
+                        "COMMIT;";
                 rc = sqlite3_exec(_db, sql, Database::defaultCallback, nullptr, &zErrMsg);
                 skipUpToVersion = 5; //tell not to execute steps until version 5 to 6 transition
                 if (rc != SQLITE_OK) {
@@ -171,6 +170,19 @@ void Database::buildTables(unsigned int dbVersionNumber) {
  * Pre creates the sql statements so they can be executed faster
  */
 void Database::initializeClassValues() {
+    //add performance indexes for rewinding
+    addPerformanceIndex("assets","heightCreated");
+    addPerformanceIndex("assets","heightCreated");
+    addPerformanceIndex("blocks","height");
+    addPerformanceIndex("exchange","height");
+    addPerformanceIndex("kyc","height");
+    addPerformanceIndex("kyc","revoked");
+    addPerformanceIndex("utxos","heightCreated");
+    addPerformanceIndex("utxos","heightDestroyed");
+    addPerformanceIndex("votes","height");
+
+
+
     //statement to find a flag value
     _stmtCheckFlag.prepare(_db,"SELECT value FROM flags WHERE key LIKE ?;");
 
@@ -273,17 +285,27 @@ void Database::initializeClassValues() {
                                         "    WHERE a.assetId = ? AND u1.issuance = 1 AND u2.spentTXID IS NOT NULL\n"
                                         ") GROUP BY txid\n"
                                         "ORDER BY height ASC;");
-    _stmtGetAddressTxHistory.prepare(_db,"SELECT tx "
-                                         "FROM ( "
-                                             "SELECT txid AS tx, heightCreated AS height "
-                                             "FROM utxos "
-                                             "WHERE address=? AND heightCreated >=? and heightCreated <=?"
-                                             "UNION "
-                                             "SELECT spentTXID AS tx, heightDestroyed AS height "
-                                             "FROM utxos "
-                                             "WHERE address=? AND spentTXID IS NOT NULL AND heightDestroyed >= ? AND heightDestroyed <= ?"
-                                         ") "
-                                         "ORDER BY height ASC;");
+    _stmtGetAddressTxHistory.prepare(_db,"SELECT tx\n"
+                                          "FROM (\n"
+                                          "    SELECT * FROM (\n"
+                                          "        SELECT txid AS tx, heightCreated AS height\n"
+                                          "        FROM utxos\n"
+                                          "        WHERE address=? AND heightCreated >=? AND heightCreated <=?\n"
+                                          "        LIMIT ?\n"
+                                          "    )\n"
+                                          "    UNION\n"
+                                          "    SELECT * FROM (\n"
+                                          "        SELECT spentTXID AS tx, heightDestroyed AS height\n"
+                                          "        FROM utxos\n"
+                                          "        WHERE address=? AND spentTXID IS NOT NULL AND heightDestroyed >= ? AND heightDestroyed <= ?\n"
+                                          "        LIMIT ?\n"
+                                          "    )\n"
+                                          ")\n"
+                                          "ORDER BY height ASC\n"
+                                          "LIMIT ?;");
+    addPerformanceIndex("utxos","address","heightCreated");
+    addPerformanceIndex("utxos","address","heightDestroyed","spentTXID");
+
 
     //statement to get valid utxos for a given address
     _stmtGetValidUTXO.prepare(_db,"SELECT `txid`,`vout`,`aout`,`assetIndex`,`amount` FROM utxos WHERE heightDestroyed IS NULL AND address=? AND heightCreated>=? AND heightCreated<=? ORDER BY txid ASC, vout ASC, aout ASC;");
@@ -1065,7 +1087,9 @@ void Database::createUTXO(const AssetUTXO& value, unsigned int heightCreated, bo
     createUTXO.bindInt(8, 0);
     rc = createUTXO.executeStep();
     if (rc != SQLITE_DONE) {
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        string tempErrorMessage = sqlite3_errmsg(_db);  //todo have occasionally gotten no more rows error.  This eventually fixes itself but need to figure out why.  to prevent hammering of system have added a 2 second delay when this error occurs
+        chrono::milliseconds dura(2000);
+        this_thread::sleep_for(dura);
         throw exceptionFailedInsert();
     }
 
@@ -1431,16 +1455,19 @@ std::vector<std::string> Database::getAssetTxHistory(const string& assetId) {
  * @param maxHeight - optional maximum height to return
  * @return
  */
-std::vector<std::string> Database::getAddressTxList(const string& address, unsigned int minHeight, unsigned int maxHeight) {
+std::vector<std::string> Database::getAddressTxList(const string& address, unsigned int minHeight, unsigned int maxHeight, unsigned int limit) {
     if (getBeenPrunedUTXOHistory()>-1) throw exceptionDataPruned();
     vector<string> results;
     LockedStatement getAddressTxHistory{_stmtGetAddressTxHistory};
     getAddressTxHistory.bindText(1, address, SQLITE_STATIC);
-    getAddressTxHistory.bindInt(2, minHeight);
-    getAddressTxHistory.bindInt(3, maxHeight);
-    getAddressTxHistory.bindText(4, address, SQLITE_STATIC);
-    getAddressTxHistory.bindInt(5, minHeight);
-    getAddressTxHistory.bindInt(6, maxHeight);
+    getAddressTxHistory.bindInt64(2, minHeight);
+    getAddressTxHistory.bindInt64(3, maxHeight);
+    getAddressTxHistory.bindInt64(4, limit);
+    getAddressTxHistory.bindText(5, address, SQLITE_STATIC);
+    getAddressTxHistory.bindInt64(6, minHeight);
+    getAddressTxHistory.bindInt64(7, maxHeight);
+    getAddressTxHistory.bindInt64(8, limit);
+    getAddressTxHistory.bindInt64(9, limit);
     while (getAddressTxHistory.executeStep() == SQLITE_ROW) {
         Blob txid=getAddressTxHistory.getColumnBlob(0);
         results.push_back(txid.toHex());
@@ -1883,23 +1910,28 @@ void Database::getNextIPFSJob(unsigned int& jobIndex, string& cid, string& sync,
     }
 
     //lookup the next job(if there is one)
-    LockedStatement getNextIPFSJob{_stmtGetNextIPFSJob};
-    int rc = getNextIPFSJob.executeStep();
-    if (rc != SQLITE_ROW) {
-        jobIndex = 0; //signal there are no new jobs
-        return;
-    }
-    jobIndex = getNextIPFSJob.getColumnInt(0);
-    sync = getNextIPFSJob.getColumnText(1);
-    cid = getNextIPFSJob.getColumnText(2);
-    extra = getNextIPFSJob.getColumnText(3);
-    string callbackSymbol = getNextIPFSJob.getColumnText(4);
+    uint64_t currentTime;
+    uint64_t maxTime;
+    string callbackSymbol;
+    {
+        LockedStatement getNextIPFSJob{_stmtGetNextIPFSJob};
+        int rc = getNextIPFSJob.executeStep();
+        if (rc != SQLITE_ROW) {
+            jobIndex = 0; //signal there are no new jobs
+            return;
+        }
+        jobIndex = getNextIPFSJob.getColumnInt(0);
+        sync = getNextIPFSJob.getColumnText(1);
+        cid = getNextIPFSJob.getColumnText(2);
+        extra = getNextIPFSJob.getColumnText(3);
+        callbackSymbol = getNextIPFSJob.getColumnText(4);
 
-    //get max time
-    uint64_t currentTime = std::chrono::duration_cast<std::chrono::milliseconds>(
-                                   std::chrono::system_clock::now().time_since_epoch())
-                                   .count();
-    uint64_t maxTime = getNextIPFSJob.getColumnInt64(5);
+        //get max time
+        currentTime = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                       std::chrono::system_clock::now().time_since_epoch())
+                                       .count();
+        maxTime = getNextIPFSJob.getColumnInt64(5);
+    }
     if (maxTime == 0) {
         //if null return forever
         maxSleep = std::numeric_limits<unsigned int>::max();
@@ -1920,6 +1952,7 @@ void Database::getNextIPFSJob(unsigned int& jobIndex, string& cid, string& sync,
 
 
     //lock the sync if not pin or non synchronized
+    int rc;
     if ((sync == "pin") || (sync == "_") || (sync.empty())) {
         LockedStatement setIPFSLockJob{_stmtSetIPFSLockJob};
         setIPFSLockJob.bindInt(1, jobIndex);
@@ -2701,4 +2734,48 @@ void Database::executeSQLStatement(const string& query, const std::exception& er
         throw errorToThrowOnFail;
     }
     sqlite3_finalize(stmt);
+}
+
+/**
+ * Checks if index exists.
+ * Not prepared because this gets executed during the preperation cycle
+ * @param indexName
+ * @return
+ */
+bool Database::indexExists(const string& indexName) {
+    std::string sql = "SELECT name FROM sqlite_master WHERE type='index' AND name=?";
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr) != SQLITE_OK) {
+        std::cerr << "Failed to prepare statement: " << sqlite3_errmsg(_db) << std::endl;
+        throw Database::exceptionCreatingStatement();
+    }
+
+    sqlite3_bind_text(stmt, 1, indexName.c_str(), -1, SQLITE_TRANSIENT);
+
+    bool exists = false;
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        exists = true; // Index exists
+    }
+
+    sqlite3_finalize(stmt);
+    return exists;
+}
+void Database::executePerformanceIndex(int& state) {
+    //find an index that needs adding or exit if none to add
+    PerformanceIndex index;
+    do {
+        if (_performanceIndexes.empty()) return; //check if we have emptied the array
+        state=ChainAnalyzer::OPTIMIZING;
+        index = _performanceIndexes.back(); //get last element
+        _performanceIndexes.pop_back(); //remove it
+    } while (indexExists(index.name));
+
+    //add the index
+    Log* log=Log::GetInstance();
+    log->addMessage("Creating performance index "+index.name);
+    int rc=sqlite3_exec(_db, index.command.c_str(), nullptr, nullptr, nullptr);
+    if (rc != SQLITE_OK) {
+        _performanceIndexes.emplace_back(index);    //couldn't execute so push it back on to be done later
+    }
+    log->addMessage("Finished creating performance index "+ index.name);
 }

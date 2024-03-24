@@ -3,7 +3,12 @@
 //
 
 #include "Database_Statement.h"
-#include "Database_LockedStatement.h"
+#include "AppMain.h"
+#include "Database.h"
+#include <iostream>
+#include <sqlite3.h>
+#include <string>
+#include <thread>
 
 
 
@@ -16,7 +21,8 @@ void Statement::prepare(sqlite3* db, const std::string& query) {
     const char* tail;
     int rc = sqlite3_prepare_v2(db, query.c_str(), -1, &_stmt, &tail);
     if (rc != SQLITE_OK) {
-        throw std::runtime_error("Failed to prepare statement");
+        fprintf(stderr, "Cannot prepare statement: %s\n", sqlite3_errmsg(db));
+        throw Database::exceptionCreatingStatement();
     }
 }
 
