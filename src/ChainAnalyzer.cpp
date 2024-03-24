@@ -66,6 +66,7 @@ void ChainAnalyzer::resetConfig() {
     _pruneExchangeHistory = true;
     _pruneUTXOHistory = true;
     _pruneVoteHistory = true;
+    _verifyDatabaseWrite = true;
 }
 
 /**
@@ -96,6 +97,7 @@ void ChainAnalyzer::loadConfig() {
     setPruneUTXOHistory(config.getBool("pruneutxohistory", true));
     setPruneVoteHistory(config.getBool("prunevotehistory", true));
     setStoreNonAssetUTXO(config.getBool("storenonassetutxo", false));
+    _verifyDatabaseWrite=config.getBool("verifydatabasewrite",true);
 }
 
 void ChainAnalyzer::saveConfig() {
