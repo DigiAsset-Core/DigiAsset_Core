@@ -47,7 +47,7 @@ BitcoinRpcServer::BitcoinRpcServer(const string& fileName) {
     Config config = Config(fileName);
     _username = config.getString("rpcuser");
     _password = config.getString("rpcpassword");
-    _port = config.getInteger("rpcassetport", 14023);
+    _port = config.getInteger("rpcassetport", 14024);
     tcp::endpoint endpoint(tcp::v4(), _port);
     _acceptor.open(endpoint.protocol());
     _acceptor.set_option(tcp::acceptor::reuse_address(true));

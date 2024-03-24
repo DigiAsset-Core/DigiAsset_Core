@@ -9,6 +9,7 @@
 
 #include "DigiByteCore_Exception.h"
 #include "DigiByteCore_Types.h"
+#include <iomanip>
 #include <jsonrpccpp/client.h>
 #include <jsonrpccpp/client/connectors/httpclient.h>
 #include <mutex>
@@ -36,12 +37,29 @@ class DigiByteCore {
     template<typename fn_t>
     auto errorCheckAPI(fn_t fn) -> decltype(fn());
 
+    long long _runTime=0;
+    unsigned int _runCount=0;
+
 public:
     enum AddressTypes {
         LEGACY,
         SEGWIT,
         BECH32
     };
+
+
+    std::string printStatementInfo() {
+        long long totalDuration = _runTime;
+        int transactions = _runCount;
+        long long avgDuration = transactions > 0 ? totalDuration / transactions : 0;
+
+        std::ostringstream oss;
+        oss << std::right << std::setw(30) << "DigiByte Core"
+                  << std::setw(20) << totalDuration
+                  << std::setw(20) << avgDuration
+                  << std::setw(20) << transactions << std::endl;
+        return oss.str();
+    }
 
     //constructor/destructor
     DigiByteCore() = default;

@@ -211,12 +211,18 @@ getaddressinfo_t DigiByteCore::getAddressInfo(const string& address) {
 
 Value DigiByteCore::sendcommand(const string& command, const Value& params) {
     Value result;
-
+    _runCount++;
+    std::chrono::steady_clock::time_point _creationTime=std::chrono::steady_clock::now();
     std::lock_guard<std::mutex> lock(_mutex); //we can only run one at a time or bad things happen
     try {
         result = client->CallMethod(command, params);
+
+        auto duration = std::chrono::steady_clock::now() - _creationTime;
+        _runTime+=std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
     } catch (JsonRpcException& e) {
         DigiByteException err(e.GetCode(), e.GetMessage());
+        auto duration = std::chrono::steady_clock::now() - _creationTime;
+        _runTime+=std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
         throw err;
     }
 

@@ -34,6 +34,6 @@ namespace RPCMethods {
         double rate = db->getCurrentExchangeRate({address,index});
 
         //calculate number of DGB sats
-        return static_cast<uint64_t>(ceil(amount*rate/100000000));
+        return static_cast<Json::Int64>(ceil(amount*rate/100000000));
     }
 }

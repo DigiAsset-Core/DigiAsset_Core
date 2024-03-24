@@ -75,28 +75,33 @@ int main() {
      * Connect to Database
      * Make sure it is initialized with correct database
      */
+    log->addMessage("Loading Database");
     Database db("chain.db");
     main->setDatabase(&db);
 
     /**
      * Connect to IPFS
      */
+    log->addMessage("Starting IPFS handler");
     IPFS ipfs("config.cfg");
     main->setIPFS(&ipfs);
 
     /**
      * Connect to Permanent Storage Pools
      */
+    log->addMessage("Starting Permanent Storage Pool handler");
     PermanentStoragePoolList psp("config.cfg");
     main->setPermanentStoragePoolList(&psp);
 
     /**
      * Start Chain Analyzer
      */
+    log->addMessage("Starting Chain Analyzer");
     ChainAnalyzer analyzer;
     analyzer.loadConfig();
     analyzer.start();
     main->setChainAnalyzer(&analyzer);
+
     //analyzer.stop();
 
     /**
@@ -105,6 +110,7 @@ int main() {
 
     try {
         // Create and start the Bitcoin RPC server
+        log->addMessage("Starting RPC Server");
         BitcoinRpcServer server;
         server.start();
 

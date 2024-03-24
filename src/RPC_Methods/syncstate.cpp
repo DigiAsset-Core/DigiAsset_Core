@@ -16,6 +16,7 @@ namespace RPCMethods {
      *                   1 = stopped
      *                   2 = initializing
      *                   3 = rewinding
+     *                   4 = optimizing(this state only happens when wallet syncs for the first time.  It optimizes in sections so can go in and out of this state several times.)
      * }
      */
     extern const Json::Value syncstate(const Json::Value& params) {

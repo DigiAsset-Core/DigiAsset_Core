@@ -322,7 +322,10 @@ DigiAsset::DigiAsset(uint64_t assetIndex, const string& assetId, const string& c
             _aggregation = HYBRID;
             break;
         default:
-            throw out_of_range("invalid assetId");
+            if ((assetId!="DigiByte")&&(assetIndex==1)) throw out_of_range("invalid assetId");
+            _aggregation = AGGREGABLE;
+            _divisibility=8;
+            return;
     }
     _divisibility = Base58::decode(assetId)[23];
 }

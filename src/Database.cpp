@@ -54,7 +54,7 @@ void Database::buildTables(unsigned int dbVersionNumber) {
                         "BEGIN TRANSACTION;"
 
                         "CREATE TABLE \"assets\" (\"assetIndex\" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, \"assetId\" TEXT NOT NULL, \"cid\" TEXT, \"issueAddress\" TEXT NOT NULL, \"rules\" BLOB, \"heightCreated\" INTEGER NOT NULL, \"heightUpdated\" INTEGER NOT NULL, \"expires\" INTEGER);"
-                        "INSERT INTO \"assets\" VALUES (1,'DigiByte','QmfSVLAntanDUKrEHUnTXRh53GLUBHFfxk5x6LH4zz9PM4','STANDARD','{}',1,1,NULL);"
+                        "INSERT INTO \"assets\" VALUES (1,'DigiByte','QmfSVLAntanDUKrEHUnTXRh53GLUBHFfxk5x6LH4zz9PM4','STANDARD','',1,1,NULL);"
 
                         "CREATE TABLE \"blocks\" (\"height\" INTEGER NOT NULL, \"hash\" BLOB NOT NULL, \"time\" INTEGER NOT NULL, \"algo\" INTEGER NOT NULL, \"difficulty\" REAL NOT NULL, PRIMARY KEY(\"height\"));"
                         "INSERT INTO \"blocks\" VALUES (1,X'4da631f2ac1bed857bd968c67c913978274d8aabed64ab2bcebc1665d7f4d3a0',1389392876,1,0.000244140625);"
@@ -73,16 +73,17 @@ void Database::buildTables(unsigned int dbVersionNumber) {
                         "INSERT INTO \"flags\" VALUES (\"dbVersion\",5);"
 
                         "CREATE TABLE \"kyc\" (\"address\" TEXT NOT NULL, \"country\" TEXT NOT NULL, \"name\" TEXT NOT NULL, \"hash\" BLOB NOT NULL, \"height\" INTEGER NOT NULL, \"revoked\" INTEGER, PRIMARY KEY(\"address\"));"
-                        "CREATE INDEX kyc_height_index ON kyc(height);"
 
                         "CREATE TABLE \"utxos\" (\"address\" TEXT NOT NULL, \"txid\" BLOB NOT NULL, \"vout\" INTEGER NOT NULL, \"aout\" INTEGER, \"assetIndex\" Integer NOT NULL, \"amount\" INTEGER NOT NULL, \"heightCreated\" INTEGER NOT NULL, \"heightDestroyed\" INTEGER, issuance INTEGER, spentTXID BLOB DEFAULT null, PRIMARY KEY(\"address\",\"txid\",\"vout\",\"aout\"));"
+                        "CREATE INDEX idx_utxos_txid_vout ON utxos(txid, vout);"
+                        "CREATE INDEX idx_utxos_txid_vout_aout ON utxos(txid, vout, aout);"
 
                         "CREATE TABLE \"votes\" (\"assetIndex\" Integer NOT NULL, \"address\" TEXT NOT NULL, \"height\" INTEGER NOT NULL, \"count\" INTEGER NOT NULL, PRIMARY KEY(\"assetIndex\",\"address\",\"height\"));"
 
                         //IPFS job tables
                         "CREATE TABLE \"ipfs\" (\"jobIndex\" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, \"sync\" TEXT NOT NULL, \"lock\" BOOL NOT NULL, \"cid\" TEXT NOT NULL, \"extra\" TEXT, \"callback\" TEXT NOT NULL, \"pause\" INTEGER, \"maxTime\" INTEGER);"
-                        "INSERT INTO \"ipfs\" VALUES (1,'pin',false,'QmfSVLAntanDUKrEHUnTXRh53GLUBHFfxk5x6LH4zz9PM4','','',NULL,NULL);"
-                        "INSERT INTO \"ipfs\" VALUES (2,'pin',false,'QmSAcz2H7veyeuuSyACLkSj9ts9EWm1c9v7uTqbHynsVbj','','',NULL,NULL);"
+                        "INSERT INTO \"ipfs\" VALUES (1,'pin',false,'QmfSVLAntanDUKrEHUnTXRh53GLUBHFfxk5x6LH4zz9PM4','','',NULL,NULL);" //DigiByte Native Coin data
+                        "INSERT INTO \"ipfs\" VALUES (2,'pin',false,'QmSAcz2H7veyeuuSyACLkSj9ts9EWm1c9v7uTqbHynsVbj','','',NULL,NULL);" //DigiByte Logo
 
                         //PSP tables
                         "CREATE TABLE \"pspFiles\" (\"cid\" TEXT NOT NULL,\"poolIndex\");"
@@ -93,7 +94,7 @@ void Database::buildTables(unsigned int dbVersionNumber) {
                         "CREATE TABLE \"domainsMasters\" (\"assetId\" TEXT NOT NULL, \"active\" BOOL NOT NULL);"
                         "INSERT INTO \"domainsMasters\" VALUES (\"Ua7Bd7UVtrzavSHhpHxHZ2nzS2hGaHXRMT9sqy\",true);"
 
-                        "COMMIT";
+                        "COMMIT;";
                 rc = sqlite3_exec(_db, sql, Database::defaultCallback, nullptr, &zErrMsg);
                 skipUpToVersion = 5; //tell not to execute steps until version 5 to 6 transition
                 if (rc != SQLITE_OK) {
@@ -169,6 +170,19 @@ void Database::buildTables(unsigned int dbVersionNumber) {
  * Pre creates the sql statements so they can be executed faster
  */
 void Database::initializeClassValues() {
+    //add performance indexes for rewinding
+    addPerformanceIndex("assets","heightCreated");
+    addPerformanceIndex("assets","heightCreated");
+    addPerformanceIndex("blocks","height");
+    addPerformanceIndex("exchange","height");
+    addPerformanceIndex("kyc","height");
+    addPerformanceIndex("kyc","revoked");
+    addPerformanceIndex("utxos","heightCreated");
+    addPerformanceIndex("utxos","heightDestroyed");
+    addPerformanceIndex("votes","height");
+
+
+
     //statement to find a flag value
     _stmtCheckFlag.prepare(_db,"SELECT value FROM flags WHERE key LIKE ?;");
 
@@ -271,17 +285,27 @@ void Database::initializeClassValues() {
                                         "    WHERE a.assetId = ? AND u1.issuance = 1 AND u2.spentTXID IS NOT NULL\n"
                                         ") GROUP BY txid\n"
                                         "ORDER BY height ASC;");
-    _stmtGetAddressTxHistory.prepare(_db,"SELECT tx "
-                                         "FROM ( "
-                                             "SELECT txid AS tx, heightCreated AS height "
-                                             "FROM utxos "
-                                             "WHERE address=? AND heightCreated >=? and heightCreated <=?"
-                                             "UNION "
-                                             "SELECT spentTXID AS tx, heightDestroyed AS height "
-                                             "FROM utxos "
-                                             "WHERE address=? AND spentTXID IS NOT NULL AND heightDestroyed >= ? AND heightDestroyed <= ?"
-                                         ") "
-                                         "ORDER BY height ASC;");
+    _stmtGetAddressTxHistory.prepare(_db,"SELECT tx\n"
+                                          "FROM (\n"
+                                          "    SELECT * FROM (\n"
+                                          "        SELECT txid AS tx, heightCreated AS height\n"
+                                          "        FROM utxos\n"
+                                          "        WHERE address=? AND heightCreated >=? AND heightCreated <=?\n"
+                                          "        LIMIT ?\n"
+                                          "    )\n"
+                                          "    UNION\n"
+                                          "    SELECT * FROM (\n"
+                                          "        SELECT spentTXID AS tx, heightDestroyed AS height\n"
+                                          "        FROM utxos\n"
+                                          "        WHERE address=? AND spentTXID IS NOT NULL AND heightDestroyed >= ? AND heightDestroyed <= ?\n"
+                                          "        LIMIT ?\n"
+                                          "    )\n"
+                                          ")\n"
+                                          "ORDER BY height ASC\n"
+                                          "LIMIT ?;");
+    addPerformanceIndex("utxos","address","heightCreated");
+    addPerformanceIndex("utxos","address","heightDestroyed","spentTXID");
+
 
     //statement to get valid utxos for a given address
     _stmtGetValidUTXO.prepare(_db,"SELECT `txid`,`vout`,`aout`,`assetIndex`,`amount` FROM utxos WHERE heightDestroyed IS NULL AND address=? AND heightCreated>=? AND heightCreated<=? ORDER BY txid ASC, vout ASC, aout ASC;");
@@ -645,8 +669,8 @@ uint64_t Database::addAsset(const DigiAsset& asset) {
         if (!asset.isLocked()) {
 
             //get the assetIndex if the asset already exists
-            auto getAssetIndex=_stmtGetAssetIndex.lock();
-            getAssetIndex.bindText(1,assetId,SQLITE_STATIC);
+            LockedStatement getAssetIndex{_stmtGetAssetIndex};
+            getAssetIndex.bindText(1,assetId);
             rc=getAssetIndex.executeStep();
             if (rc == SQLITE_ROW) { //if not found its new so leave assetIndex 0
                 assetIndex = getAssetIndex.getColumnInt(0);
@@ -655,13 +679,13 @@ uint64_t Database::addAsset(const DigiAsset& asset) {
 
         //update existing asset
         if (assetIndex != 0) {
-            auto getUpdateAsset=_stmtUpdateAsset.lock();
+            LockedStatement getUpdateAsset{_stmtUpdateAsset};
             getUpdateAsset.bindInt(1, asset.getHeightUpdated());
-            getUpdateAsset.bindText(2,asset.getCID(),SQLITE_STATIC);
+            getUpdateAsset.bindText(2,asset.getCID());
             vector<uint8_t> serializedRules;
             serialize(serializedRules, asset.getRules());
             Blob rules{serializedRules};
-            getUpdateAsset.bindBlob(3,rules,SQLITE_STATIC);
+            getUpdateAsset.bindBlob(3,rules);
             getUpdateAsset.bindInt64(4, asset.getExpiry());
             getUpdateAsset.bindInt64(5, assetIndex);
             rc = getUpdateAsset.executeStep();
@@ -674,14 +698,14 @@ uint64_t Database::addAsset(const DigiAsset& asset) {
     }
 
     //insert new asset
-    auto addAsset=_stmtAddAsset.lock();
-    addAsset.bindText(1,assetId,SQLITE_STATIC);
-    addAsset.bindText(2,asset.getIssuer().getAddress(),SQLITE_STATIC);
-    addAsset.bindText(3,asset.getCID(),SQLITE_STATIC);
+    LockedStatement addAsset{_stmtAddAsset};
+    addAsset.bindText(1,assetId);
+    addAsset.bindText(2,asset.getIssuer().getAddress());
+    addAsset.bindText(3,asset.getCID());
     vector<uint8_t> serializedRules;
     serialize(serializedRules, asset.getRules());
     Blob rules{serializedRules};
-    addAsset.bindBlob(4, rules, SQLITE_STATIC);
+    addAsset.bindBlob(4,rules);
     addAsset.bindInt(5, asset.getHeightCreated());
     addAsset.bindInt(6, asset.getHeightUpdated()); //will be same as created
     addAsset.bindInt64(7, asset.getExpiry());
@@ -700,8 +724,8 @@ uint64_t Database::addAsset(const DigiAsset& asset) {
  * @return
  */
 DigiAssetRules Database::getRules(const string& assetId) {
-    auto getAssetRules=_stmtGetAssetRules.lock();
-    getAssetRules.bindText(1, assetId, SQLITE_STATIC);
+    LockedStatement getAssetRules{_stmtGetAssetRules};
+    getAssetRules.bindText(1,assetId);
     int rc = getAssetRules.executeStep();
     if (rc != SQLITE_ROW) return {};
 
@@ -718,8 +742,8 @@ DigiAssetRules Database::getRules(const string& assetId) {
  */
 unsigned int
 Database::getAssetHeightCreated(const string& assetId, unsigned int backupHeight, uint64_t& assetIndex) {
-    auto getHeightAssetCreated=_stmtGetHeightAssetCreated.lock();
-    getHeightAssetCreated.bindText(1, assetId, SQLITE_STATIC);
+    LockedStatement getHeightAssetCreated{_stmtGetHeightAssetCreated};
+    getHeightAssetCreated.bindText(1,assetId);
     int rc = getHeightAssetCreated.executeStep();
     if (rc == SQLITE_ROW) { //if not found its new so leave assetIndex 0
         assetIndex = getHeightAssetCreated.getColumnInt(0);
@@ -736,7 +760,7 @@ Database::getAssetHeightCreated(const string& assetId, unsigned int backupHeight
  */
 DigiAsset Database::getAsset(uint64_t assetIndex, uint64_t amount) {
     //get data in assets table
-    auto getAsset=_stmtGetAsset.lock();
+    LockedStatement getAsset{_stmtGetAsset};
     getAsset.bindInt64(1, assetIndex);
     int rc = getAsset.executeStep();
     if (rc != SQLITE_ROW) {
@@ -764,8 +788,8 @@ uint64_t Database::getAssetIndex(const string& assetId, const string& txid, unsi
     //see if the asset exists and if only 1 index
     uint64_t assetIndex;
     { //shorten life of database lock
-        auto getAssetIndex = _stmtGetAssetIndex.lock();
-        getAssetIndex.bindText(1, assetId, SQLITE_STATIC);
+        LockedStatement getAssetIndex{_stmtGetAssetIndex};
+        getAssetIndex.bindText(1,assetId);
         int rc = getAssetIndex.executeStep();
         if (rc != SQLITE_ROW) {
             throw out_of_range("assetIndex does not exist");
@@ -782,9 +806,9 @@ uint64_t Database::getAssetIndex(const string& assetId, const string& txid, unsi
     if (txid.empty()) throw out_of_range("specific utxo needed");
     vector<uint64_t> assetIndexPossibilities;
     { //shorten life of database lock
-        auto getAssetIndexOnUTXO = _stmtGetAssetIndexOnUTXO.lock();
+        LockedStatement getAssetIndexOnUTXO{_stmtGetAssetIndexOnUTXO};
         Blob txidBlob(txid);
-        getAssetIndexOnUTXO.bindBlob(1, txidBlob, SQLITE_STATIC);
+        getAssetIndexOnUTXO.bindBlob(1,txidBlob);
         getAssetIndexOnUTXO.bindInt(2, vout);
         while (getAssetIndexOnUTXO.executeStep() == SQLITE_ROW) {
             assetIndexPossibilities.push_back(getAssetIndexOnUTXO.getColumnInt(0));
@@ -803,8 +827,8 @@ vector<uint64_t> Database::getAssetIndexes(const std::string& assetId) {
     vector<uint64_t> assetIndexes;
 
     // Reset the prepared statement to its initial state and bind the assetId parameter
-    auto getAssetIndex=_stmtGetAssetIndex.lock();
-    getAssetIndex.bindText(1, assetId, SQLITE_STATIC);
+    LockedStatement getAssetIndex{_stmtGetAssetIndex};
+    getAssetIndex.bindText(1,assetId);
 
     // Execute the query and collect all matching asset indexes
     while (getAssetIndex.executeStep() == SQLITE_ROW) {
@@ -836,8 +860,8 @@ int Database::getFlagInt(const string& flag) {
     }
 
     //get from database
-    auto checkFlag=_stmtCheckFlag.lock();
-    checkFlag.bindText(1, flag, SQLITE_STATIC);
+    LockedStatement checkFlag{_stmtCheckFlag};
+    checkFlag.bindText(1,flag);
     int rc = checkFlag.executeStep();
     if (rc != SQLITE_ROW) { //there should always be one
         string tempErrorMessage = sqlite3_errmsg(_db);
@@ -890,9 +914,9 @@ void Database::setFlagInt(const std::string& flag, int state) {
     if (getFlagInt(flag) == state) return; //no need to do anything
 
     //store in database
-    auto setFlag=_stmtSetFlag.lock();
+    LockedStatement setFlag{_stmtSetFlag};
     setFlag.bindInt(1, state);
-    setFlag.bindText(2, flag, SQLITE_STATIC);
+    setFlag.bindText(2,flag);
     int rc = setFlag.executeStep();
     if (rc != SQLITE_DONE) { //there should always be one
         string tempErrorMessage = sqlite3_errmsg(_db);
@@ -952,10 +976,10 @@ void Database::setBeenPrunedNonAssetUTXOHistory(bool state) {
  * @param hash
  */
 void Database::insertBlock(uint height, const std::string& hash, unsigned int time, unsigned char algo, double difficulty) {
-    auto insertBlock=_stmtInsertBlock.lock();
+    LockedStatement insertBlock{_stmtInsertBlock};
     insertBlock.bindInt(1, height);
     Blob hashBlob = Blob(hash);
-    insertBlock.bindBlob(2, hashBlob, SQLITE_STATIC);
+    insertBlock.bindBlob(2,hashBlob);
     insertBlock.bindInt(3, time);
     insertBlock.bindInt(4, algo);
     insertBlock.bindDouble(5, difficulty);
@@ -974,7 +998,7 @@ void Database::insertBlock(uint height, const std::string& hash, unsigned int ti
  * @param hash
  */
 std::string Database::getBlockHash(uint height) {
-    auto getBlockHash=_stmtGetBlockHash.lock();
+    LockedStatement getBlockHash{_stmtGetBlockHash};
     getBlockHash.bindInt(1, height);
     int rc = getBlockHash.executeStep();
     if (rc != SQLITE_ROW) {
@@ -990,7 +1014,7 @@ std::string Database::getBlockHash(uint height) {
  *  exceptionFailedSelect
  */
 uint Database::getBlockHeight() {
-    auto getBlockHeight=_stmtGetBlockHeight.lock();
+    LockedStatement getBlockHeight{_stmtGetBlockHeight};
     int rc = getBlockHeight.executeStep();
     if (rc != SQLITE_ROW) { //there should always be one
         throw exceptionFailedSelect();
@@ -1008,7 +1032,7 @@ void Database::clearBlocksAboveHeight(uint height) {
     int rc;
     char* zErrMsg = nullptr;
     string lineEnd = to_string(height) + ";";
-    const string sql = "DELETE FROM assets WHERE heightCreated>=" + lineEnd +
+    const string sql = "DELETE FROM assets WHERE heightCreated>1 AND heightCreated>=" + lineEnd +
                        "DELETE FROM exchange WHERE height>=" + lineEnd +
                        "DELETE FROM kyc WHERE height>=" + lineEnd +
                        "UPDATE kyc SET revoked=NULL WHERE revoked>=" + lineEnd +
@@ -1051,10 +1075,10 @@ void Database::createUTXO(const AssetUTXO& value, unsigned int heightCreated, bo
     int rc;
 
     //add the main utxo
-    auto createUTXO=_stmtCreateUTXO.lock();
-    createUTXO.bindText(1, value.address, SQLITE_STATIC);
+    LockedStatement createUTXO{_stmtCreateUTXO};
+    createUTXO.bindText(1,value.address);
     Blob blobTXID = Blob(value.txid);
-    createUTXO.bindBlob(2, blobTXID, SQLITE_STATIC);
+    createUTXO.bindBlob(2,blobTXID);
     createUTXO.bindInt(3, value.vout);
     createUTXO.bindNull(4);
     createUTXO.bindInt(5, 1);
@@ -1063,14 +1087,16 @@ void Database::createUTXO(const AssetUTXO& value, unsigned int heightCreated, bo
     createUTXO.bindInt(8, 0);
     rc = createUTXO.executeStep();
     if (rc != SQLITE_DONE) {
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        string tempErrorMessage = sqlite3_errmsg(_db);  //todo have occasionally gotten no more rows error.  This eventually fixes itself but need to figure out why.  to prevent hammering of system have added a 2 second delay when this error occurs
+        chrono::milliseconds dura(2000);
+        this_thread::sleep_for(dura);
         throw exceptionFailedInsert();
     }
 
     //add any assets
     for (size_t aout = 0; aout < value.assets.size(); aout++) {
         createUTXO.reset();
-        createUTXO.bindText(1, value.address, SQLITE_STATIC);
+        createUTXO.bindText(1,value.address);
         blobTXID = Blob(value.txid);
         createUTXO.bindBlob(2, blobTXID);
         createUTXO.bindInt(3, value.vout);
@@ -1093,12 +1119,12 @@ void Database::createUTXO(const AssetUTXO& value, unsigned int heightCreated, bo
  *  exceptionFailedUpdate
  */
 void Database::spendUTXO(const std::string& txid, unsigned int vout, unsigned int heightSpent, const string& spentTXID) {
-    auto spendUTXO=_stmtSpendUTXO.lock();
+    LockedStatement spendUTXO{_stmtSpendUTXO};
     Blob blobTXID = Blob(txid);
     Blob blobSpendingTXID = Blob(spentTXID);
     spendUTXO.bindInt(1, heightSpent);
-    spendUTXO.bindBlob(2, blobSpendingTXID, SQLITE_STATIC);
-    spendUTXO.bindBlob(3, blobTXID, SQLITE_STATIC);
+    spendUTXO.bindBlob(2,blobSpendingTXID);
+    spendUTXO.bindBlob(3,blobTXID);
     spendUTXO.bindInt(4, vout);
     int rc = spendUTXO.executeStep();
     if (rc != SQLITE_DONE) {
@@ -1108,9 +1134,9 @@ void Database::spendUTXO(const std::string& txid, unsigned int vout, unsigned in
 }
 
 std::string Database::getSendingAddress(const string& txid, unsigned int vout) {
-    auto getSpendingAddress=_stmtGetSpendingAddress.lock();
+    LockedStatement getSpendingAddress{_stmtGetSpendingAddress};
     Blob blobTXID = Blob(txid);
-    getSpendingAddress.bindBlob(1, blobTXID, SQLITE_STATIC);
+    getSpendingAddress.bindBlob(1,blobTXID);
     getSpendingAddress.bindInt(2, vout);
     int rc = getSpendingAddress.executeStep();
     if (rc != SQLITE_ROW) {
@@ -1136,7 +1162,7 @@ std::string Database::getSendingAddress(const string& txid, unsigned int vout) {
 void Database::pruneUTXO(unsigned int height) {
     //prune UTXOs
     {
-        auto pruneUTXOs=_stmtPruneUTXOs.lock();
+        LockedStatement pruneUTXOs{_stmtPruneUTXOs};
         pruneUTXOs.bindInt(1, height);
         int rc = pruneUTXOs.executeStep();
         if (rc != SQLITE_DONE) {
@@ -1147,7 +1173,7 @@ void Database::pruneUTXO(unsigned int height) {
 
     //mark blocks that can't be rolled back anymore
     {
-        auto removeNonReachable=_stmtRemoveNonReachable.lock();
+        LockedStatement removeNonReachable{_stmtRemoveNonReachable};
         removeNonReachable.bindInt(1, height);
         int rc = removeNonReachable.executeStep();
         if (rc != SQLITE_DONE) {
@@ -1172,9 +1198,9 @@ AssetUTXO Database::getAssetUTXO(const string& txid, unsigned int vout) {
     //try to get data from database
     AssetUTXO result;
     {
-        auto getAssetUTXO=_stmtGetAssetUTXO.lock();
+        LockedStatement getAssetUTXO{_stmtGetAssetUTXO};
         Blob blobTXID = Blob(txid);
-        getAssetUTXO.bindBlob(1, blobTXID, SQLITE_STATIC);
+        getAssetUTXO.bindBlob(1,blobTXID);
         getAssetUTXO.bindInt(2, vout);
         result.txid = txid;
         result.vout = vout;
@@ -1228,8 +1254,8 @@ std::vector<AssetUTXO> Database::getAddressUTXOs(const string& address, unsigned
     //get all utxos that include DigiAssets
     Blob lastTxid{"00"};
     {
-        auto getValidUTXO = _stmtGetValidUTXO.lock();
-        getValidUTXO.bindText(1, address, SQLITE_STATIC);
+        LockedStatement getValidUTXO{_stmtGetValidUTXO};
+        getValidUTXO.bindText(1,address);
         getValidUTXO.bindInt(2,maxConfirmHeight);   //max confirms height will be lower bound
         getValidUTXO.bindInt(3,minConfirmHeight);
         int lastVout=-1;
@@ -1315,7 +1341,7 @@ std::vector<AssetUTXO> Database::getAddressUTXOs(const string& address, unsigned
  * @return
  */
 std::vector<AssetHolder> Database::getAssetHolders(uint64_t assetIndex) {
-    auto getAssetHolders=_stmtGetAssetHolders.lock();
+    LockedStatement getAssetHolders{_stmtGetAssetHolders};
     getAssetHolders.bindInt64(1, assetIndex);
     vector<AssetHolder> result;
     while (getAssetHolders.executeStep() == SQLITE_ROW) {
@@ -1335,7 +1361,7 @@ std::vector<AssetHolder> Database::getAssetHolders(uint64_t assetIndex) {
  * @return
  */
 uint64_t Database::getTotalAssetCount(uint64_t assetIndex) {
-    auto getTotalAssetCounta=_stmtGetTotalAssetCounta.lock();
+    LockedStatement getTotalAssetCounta{_stmtGetTotalAssetCounta};
     getTotalAssetCounta.bindInt64(1, assetIndex);
     if (getTotalAssetCounta.executeStep() != SQLITE_ROW) throw exceptionFailedSelect();
     return getTotalAssetCounta.getColumnInt64(0);
@@ -1348,8 +1374,8 @@ uint64_t Database::getTotalAssetCount(uint64_t assetIndex) {
  * @return
  */
 uint64_t Database::getTotalAssetCount(const string& assetId) {
-    auto getTotalAssetCountb=_stmtGetTotalAssetCountb.lock();
-    getTotalAssetCountb.bindText(1, assetId, SQLITE_STATIC);
+    LockedStatement getTotalAssetCountb{_stmtGetTotalAssetCountb};
+    getTotalAssetCountb.bindText(1,assetId);
     if (getTotalAssetCountb.executeStep() != SQLITE_ROW) throw exceptionFailedSelect();
     return getTotalAssetCountb.getColumnInt64(0);
 }
@@ -1362,7 +1388,7 @@ uint64_t Database::getTotalAssetCount(const string& assetId) {
  */
 uint64_t Database::getOriginalAssetCount(uint64_t assetIndex) {
     if (getBeenPrunedUTXOHistory()>-1) throw exceptionDataPruned();
-    auto getOriginalAssetCounta=_stmtGetOriginalAssetCounta.lock();
+    LockedStatement getOriginalAssetCounta{_stmtGetOriginalAssetCounta};
     getOriginalAssetCounta.bindInt64(1, assetIndex);
     if (getOriginalAssetCounta.executeStep() != SQLITE_ROW) throw exceptionFailedSelect();
     return getOriginalAssetCounta.getColumnInt64(0);
@@ -1376,8 +1402,8 @@ uint64_t Database::getOriginalAssetCount(uint64_t assetIndex) {
  */
 uint64_t Database::getOriginalAssetCount(const string& assetId) {
     if (getBeenPrunedUTXOHistory()>-1) throw exceptionDataPruned();
-    auto getOriginalAssetCountb=_stmtGetOriginalAssetCountb.lock();
-    getOriginalAssetCountb.bindText(1, assetId, SQLITE_STATIC);
+    LockedStatement getOriginalAssetCountb{_stmtGetOriginalAssetCountb};
+    getOriginalAssetCountb.bindText(1,assetId);
     if (getOriginalAssetCountb.executeStep() != SQLITE_ROW) throw exceptionFailedSelect();
     return getOriginalAssetCountb.getColumnInt64(0);
 }
@@ -1391,7 +1417,7 @@ uint64_t Database::getOriginalAssetCount(const string& assetId) {
 std::vector<std::string> Database::getAssetTxHistory(uint64_t assetIndex) {
     if (getBeenPrunedUTXOHistory()>-1) throw exceptionDataPruned();
     vector<string> results;
-    auto getAssetTxHistorya=_stmtGetAssetTxHistorya.lock();
+    LockedStatement getAssetTxHistorya{_stmtGetAssetTxHistorya};
     getAssetTxHistorya.bindInt64(1, assetIndex);
     getAssetTxHistorya.bindInt64(2, assetIndex);
     getAssetTxHistorya.bindInt64(3, assetIndex);
@@ -1411,10 +1437,10 @@ std::vector<std::string> Database::getAssetTxHistory(uint64_t assetIndex) {
 std::vector<std::string> Database::getAssetTxHistory(const string& assetId) {
     if (getBeenPrunedUTXOHistory()>-1) throw exceptionDataPruned();
     vector<string> results;
-    auto getAssetTxHistoryb=_stmtGetAssetTxHistoryb.lock();
-    getAssetTxHistoryb.bindText(1, assetId, SQLITE_STATIC);
-    getAssetTxHistoryb.bindText(2, assetId, SQLITE_STATIC);
-    getAssetTxHistoryb.bindText(3, assetId, SQLITE_STATIC);
+    LockedStatement getAssetTxHistoryb{_stmtGetAssetTxHistoryb};
+    getAssetTxHistoryb.bindText(1,assetId);
+    getAssetTxHistoryb.bindText(2,assetId);
+    getAssetTxHistoryb.bindText(3,assetId);
     while (getAssetTxHistoryb.executeStep() == SQLITE_ROW) {
         Blob txid=getAssetTxHistoryb.getColumnBlob(0);
         results.push_back(txid.toHex());
@@ -1429,16 +1455,19 @@ std::vector<std::string> Database::getAssetTxHistory(const string& assetId) {
  * @param maxHeight - optional maximum height to return
  * @return
  */
-std::vector<std::string> Database::getAddressTxList(const string& address, unsigned int minHeight, unsigned int maxHeight) {
+std::vector<std::string> Database::getAddressTxList(const string& address, unsigned int minHeight, unsigned int maxHeight, unsigned int limit) {
     if (getBeenPrunedUTXOHistory()>-1) throw exceptionDataPruned();
     vector<string> results;
-    auto getAddressTxHistory=_stmtGetAddressTxHistory.lock();
-    getAddressTxHistory.bindText(1, address, SQLITE_STATIC);
-    getAddressTxHistory.bindInt(2, minHeight);
-    getAddressTxHistory.bindInt(3, maxHeight);
-    getAddressTxHistory.bindText(4, address, SQLITE_STATIC);
-    getAddressTxHistory.bindInt(5, minHeight);
-    getAddressTxHistory.bindInt(6, maxHeight);
+    LockedStatement getAddressTxHistory{_stmtGetAddressTxHistory};
+    getAddressTxHistory.bindText(1,address);
+    getAddressTxHistory.bindInt64(2, minHeight);
+    getAddressTxHistory.bindInt64(3, maxHeight);
+    getAddressTxHistory.bindInt64(4, limit);
+    getAddressTxHistory.bindText(5,address);
+    getAddressTxHistory.bindInt64(6, minHeight);
+    getAddressTxHistory.bindInt64(7, maxHeight);
+    getAddressTxHistory.bindInt64(8, limit);
+    getAddressTxHistory.bindInt64(9, limit);
     while (getAddressTxHistory.executeStep() == SQLITE_ROW) {
         Blob txid=getAddressTxHistory.getColumnBlob(0);
         results.push_back(txid.toHex());
@@ -1454,8 +1483,8 @@ std::vector<std::string> Database::getAddressTxList(const string& address, unsig
 std::vector<uint64_t> Database::getAssetsCreatedByAddress(const string& address) {
     if (getBeenPrunedUTXOHistory()>-1) throw exceptionDataPruned();
     vector<uint64_t> results;
-    auto getAssetCreateByAddress=_stmtGetAssetCreateByAddress.lock();
-    getAssetCreateByAddress.bindText(1, address, SQLITE_STATIC);
+    LockedStatement getAssetCreateByAddress{_stmtGetAssetCreateByAddress};
+    getAssetCreateByAddress.bindText(1,address);
     while (getAssetCreateByAddress.executeStep() == SQLITE_ROW) {
         results.push_back(getAssetCreateByAddress.getColumnInt64(0));
     }
@@ -1474,8 +1503,8 @@ std::vector<uint64_t> Database::getAssetsCreatedByAddress(const string& address)
 bool Database::isWatchAddress(const string& address) {
     //if to many watch addresses to buffer effectively use database
     if (_exchangeWatchAddresses.empty()) {
-        auto isWatchAddress=_stmtIsWatchAddress.lock();
-        isWatchAddress.bindText(1, address, SQLITE_STATIC);
+        LockedStatement isWatchAddress{_stmtIsWatchAddress};
+        isWatchAddress.bindText(1,address);
         int rc = isWatchAddress.executeStep();
         return (rc == SQLITE_ROW);
     }
@@ -1492,8 +1521,8 @@ void Database::addWatchAddress(const string& address) {
     if (isWatchAddress(address)) return;
 
     //add to database
-    auto addWatchAddress=_stmtAddWatchAddress.lock();
-    addWatchAddress.bindText(1, address, SQLITE_STATIC);
+    LockedStatement addWatchAddress{_stmtAddWatchAddress};
+    addWatchAddress.bindText(1,address);
     int rc = addWatchAddress.executeStep();
     if (rc != SQLITE_OK) {
         string tempErrorMessage = sqlite3_errmsg(_db);
@@ -1525,7 +1554,7 @@ void Database::addWatchAddress(const string& address) {
  */
 vector<Database::exchangeRateHistoryValue> Database::getExchangeRatesAtHeight(unsigned int height) {
     vector<exchangeRateHistoryValue> firstEntry;
-    auto exchangeRatesAyHeight=_stmtExchangeRatesAtHeight.lock();
+    LockedStatement exchangeRatesAyHeight{_stmtExchangeRatesAtHeight};
     exchangeRatesAyHeight.bindInt( 1, height);
     while (exchangeRatesAyHeight.executeStep() == SQLITE_ROW) {
         firstEntry.push_back(exchangeRateHistoryValue{
@@ -1541,8 +1570,8 @@ vector<Database::exchangeRateHistoryValue> Database::getExchangeRatesAtHeight(un
  * This function should only ever be called by the chain analyzer
  */
 void Database::addExchangeRate(const string& address, unsigned int index, unsigned int height, double exchangeRate) {
-    auto addExchangeRate=_stmtAddExchangeRate.lock();
-    addExchangeRate.bindText(1, address, SQLITE_STATIC);
+    LockedStatement addExchangeRate{_stmtAddExchangeRate};
+    addExchangeRate.bindText(1,address);
     addExchangeRate.bindInt(2, index);
     addExchangeRate.bindInt(3, height);
     addExchangeRate.bindDouble(4, exchangeRate);
@@ -1564,7 +1593,7 @@ void Database::pruneExchange(unsigned int pruneHeight) {
 
     //delete from exchange where pruneHeight<pruneHeight;
     {
-        auto pruneExchangeRate = _stmtPruneExchangeRate.lock();
+        LockedStatement pruneExchangeRate{_stmtPruneExchangeRate};
         pruneExchangeRate.bindInt(1, pruneHeight);
         int rc = pruneExchangeRate.executeStep();
         if (rc != SQLITE_DONE) {
@@ -1575,7 +1604,7 @@ void Database::pruneExchange(unsigned int pruneHeight) {
 
     //mark blocks that can't be rolled back anymore
     {
-        auto removeNonReachable=_stmtRemoveNonReachable.lock();
+        LockedStatement removeNonReachable{_stmtRemoveNonReachable};
         removeNonReachable.bindInt(1, pruneHeight);
         int rc = removeNonReachable.executeStep();
         if (rc != SQLITE_DONE) {
@@ -1610,9 +1639,9 @@ double Database::getAcceptedExchangeRate(const ExchangeRate& rate, unsigned int 
     }
 
     //look up exchange rate
-    auto getValidExchangeRate=_stmtGetValidExchangeRate.lock();
+    LockedStatement getValidExchangeRate{_stmtGetValidExchangeRate};
     getValidExchangeRate.bindInt(1, height);
-    getValidExchangeRate.bindText(2, rate.address, SQLITE_STATIC);
+    getValidExchangeRate.bindText(2,rate.address);
     getValidExchangeRate.bindInt(3, rate.index);
     double min = numeric_limits<double>::infinity();
     while (getValidExchangeRate.executeStep() == SQLITE_ROW) {
@@ -1629,8 +1658,8 @@ double Database::getAcceptedExchangeRate(const ExchangeRate& rate, unsigned int 
 }
 
 double Database::getCurrentExchangeRate(const ExchangeRate& rate) {
-    auto getCurrentExchangeRate=_stmtGetCurrentExchangeRate.lock();
-    getCurrentExchangeRate.bindText(1, rate.address, SQLITE_STATIC);
+    LockedStatement getCurrentExchangeRate{_stmtGetCurrentExchangeRate};
+    getCurrentExchangeRate.bindText(1,rate.address);
     getCurrentExchangeRate.bindInt(2, rate.index);
     if (getCurrentExchangeRate.executeStep() != SQLITE_ROW) throw out_of_range("Unknown Exchange Rate");
     return getCurrentExchangeRate.getColumnDouble(0);
@@ -1647,12 +1676,12 @@ double Database::getCurrentExchangeRate(const ExchangeRate& rate) {
 
 void Database::addKYC(const string& address, const string& country, const string& name, const string& hash,
                       unsigned int height) {
-    auto addKYC = _stmtAddKYC.lock();
+    LockedStatement addKYC{_stmtAddKYC};
     Blob blobTXID = Blob(hash);
-    addKYC.bindText(1, address, SQLITE_STATIC);
-    addKYC.bindText(2, country, SQLITE_STATIC);
-    addKYC.bindText(3, name, SQLITE_STATIC);
-    addKYC.bindBlob(4, blobTXID, SQLITE_STATIC);
+    addKYC.bindText(1,address);
+    addKYC.bindText(2,country);
+    addKYC.bindText(3,name);
+    addKYC.bindBlob(4,blobTXID);
     addKYC.bindInt(5, height);
     int rc = addKYC.executeStep();
     if (rc != SQLITE_DONE) {
@@ -1662,9 +1691,9 @@ void Database::addKYC(const string& address, const string& country, const string
 }
 
 void Database::revokeKYC(const string& address, unsigned int height) {
-    auto revokeKYC=_stmtRevokeKYC.lock();
+    LockedStatement revokeKYC{_stmtRevokeKYC};
     revokeKYC.bindInt(1, height);
-    revokeKYC.bindText(2, address, SQLITE_STATIC);
+    revokeKYC.bindText(2,address);
     int rc = revokeKYC.executeStep();
     if (rc != SQLITE_DONE) {
         string tempErrorMessage = sqlite3_errmsg(_db);
@@ -1673,8 +1702,8 @@ void Database::revokeKYC(const string& address, unsigned int height) {
 }
 
 KYC Database::getAddressKYC(const string& address) {
-    auto getKYC=_stmtGetKYC.lock();
-    getKYC.bindText(1, address, SQLITE_STATIC);
+    LockedStatement getKYC{_stmtGetKYC};
+    getKYC.bindText(1,address);
     int rc = getKYC.executeStep();
     if (rc != SQLITE_ROW) {
         return {
@@ -1704,9 +1733,9 @@ KYC Database::getAddressKYC(const string& address) {
  * Records votes to database
  */
 void Database::addVote(const string& address, unsigned int assetIndex, uint64_t count, unsigned int height) {
-    auto addVote=_stmtAddVote.lock();
+    LockedStatement addVote{_stmtAddVote};
     addVote.bindInt(1, assetIndex);
-    addVote.bindText(2, address, SQLITE_STATIC);
+    addVote.bindText(2,address);
     addVote.bindInt(3, height);
     addVote.bindInt64(4, count);
     addVote.bindInt64(5, count);
@@ -1732,7 +1761,7 @@ void Database::pruneVote(unsigned int height) {
     //we need to keep the sum of all votes we are pruning so lets add them up
     vector<entries> keep;
     {
-        auto getVoteCountAtHeight=_stmtGetVoteCountAtHeight.lock();
+        LockedStatement getVoteCountAtHeight{_stmtGetVoteCountAtHeight};
         getVoteCountAtHeight.bindInt(1, height);
         while (getVoteCountAtHeight.executeStep() == SQLITE_ROW) {
             keep.emplace_back(entries{
@@ -1745,7 +1774,7 @@ void Database::pruneVote(unsigned int height) {
 
     //delete from votes where height<pruneHeight
     {
-        auto pruneVote = _stmtPruneVote.lock();
+        LockedStatement pruneVote{_stmtPruneVote};
         pruneVote.bindInt(1, height);
         int rc = pruneVote.executeStep();
         if (rc != SQLITE_DONE) {
@@ -1756,7 +1785,7 @@ void Database::pruneVote(unsigned int height) {
 
     //mark blocks that can't be rolled back anymore
     {
-        auto removeNonReachable = _stmtRemoveNonReachable.lock();
+        LockedStatement removeNonReachable{_stmtRemoveNonReachable};
         removeNonReachable.bindInt(1, height);
         int rc = removeNonReachable.executeStep();
         if (rc != SQLITE_DONE) {
@@ -1782,7 +1811,7 @@ void Database::pruneVote(unsigned int height) {
  * @return
  */
 std::vector<VoteCount> Database::getVoteCounts(unsigned int assetIndex) {
-    auto getVoteCount=_stmtGetVoteCount.lock();
+    LockedStatement getVoteCount{_stmtGetVoteCount};
     getVoteCount.bindInt(1, assetIndex);
     vector<VoteCount> votes;
     while (getVoteCount.executeStep() == SQLITE_ROW) {
@@ -1826,7 +1855,7 @@ IPFSCallbackFunction& Database::getIPFSCallback(const string& callbackSymbol) {
  * @return
  */
 unsigned int Database::getIPFSJobCount() {
-    auto numberOfIPFSJobs=_stmtNumberOfIPFSJobs.lock();
+    LockedStatement numberOfIPFSJobs{_stmtNumberOfIPFSJobs};
     int rc = numberOfIPFSJobs.executeStep();
     if (rc != SQLITE_ROW) {
         throw exceptionFailedSelect();
@@ -1873,7 +1902,7 @@ void Database::getNextIPFSJob(unsigned int& jobIndex, string& cid, string& sync,
 
         //clear from database
         if (removed) {
-            auto clearIPFSPause=_stmtClearIPFSPause.lock();
+            LockedStatement clearIPFSPause{_stmtClearIPFSPause};
             clearIPFSPause.bindInt64(1, currentTime);
             int rc = clearIPFSPause.executeStep();
             if (rc != SQLITE_DONE) throw exceptionFailedUpdate();
@@ -1881,23 +1910,28 @@ void Database::getNextIPFSJob(unsigned int& jobIndex, string& cid, string& sync,
     }
 
     //lookup the next job(if there is one)
-    auto getNextIPFSJob=_stmtGetNextIPFSJob.lock();
-    int rc = getNextIPFSJob.executeStep();
-    if (rc != SQLITE_ROW) {
-        jobIndex = 0; //signal there are no new jobs
-        return;
-    }
-    jobIndex = getNextIPFSJob.getColumnInt(0);
-    sync = getNextIPFSJob.getColumnText(1);
-    cid = getNextIPFSJob.getColumnText(2);
-    extra = getNextIPFSJob.getColumnText(3);
-    string callbackSymbol = getNextIPFSJob.getColumnText(4);
+    uint64_t currentTime;
+    uint64_t maxTime;
+    string callbackSymbol;
+    {
+        LockedStatement getNextIPFSJob{_stmtGetNextIPFSJob};
+        int rc = getNextIPFSJob.executeStep();
+        if (rc != SQLITE_ROW) {
+            jobIndex = 0; //signal there are no new jobs
+            return;
+        }
+        jobIndex = getNextIPFSJob.getColumnInt(0);
+        sync = getNextIPFSJob.getColumnText(1);
+        cid = getNextIPFSJob.getColumnText(2);
+        extra = getNextIPFSJob.getColumnText(3);
+        callbackSymbol = getNextIPFSJob.getColumnText(4);
 
-    //get max time
-    uint64_t currentTime = std::chrono::duration_cast<std::chrono::milliseconds>(
-                                   std::chrono::system_clock::now().time_since_epoch())
-                                   .count();
-    uint64_t maxTime = getNextIPFSJob.getColumnInt64(5);
+        //get max time
+        currentTime = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                       std::chrono::system_clock::now().time_since_epoch())
+                                       .count();
+        maxTime = getNextIPFSJob.getColumnInt64(5);
+    }
     if (maxTime == 0) {
         //if null return forever
         maxSleep = std::numeric_limits<unsigned int>::max();
@@ -1918,13 +1952,14 @@ void Database::getNextIPFSJob(unsigned int& jobIndex, string& cid, string& sync,
 
 
     //lock the sync if not pin or non synchronized
+    int rc;
     if ((sync == "pin") || (sync == "_") || (sync.empty())) {
-        auto setIPFSLockJob=_stmtSetIPFSLockJob.lock();
+        LockedStatement setIPFSLockJob{_stmtSetIPFSLockJob};
         setIPFSLockJob.bindInt(1, jobIndex);
         rc = setIPFSLockJob.executeStep();
     } else {
-        auto setIPFSLockSync=_stmtSetIPFSLockSync.lock();
-        setIPFSLockSync.bindText(1, sync, SQLITE_STATIC);
+        LockedStatement setIPFSLockSync{_stmtSetIPFSLockSync};
+        setIPFSLockSync.bindText(1,sync);
         rc = setIPFSLockSync.executeStep();
     }
     if (rc != SQLITE_DONE) throw exceptionFailedUpdate();
@@ -1940,14 +1975,14 @@ void Database::pauseIPFSSync(unsigned int jobIndex, const string& sync, unsigned
     //update database
     int rc;
     if ((sync == "pin") || (sync == "_") || (sync.empty())) { //handle jobs that are non ordered
-        auto setIPFSPauseJob=_stmtSetIPFSPauseJob.lock();
+        LockedStatement setIPFSPauseJob{_stmtSetIPFSPauseJob};
         setIPFSPauseJob.bindInt64(1, unpauseTime);
         setIPFSPauseJob.bindInt(2, jobIndex);
         rc = setIPFSPauseJob.executeStep();
     } else {
-        auto setIPFSPauseSync=_stmtSetIPFSPauseSync.lock();
+        LockedStatement setIPFSPauseSync{_stmtSetIPFSPauseSync};
         setIPFSPauseSync.bindInt64(1, unpauseTime);
-        setIPFSPauseSync.bindText(2, sync, SQLITE_STATIC);
+        setIPFSPauseSync.bindText(2,sync);
         rc = setIPFSPauseSync.executeStep();
 
         //update ram
@@ -1969,7 +2004,7 @@ void Database::removeIPFSJob(unsigned int jobIndex, const string& sync) {
 
     //remove from database
     {
-        auto clearNextIPFSJob = _stmtClearNextIPFSJob_a.lock();
+        LockedStatement clearNextIPFSJob{_stmtClearNextIPFSJob_a};
         clearNextIPFSJob.bindInt(1, jobIndex);
         int rc = clearNextIPFSJob.executeStep();
         if (rc != SQLITE_DONE) { //there should always be one
@@ -1978,8 +2013,8 @@ void Database::removeIPFSJob(unsigned int jobIndex, const string& sync) {
         }
     }
     {
-        auto clearNextIPFSJob=_stmtClearNextIPFSJob_b.lock();
-        clearNextIPFSJob.bindText(1, sync, SQLITE_STATIC);
+        LockedStatement clearNextIPFSJob{_stmtClearNextIPFSJob_b};
+        clearNextIPFSJob.bindText(1,sync);
         int rc = clearNextIPFSJob.executeStep();
         if (rc != SQLITE_DONE) { //there should always be one
             string tempErrorMessage = sqlite3_errmsg(_db);
@@ -2020,11 +2055,11 @@ Database::addIPFSJob(const string& cid, const string& sync, const string& extra,
     }
 
     //add type download to database
-    auto insertIPFSJob=_stmtInsertIPFSJob.lock();
-    insertIPFSJob.bindText(1, sync, SQLITE_STATIC);
-    insertIPFSJob.bindText(2, cid, SQLITE_STATIC);
-    insertIPFSJob.bindText(3, extra, SQLITE_STATIC);
-    insertIPFSJob.bindText(4, callbackSymbol, SQLITE_STATIC);
+    LockedStatement insertIPFSJob{_stmtInsertIPFSJob};
+    insertIPFSJob.bindText(1,sync);
+    insertIPFSJob.bindText(2,cid);
+    insertIPFSJob.bindText(3,extra);
+    insertIPFSJob.bindText(4,callbackSymbol);
     if (pause != 0) {
         insertIPFSJob.bindInt64(5, pause);
     } else {
@@ -2080,8 +2115,8 @@ promise<string> Database::addIPFSJobPromise(const string& cid, const string& syn
  */
 
 void Database::revokeDomain(const string& domain) {
-    auto revokeDomain=_stmtRevokeDomain.lock();
-    revokeDomain.bindText(1, domain, SQLITE_STATIC);
+    LockedStatement revokeDomain{_stmtRevokeDomain};
+    revokeDomain.bindText(1,domain);
     int rc = revokeDomain.executeStep();
     if (rc != SQLITE_DONE) {
         string tempErrorMessage = sqlite3_errmsg(_db);
@@ -2090,9 +2125,9 @@ void Database::revokeDomain(const string& domain) {
 }
 
 void Database::addDomain(const string& domain, const string& assetId) {
-    auto addDomain=_stmtAddDomain.lock();
-    addDomain.bindText(1, domain, SQLITE_STATIC);
-    addDomain.bindText(2, assetId, SQLITE_STATIC);
+    LockedStatement addDomain{_stmtAddDomain};
+    addDomain.bindText(1,domain);
+    addDomain.bindText(2,assetId);
     int rc = addDomain.executeStep();
     if (rc != SQLITE_DONE) {
         string tempErrorMessage = sqlite3_errmsg(_db);
@@ -2101,8 +2136,8 @@ void Database::addDomain(const string& domain, const string& assetId) {
 }
 
 string Database::getDomainAssetId(const std::string& domain, bool returnErrorIfRevoked) {
-    auto getDomainAssetId=_stmtGetDomainAssetId.lock();
-    getDomainAssetId.bindText(1, domain, SQLITE_STATIC);
+    LockedStatement getDomainAssetId{_stmtGetDomainAssetId};
+    getDomainAssetId.bindText(1,domain);
     int rc = getDomainAssetId.executeStep();
 
     if (rc != SQLITE_ROW) throw DigiByteDomain::exceptionUnknownDomain();
@@ -2125,17 +2160,17 @@ bool Database::isActiveMasterDomainAssetId(const std::string& assetId) const {
 
 void Database::setMasterDomainAssetId(const string& assetId) {
     {
-        auto setDomainMasterAssetId = _stmtSetDomainMasterAssetId_a.lock();
+        LockedStatement setDomainMasterAssetId{_stmtSetDomainMasterAssetId_a};
         string lastDomain = _masterDomainAssetId.back();
-        setDomainMasterAssetId.bindText(1, lastDomain, SQLITE_STATIC);
+        setDomainMasterAssetId.bindText(1,lastDomain);
         int rc = setDomainMasterAssetId.executeStep();
         if (rc != SQLITE_DONE) {
             string tempErrorMessage = sqlite3_errmsg(_db);
             throw exceptionFailedUpdate();
         }
     }
-    auto setDomainMasterAssetId=_stmtSetDomainMasterAssetId_b.lock();
-    setDomainMasterAssetId.bindText(1, assetId, SQLITE_STATIC);
+    LockedStatement setDomainMasterAssetId{_stmtSetDomainMasterAssetId_b};
+    setDomainMasterAssetId.bindText(1,assetId);
     int rc = setDomainMasterAssetId.executeStep();
     if (rc != SQLITE_DONE) {
         string tempErrorMessage = sqlite3_errmsg(_db);
@@ -2185,7 +2220,7 @@ int Database::defaultCallback(void* NotUsed, int argc, char** argv, char** azCol
 void Database::repinPermanent(unsigned int poolIndex) {
     //repin all asset main meta data
     {
-        auto repinAssets = _stmtRepinAssets.lock();
+        LockedStatement repinAssets{_stmtRepinAssets};
         int rc = repinAssets.executeStep();
         if (rc != SQLITE_DONE) {
             string tempErrorMessage = sqlite3_errmsg(_db);
@@ -2194,7 +2229,7 @@ void Database::repinPermanent(unsigned int poolIndex) {
     }
 
     //repin all files that are part of specific pool
-    auto repinPermanentSpecific=_stmtRepinPermanentSpecific.lock();
+    LockedStatement repinPermanentSpecific{_stmtRepinPermanentSpecific};
     repinPermanentSpecific.bindInt(1, poolIndex);
     int rc = repinPermanentSpecific.executeStep();
     if (rc != SQLITE_DONE) {
@@ -2244,8 +2279,8 @@ void Database::unpinPermanent(unsigned int poolIndex) {
 */
 void Database::addToPermanent(unsigned int poolIndex, const string& cid) {
     if (cid.empty()) return;
-    auto insertPermanent=_stmtInsertPermanent.lock();
-    insertPermanent.bindText(1, cid, SQLITE_STATIC);
+    LockedStatement insertPermanent{_stmtInsertPermanent};
+    insertPermanent.bindText(1,cid);
     insertPermanent.bindInt(2, poolIndex);
     int rc = insertPermanent.executeStep();
     if (rc != SQLITE_DONE) {
@@ -2257,8 +2292,8 @@ void Database::addToPermanent(unsigned int poolIndex, const string& cid) {
 void Database::removeFromPermanent(unsigned int poolIndex, const std::string& cid, bool unpin) {
     //remove from database
     {
-        auto deletePermanent=_stmtDeletePermanent.lock();
-        deletePermanent.bindText(1, cid, SQLITE_TRANSIENT);
+        LockedStatement deletePermanent{_stmtDeletePermanent};
+        deletePermanent.bindText(1,cid);
         deletePermanent.bindInt(2, poolIndex);
         deletePermanent.executeStep();
     }
@@ -2267,8 +2302,8 @@ void Database::removeFromPermanent(unsigned int poolIndex, const std::string& ci
     if (!unpin) return;
 
     //see if asset still present
-    auto isInPermanent=_stmtIsInPermanent.lock();
-    isInPermanent.bindText(1, cid, SQLITE_TRANSIENT);
+    LockedStatement isInPermanent{_stmtIsInPermanent};
+    isInPermanent.bindText(1,cid);
     if (isInPermanent.executeStep() == SQLITE_ROW) return;
 
     //add asset to be unpinned
@@ -2276,7 +2311,7 @@ void Database::removeFromPermanent(unsigned int poolIndex, const std::string& ci
 }
 
 void Database::addAssetToPool(unsigned int poolIndex, unsigned int assetIndex) {
-    auto addAssetToPool=_stmtAddAssetToPool.lock();
+    LockedStatement addAssetToPool{_stmtAddAssetToPool};
     addAssetToPool.bindInt(1, assetIndex);
     addAssetToPool.bindInt(2, poolIndex);
 
@@ -2289,8 +2324,8 @@ void Database::removeAssetFromPool(unsigned int poolIndex, const std::string& as
     //make list of assetIndex we will remove and there cid
     vector<pair<unsigned int, string>> toDelete;
     {
-        auto pspFindBadAsset=_stmtPSPFindBadAsset.lock();
-        pspFindBadAsset.bindText(1, assetId, SQLITE_TRANSIENT);
+        LockedStatement pspFindBadAsset{_stmtPSPFindBadAsset};
+        pspFindBadAsset.bindText(1,assetId);
         pspFindBadAsset.bindInt(2, poolIndex);
         while (pspFindBadAsset.executeStep() == SQLITE_ROW) {
             unsigned int assetIndex = pspFindBadAsset.getColumnInt(0);
@@ -2301,8 +2336,8 @@ void Database::removeAssetFromPool(unsigned int poolIndex, const std::string& as
 
     //remove from database
     {
-        auto pspDeleteBadAsset=_stmtPSPDeleteBadAsset.lock();
-        pspDeleteBadAsset.bindText(1, assetId, SQLITE_TRANSIENT);
+        LockedStatement pspDeleteBadAsset{_stmtPSPDeleteBadAsset};
+        pspDeleteBadAsset.bindText(1,assetId);
         pspDeleteBadAsset.bindInt(2, poolIndex);
         pspDeleteBadAsset.executeStep();
     }
@@ -2312,7 +2347,7 @@ void Database::removeAssetFromPool(unsigned int poolIndex, const std::string& as
     for (auto pair: toDelete) {
         //see if asset still present
         unsigned int assetIndex = pair.first;
-        auto isAssetInAPool=_stmtIsAssetInAPool.lock();
+        LockedStatement isAssetInAPool{_stmtIsAssetInAPool};
         isAssetInAPool.bindInt(1, assetIndex);
         if (isAssetInAPool.executeStep() == SQLITE_ROW) continue;
 
@@ -2322,7 +2357,7 @@ void Database::removeAssetFromPool(unsigned int poolIndex, const std::string& as
 }
 
 bool Database::isAssetInPool(unsigned int poolIndex, unsigned int assetIndex) {
-    auto isAssetInPool=_stmtIsAssetInPool.lock();
+    LockedStatement isAssetInPool{_stmtIsAssetInPool};
     isAssetInPool.bindInt(1, assetIndex);
     isAssetInPool.bindInt(2, poolIndex);
 
@@ -2699,4 +2734,48 @@ void Database::executeSQLStatement(const string& query, const std::exception& er
         throw errorToThrowOnFail;
     }
     sqlite3_finalize(stmt);
+}
+
+/**
+ * Checks if index exists.
+ * Not prepared because this gets executed during the preperation cycle
+ * @param indexName
+ * @return
+ */
+bool Database::indexExists(const string& indexName) {
+    std::string sql = "SELECT name FROM sqlite_master WHERE type='index' AND name=?";
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr) != SQLITE_OK) {
+        std::cerr << "Failed to prepare statement: " << sqlite3_errmsg(_db) << std::endl;
+        throw Database::exceptionCreatingStatement();
+    }
+
+    sqlite3_bind_text(stmt, 1, indexName.c_str(), -1, SQLITE_TRANSIENT);
+
+    bool exists = false;
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        exists = true; // Index exists
+    }
+
+    sqlite3_finalize(stmt);
+    return exists;
+}
+void Database::executePerformanceIndex(int& state) {
+    //find an index that needs adding or exit if none to add
+    PerformanceIndex index;
+    do {
+        if (_performanceIndexes.empty()) return; //check if we have emptied the array
+        state=ChainAnalyzer::OPTIMIZING;
+        index = _performanceIndexes.back(); //get last element
+        _performanceIndexes.pop_back(); //remove it
+    } while (indexExists(index.name));
+
+    //add the index
+    Log* log=Log::GetInstance();
+    log->addMessage("Creating performance index "+index.name);
+    int rc=sqlite3_exec(_db, index.command.c_str(), nullptr, nullptr, nullptr);
+    if (rc != SQLITE_OK) {
+        _performanceIndexes.emplace_back(index);    //couldn't execute so push it back on to be done later
+    }
+    log->addMessage("Finished creating performance index "+ index.name);
 }

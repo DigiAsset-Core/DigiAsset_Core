@@ -40,7 +40,7 @@ TEST(DigiAssetTransaction, existingAssetTransactions) {
 
     IPFS ipfs("config.cfg", false);
     ipfs.downloadFile("QmNPyr5tkm48cUu5iMbReiM8GN8AW6PRpzUztPFadaxC8j", "../tests/testFiles/assetTest.csv", true);
-    ipfs.downloadFile("QmY34pNFnmtEoJLTtiuAtKsGMf9AkJQPtuA3MzgBzZrMoB", "../tests/testFiles/assetTest.db", true);
+    ipfs.downloadFile("QmcvaYnWtft2zxYoj8Mzy9cauB6Je11cTwtD7Qi2oThJdh", "../tests/testFiles/assetTest.db", true);
 
     //initialize prerequisites
     AppMain* main = AppMain::GetInstance();
@@ -275,8 +275,10 @@ TEST(DigiAssetTransaction, existingAssetTransactions) {
     }
 
     //pause to let IPFS catch up
-    chrono::minutes dura(30);
-    this_thread::sleep_for(dura);
+    while (db.getIPFSJobCount()>0) {
+        chrono::minutes dura(1);
+        this_thread::sleep_for(dura);
+    }
 
     //clean up
     main->reset();

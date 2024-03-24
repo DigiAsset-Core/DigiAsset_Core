@@ -44,6 +44,7 @@ public:
     static const int STOPPED = 1;
     static const int INITIALIZING = 2;
     static const int REWINDING = 3;
+    static const int OPTIMIZING = 4;
 
     //get state
     int getSync() const;
@@ -77,6 +78,7 @@ private:
     bool _pruneUTXOHistory;     //if true prune "utxos"
     bool _pruneVoteHistory;     //if true prune "votes
     bool _storeNonAssetUTXOs;   //if false won't bother storing NonAsset UTXOS
+    bool _verifyDatabaseWrite;  //if set to false will write without checking
 
     //config variable(meta data) - need to be static or make entire thing singleton.  decided to make static
     static unsigned int _pinAssetIcon;
