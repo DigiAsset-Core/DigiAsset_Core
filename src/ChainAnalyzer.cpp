@@ -187,7 +187,7 @@ void ChainAnalyzer::startupFunction() {
     DigiByteCore* dgb = main->getDigiByteCore();
 
     //make sure everything is set up
-    db->disableWriteVerification();
+    //db->disableWriteVerification();
 
     //find block we left off at
     _height = db->getBlockHeight();

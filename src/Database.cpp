@@ -54,7 +54,7 @@ void Database::buildTables(unsigned int dbVersionNumber) {
                         "BEGIN TRANSACTION;"
 
                         "CREATE TABLE \"assets\" (\"assetIndex\" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, \"assetId\" TEXT NOT NULL, \"cid\" TEXT, \"issueAddress\" TEXT NOT NULL, \"rules\" BLOB, \"heightCreated\" INTEGER NOT NULL, \"heightUpdated\" INTEGER NOT NULL, \"expires\" INTEGER);"
-                        "INSERT INTO \"assets\" VALUES (1,'DigiByte','QmfSVLAntanDUKrEHUnTXRh53GLUBHFfxk5x6LH4zz9PM4','STANDARD','{}',1,1,NULL);"
+                        "INSERT INTO \"assets\" VALUES (1,'DigiByte','QmfSVLAntanDUKrEHUnTXRh53GLUBHFfxk5x6LH4zz9PM4','STANDARD','',1,1,NULL);"
 
                         "CREATE TABLE \"blocks\" (\"height\" INTEGER NOT NULL, \"hash\" BLOB NOT NULL, \"time\" INTEGER NOT NULL, \"algo\" INTEGER NOT NULL, \"difficulty\" REAL NOT NULL, PRIMARY KEY(\"height\"));"
                         "INSERT INTO \"blocks\" VALUES (1,X'4da631f2ac1bed857bd968c67c913978274d8aabed64ab2bcebc1665d7f4d3a0',1389392876,1,0.000244140625);"
@@ -1032,7 +1032,7 @@ void Database::clearBlocksAboveHeight(uint height) {
     int rc;
     char* zErrMsg = nullptr;
     string lineEnd = to_string(height) + ";";
-    const string sql = "DELETE FROM assets WHERE heightCreated>=" + lineEnd +
+    const string sql = "DELETE FROM assets WHERE heightCreated>1 AND heightCreated>=" + lineEnd +
                        "DELETE FROM exchange WHERE height>=" + lineEnd +
                        "DELETE FROM kyc WHERE height>=" + lineEnd +
                        "UPDATE kyc SET revoked=NULL WHERE revoked>=" + lineEnd +
