@@ -578,7 +578,7 @@ namespace OldStream {
             Json::Value entry=Json::objectValue;
             entry["txid"]=utxo.txid;
             entry["vout"]=utxo.vout;
-            entry["value"]=utxo.digibyte;
+            entry["value"]=static_cast<Json::Int64>(utxo.digibyte);
             entry["scriptPubKey"]=Json::objectValue;
             entry["scriptPubKey"]["hex"]=dgb->getAddressInfo(address).scriptPubKey;
             entry["scriptPubKey"]["asm"]="";//hack
@@ -592,7 +592,7 @@ namespace OldStream {
             for (const auto& asset: utxo.assets) {
                 Json::Value assetEntry=Json::objectValue;
                 assetEntry["assetId"]=asset.getAssetId();
-                assetEntry["amount"]=asset.getCount();
+                assetEntry["amount"]=static_cast<Json::Int64>(asset.getCount());
                 assetEntry["decimals"]=asset.getDecimals();
                 if (!asset.isAggregable()) {
                     assetEntry["cid"]=asset.getCID();
@@ -745,8 +745,8 @@ namespace OldStream {
         result["withdraw"]= withdraw;
         Json::Value deposit=Json::objectValue;
         deposit["min"]=0;
-        deposit["max"]=balances[1];
-        deposit["sum"]=balances[1];
+        deposit["max"]=static_cast<Json::Int64>(balances[1]);
+        deposit["sum"]=static_cast<Json::Int64>(balances[1]);
         deposit["count"]=1;
         result["deposit"]=deposit;
 
