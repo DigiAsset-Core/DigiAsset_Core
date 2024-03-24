@@ -11,7 +11,7 @@ namespace RPCMethods {
      * Returns a list of assetIDs ordered by issuance height
      *  params[0] - numberOfRecords(unsigned int) - default is infinity
      *  params[1] - startIndex(unsigned int) - default is 1
-     *  params[2] - basic - default is false
+     *  params[2] - basic - default is true
      *
      * @return list of assetIDs
      */
@@ -40,10 +40,10 @@ namespace RPCMethods {
             }
         }
 
-        //get start index default is 1
-        bool basic=false;
+        //get basic default is true
+        bool basic=true;
         if (params.size()>2) {
-            if (params[2].isUInt()) {
+            if (params[2].isBool()) {
                 basic = params[2].asBool();
             } else if (!params[2].isNull()) {
                 throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
@@ -57,16 +57,16 @@ namespace RPCMethods {
 
         if (basic) {
             for (const auto& asset: assets) {
-                jsonArray.append(db->getAsset(asset.assetIndex).toJSON());
-            }
-        } else {
-            for (const auto& asset: assets) {
                 Json::Value assetJSON(Json::objectValue);
                 assetJSON["assetIndex"] = asset.assetIndex;
                 assetJSON["assetId"] = asset.assetId;
                 assetJSON["cid"] = asset.cid;
                 assetJSON["height"] = asset.height;
                 jsonArray.append(assetJSON);
+            }
+        } else {
+            for (const auto& asset: assets) {
+                jsonArray.append(db->getAsset(asset.assetIndex).toJSON());
             }
         }
 
