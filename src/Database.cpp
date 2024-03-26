@@ -1286,7 +1286,6 @@ std::vector<AssetUTXO> Database::getAddressUTXOs(const string& address, unsigned
             //get next row value
             Blob txid = getValidUTXO.getColumnBlob(0);
             int vout = getValidUTXO.getColumnInt(1);
-            unsigned int aout = getValidUTXO.getColumnInt(2);
             unsigned int assetIndex = getValidUTXO.getColumnInt(3);
             uint64_t amount = getValidUTXO.getColumnInt64(4);
 

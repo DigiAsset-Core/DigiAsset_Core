@@ -18,7 +18,6 @@ namespace RPCMethods {
      */
     extern const Json::Value getdgbequivalent(const Json::Value& params) {
         AppMain* main=AppMain::GetInstance();
-        unsigned int height;
         if (params.size() != 3) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
         if (!params[0].isString()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
         if (!params[1].isUInt()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");

@@ -234,6 +234,8 @@ mv cli/digiasset_core-cli ../bin
 cd ../bin
 ```
 
+* if you wish to build the test scripts add to first cmake -DBUILD_TEST=ON
+
 ## Configure DigiAsset Core
 
 ```bash

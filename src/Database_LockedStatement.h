@@ -50,8 +50,8 @@ public:
 private:
     sqlite3_stmt* _stmt;
     std::unique_lock<std::mutex> _lock; // Automatically releases the lock when destroyed
-    std::chrono::steady_clock::time_point _creationTime; // Time of creation
     Statement* _creator; // Reference to the creating Statement object
+    std::chrono::steady_clock::time_point _creationTime; // Time of creation
 };
 
 

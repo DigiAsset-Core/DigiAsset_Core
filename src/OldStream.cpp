@@ -811,7 +811,6 @@ namespace OldStream {
         //check if key is a hash
         if (key.length()==64) {
             //probably a sha256
-            unsigned int height;
             try {
                 //check if it is a block hash
                 Json::Value result=getDigiByteBlockData(key);
