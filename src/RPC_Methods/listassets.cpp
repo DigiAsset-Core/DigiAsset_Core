@@ -58,7 +58,7 @@ namespace RPCMethods {
         if (basic) {
             for (const auto& asset: assets) {
                 Json::Value assetJSON(Json::objectValue);
-                assetJSON["assetIndex"] = asset.assetIndex;
+                assetJSON["assetIndex"] = static_cast<Json::UInt64>(asset.assetIndex);
                 assetJSON["assetId"] = asset.assetId;
                 assetJSON["cid"] = asset.cid;
                 assetJSON["height"] = asset.height;
