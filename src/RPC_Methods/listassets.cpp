@@ -13,7 +13,15 @@ namespace RPCMethods {
      *  params[1] - startIndex(unsigned int) - default is 1
      *  params[2] - basic - default is true
      *
-     * @return list of assetIDs
+     * In basic mode, the function returns an array of Json::Value objects, each representing basic information about a DigiAsset, including:
+     * - assetIndex: The index of the asset(note only valid on this node)
+     * - assetId: The ID of the asset.
+     * - cid: The CID associated with the asset.
+     * - height: The issuance height of the asset.
+     *
+     * When not in basic mode returns:
+     * @return array[Json::Value] - Returns a Json::Value object that represents the DigiAsset in JSON format.
+     *                       Refer to DigiAsset::toJSON for the format of the returned JSON object.
      */
     extern const Json::Value listassets(const Json::Value& params) {
         if (params.size() > 3) {

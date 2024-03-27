@@ -306,6 +306,9 @@ void Database::initializeClassValues() {
     addPerformanceIndex("utxos","address","heightCreated");
     addPerformanceIndex("utxos","address","heightDestroyed","spentTXID");
 
+    //statements to get asset holdings
+    _stmtGetAddressHoldings.prepare(_db,"SELECT assetIndex,SUM(amount) FROM utxos WHERE heightDestroyed IS NULL AND address=? GROUP BY assetIndex");
+    addPerformanceIndex("utxos","address","assetIndex");
 
     //statement to get valid utxos for a given address
     _stmtGetValidUTXO.prepare(_db,"SELECT `txid`,`vout`,`aout`,`assetIndex`,`amount` FROM utxos WHERE heightDestroyed IS NULL AND address=? AND heightCreated>=? AND heightCreated<=? ORDER BY txid ASC, vout ASC, aout ASC;");
@@ -1509,6 +1512,25 @@ std::vector<uint64_t> Database::getAssetsCreatedByAddress(const string& address)
     getAssetCreateByAddress.bindText(1,address);
     while (getAssetCreateByAddress.executeStep() == SQLITE_ROW) {
         results.push_back(getAssetCreateByAddress.getColumnInt64(0));
+    }
+    return results;
+}
+
+/**
+ * Returns assetIndex and count for assets in an address.   If non asset utxo are stored also returns DigiByte as index 1
+ * @param address
+ * @return
+ */
+std::vector<AssetCount> Database::getAddressHoldings(const string& address) {
+    std::vector<AssetCount> results;
+
+    LockedStatement getAddressHoldings{_stmtGetAddressHoldings};
+    getAddressHoldings.bindText(1,address);
+    while (getAddressHoldings.executeStep()==SQLITE_ROW) {
+        results.emplace_back(AssetCount{
+                .assetIndex=static_cast<unsigned int>(getAddressHoldings.getColumnInt(0)),
+                .count=static_cast<uint64_t>(getAddressHoldings.getColumnInt64(1))
+        });
     }
     return results;
 }

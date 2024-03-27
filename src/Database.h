@@ -66,6 +66,11 @@ struct VoteCount {
     uint64_t count;
 };
 
+struct AssetCount {
+    unsigned int assetIndex;
+    uint64_t count;
+};
+
 
 
 
@@ -147,6 +152,7 @@ private:
     Statement _stmtGetAssetTxHistoryb;
     Statement _stmtGetAddressTxHistory;
     Statement _stmtGetAssetCreateByAddress;
+    Statement _stmtGetAddressHoldings;
     Statement _stmtGetValidUTXO;
 
 public:
@@ -229,6 +235,7 @@ public:
         result+=printStatementInfo("_stmtGetAssetTxHistoryb", _stmtGetAssetTxHistoryb);
         result+=printStatementInfo("_stmtGetAddressTxHistory", _stmtGetAddressTxHistory);
         result+=printStatementInfo("_stmtGetAssetCreateByAddress", _stmtGetAssetCreateByAddress);
+        result+= printStatementInfo("_stmtGetAddressHoldings",_stmtGetAddressHoldings);
         result+=printStatementInfo("_stmtGetValidUTXO", _stmtGetValidUTXO);
         return result;
     }
@@ -408,6 +415,7 @@ public:
     std::vector<AssetUTXO> getAddressUTXOs(const std::string& address, unsigned int minConfirms=0, unsigned int maxConfirms=std::numeric_limits<unsigned int>::max());
     std::vector<std::string> getAddressTxList(const std::string& address, unsigned int minHeight=1, unsigned int maxHeight=std::numeric_limits<unsigned int>::max(), unsigned int limit=1000);
     std::vector<uint64_t> getAssetsCreatedByAddress(const std::string& address);
+    std::vector<AssetCount> getAddressHoldings(const std::string& address);
 
     //vote table
     void addVote(const std::string& address, unsigned int assetIndex, uint64_t count, unsigned int height);
