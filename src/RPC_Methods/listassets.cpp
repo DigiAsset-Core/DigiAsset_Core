@@ -11,7 +11,14 @@ namespace RPCMethods {
      * Returns a list of assetIDs ordered by issuance height
      *  params[0] - numberOfRecords(unsigned int) - default is infinity
      *  params[1] - startIndex(unsigned int) - default is 1
-     *  params[2] - basic - default is true
+     *  params[2] - basic output - default is true
+     *  params[3] - filter object
+     *      {
+     *        psp:  bool - if true only returns assets that are part of a psp, false only those that are not part of a psp
+     *              int  - if int returns only ones that are part of that specific psp
+     *      }
+     * ** please note filtering may result in the number of items not equaling the number asked for.  It can also result in several pages of empty results
+     *
      *
      * In basic mode, the function returns an array of Json::Value objects, each representing basic information about a DigiAsset, including:
      * - assetIndex: The index of the asset(note only valid on this node)
@@ -24,7 +31,7 @@ namespace RPCMethods {
      *                       Refer to DigiAsset::toJSON for the format of the returned JSON object.
      */
     extern const Json::Value listassets(const Json::Value& params) {
-        if (params.size() > 3) {
+        if (params.size() > 4) {
             throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
         }
 
@@ -58,22 +65,41 @@ namespace RPCMethods {
             }
         }
 
+        Json::Value filter=Json::objectValue;
+        if (params.size()>3) {
+            if (params[3].isObject()) {
+                filter=params[3];
+            } else {
+                throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+            }
+        }
+
+        //get asset list
         Database* db=AppMain::GetInstance()->getDatabase();
         auto assets=db->getAssetIDsOrderedByIssuanceHeight(numberOfRecords, startIndex);
 
         Value jsonArray=Json::arrayValue;
 
-        if (basic) {
-            for (const auto& asset: assets) {
+        for (const auto& asset: assets) {
+            //skip if fails filter
+            if (filter.isMember("psp")) {
+                bool skipIfInPool=( filter["psp"].isBool() && !filter["psp"].asBool() );    //equal to true when we want non psp assets
+                if (filter["psp"].isBool()) {
+                    if (db->isAssetInPool(asset.assetIndex)==skipIfInPool) continue;    //will skip to next if not desired
+                } else if (filter["psp"].isUInt()){
+                    if (db->isAssetInPool(filter["psp"].asUInt(),asset.assetIndex)==skipIfInPool) continue;
+                }
+            }
+
+            //output
+            if (basic) {
                 Json::Value assetJSON(Json::objectValue);
                 assetJSON["assetIndex"] = static_cast<Json::UInt64>(asset.assetIndex);
                 assetJSON["assetId"] = asset.assetId;
                 assetJSON["cid"] = asset.cid;
                 assetJSON["height"] = asset.height;
                 jsonArray.append(assetJSON);
-            }
-        } else {
-            for (const auto& asset: assets) {
+            } else {
                 jsonArray.append(db->getAsset(asset.assetIndex).toJSON());
             }
         }

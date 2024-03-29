@@ -22,6 +22,7 @@ namespace RPCMethods {
      *
      * @return Json::Value - Returns a Json::Value object that represents the DigiAsset in JSON format.
      *                       Refer to DigiAsset::toJSON for the format of the returned JSON object.
+     * ***Note DigiByte locked up in asset utxos is returned as part of DigiByte total.  Actual spendable amount will be less.
      */
     extern const Json::Value getassetdata(const Json::Value& params) {
         if (params.size() < 1 || params.size() > 3) {

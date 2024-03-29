@@ -51,6 +51,8 @@ public:
     virtual bool isAssetBad(const std::string& assetId);                        //if not overridden always returns false
     void reportAssetBad(const std::string& assetId, bool internalOnly = false); //if PSP calling set internalOnly so it doesnt call psp
     void reportFileBad(const std::string& cid, bool internalOnly = false);      //if PSP calling set internalOnly so it doesnt call psp
+    std::vector<std::string> getFiles();
+    Json::Value toJSON();
 
     //called by asset creator
     virtual void enable(DigiByteTransaction& tx) = 0;            //makes changes to tx to enable psp on that transaction(must be called last before publishing.  Code must allow for 240 block delay in publishing)

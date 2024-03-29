@@ -139,6 +139,7 @@ private:
     Statement _stmtAddAssetToPool;
     Statement _stmtIsAssetInPool;
     Statement _stmtIsAssetInAPool;
+    Statement _stmtPSPFileList;
     Statement _stmtPSPFindBadAsset;
     Statement _stmtPSPDeleteBadAsset;
     Statement _stmtDeletePermanent;
@@ -222,6 +223,7 @@ public:
         result+=printStatementInfo("_stmtAddAssetToPool", _stmtAddAssetToPool);
         result+=printStatementInfo("_stmtIsAssetInPool", _stmtIsAssetInPool);
         result+=printStatementInfo("_stmtIsAssetInAPool", _stmtIsAssetInAPool);
+        result+= printStatementInfo("_stmtPSPFileList",_stmtPSPFileList);
         result+=printStatementInfo("_stmtPSPFindBadAsset", _stmtPSPFindBadAsset);
         result+=printStatementInfo("_stmtPSPDeleteBadAsset", _stmtPSPDeleteBadAsset);
         result+=printStatementInfo("_stmtDeletePermanent", _stmtDeletePermanent);
@@ -454,6 +456,8 @@ public:
     void addAssetToPool(unsigned int poolIndex, unsigned int assetIndex);
     void removeAssetFromPool(unsigned int poolIndex, const std::string& assetId, bool unpin);
     bool isAssetInPool(unsigned int poolIndex, unsigned int assetIndex);
+    bool isAssetInPool(unsigned int assetIndex);
+    std::vector<std::string> getPSPFileList(unsigned int poolIndex);
 
     //stats table
     //warning a new stats table is created for every timeFrame.  It is not recommended to allow users direct access to this value

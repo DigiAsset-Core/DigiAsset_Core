@@ -278,7 +278,7 @@ void ChainAnalyzer::phaseSync() {
         if (totalProcessed == 0) {
             beginTotalTime = chrono::steady_clock::now();
         }
-        if (_height % 100 == 0) fastMode = (_state < -1000);
+        if (_height % 100 == 0) fastMode = (_state < -110);
 
         //show processing block
         if (fastMode) {

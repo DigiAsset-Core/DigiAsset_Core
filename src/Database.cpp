@@ -436,9 +436,11 @@ void Database::initializeClassValues() {
 
     _stmtAddAssetToPool.prepare(_db,"INSERT OR IGNORE INTO pspAssets (assetIndex,poolIndex) VALUES (?,?);");
 
-    _stmtIsAssetInPool.prepare(_db,"SELECT COUNT(*) FROM \"pspAssets\" WHERE \"assetIndex\" = ? AND \"poolIndex\" = ?;");
+    _stmtIsAssetInPool.prepare(_db,"SELECT 1 FROM \"pspAssets\" WHERE \"assetIndex\" = ? AND \"poolIndex\" = ?;");
 
     _stmtIsAssetInAPool.prepare(_db,"SELECT 1 FROM \"pspAssets\" WHERE \"assetIndex\" = ?;");
+
+    _stmtPSPFileList.prepare(_db,"SELECT cid FROM \"pspFiles\" WHERE \"poolIndex\" = ? GROUP BY cid;");
 
     _stmtPSPFindBadAsset.prepare(_db,"SELECT a.assetIndex, a.cid "
                                      "FROM assets a "
@@ -2405,11 +2407,22 @@ bool Database::isAssetInPool(unsigned int poolIndex, unsigned int assetIndex) {
     isAssetInPool.bindInt(1, assetIndex);
     isAssetInPool.bindInt(2, poolIndex);
 
-    if (isAssetInPool.executeStep() == SQLITE_ROW) {
-        return isAssetInPool.getColumnInt(0) > 0;
-    } else {
-        throw exceptionFailedSelect();
+    return (isAssetInPool.executeStep() == SQLITE_ROW);
+}
+bool Database::isAssetInPool(unsigned int assetIndex) {
+    LockedStatement isAssetInPool{_stmtIsAssetInAPool};
+    isAssetInPool.bindInt(1, assetIndex);
+
+    return (isAssetInPool.executeStep() == SQLITE_ROW);
+}
+std::vector<std::string> Database::getPSPFileList(unsigned int poolIndex) {
+    LockedStatement fileLister{_stmtPSPFileList};
+    fileLister.bindInt(1,poolIndex);
+    vector<string> results;
+    while (fileLister.executeStep()==SQLITE_ROW) {
+        results.push_back(fileLister.getColumnText(0));
     }
+    return results;
 }
 
 /*
