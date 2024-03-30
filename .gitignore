@@ -8,4 +8,5 @@ src/Version.h
 src/BitcoinRpcServerMethods.h
 */_*
 tests/testFiles/assetTest.*
+tests/testFiles/rpcTest.db
 !*/.gitkeep

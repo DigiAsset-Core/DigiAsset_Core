@@ -44,10 +44,8 @@ find_package(CURL REQUIRED)
 
 #add_library(ldigibyteapi STATIC IMPORTED)
 add_library(lsqlite3 STATIC IMPORTED)
-add_library(llibcryptopp STATIC IMPORTED)
 add_library(llibcurl STATIC IMPORTED)
 
-#find_package(cryptopp CONFIG REQUIRED)
 
 
 set(HEADER_FILES
@@ -85,6 +83,8 @@ set(HEADER_FILES
         UniqueTaskQueue.h
         Database_Statement.h
         Database_LockedStatement.h
+        crypto/ripemd.h
+        crypto/SHA256.h
         )
 
 set(SOURCE_FILES
@@ -117,15 +117,15 @@ set(SOURCE_FILES
         UniqueTaskQueue.cpp
         Database_Statement.cpp
         Database_LockedStatement.cpp
+        crypto/ripemd.c
+        crypto/SHA256.cpp
         )
 
 add_executable(digiasset_core main.cpp ${SOURCE_FILES} ${HEADER_FILES} ${RPC_METHODS_FILES})
 
 
 target_link_libraries(digiasset_core PRIVATE CURL::libcurl)
-#target_link_libraries(digiasset_core PUBLIC digibyteapi)
 target_link_libraries(digiasset_core PUBLIC sqlite3)
-target_link_libraries(digiasset_core PRIVATE cryptopp)
 target_link_libraries(digiasset_core PRIVATE ssl)
 target_link_libraries(digiasset_core PRIVATE crypto)
 target_link_libraries(digiasset_core PRIVATE pthread)
@@ -133,7 +133,6 @@ target_link_libraries(digiasset_core PRIVATE pthread)
 target_link_libraries(digiasset_core PRIVATE /lib/x86_64-linux-gnu/libjsoncpp.so)
 target_link_libraries(digiasset_core PRIVATE jsonrpccpp-common)
 target_link_libraries(digiasset_core PRIVATE jsonrpccpp-client)
-#target_link_libraries(digiasset_core PRIVATE cryptopp::cryptopp)
 
 
 install(TARGETS digiasset_core DESTINATION bin)

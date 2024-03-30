@@ -10,10 +10,8 @@
 #include "IPFS.h"
 #include "KYC.h"
 #include "PermanentStoragePool/PermanentStoragePoolList.h"
-#include "static_block.hpp"
-#include <cryptopp870/ripemd.h>
-#include <cryptopp870/sha.h>
-#include <iostream>
+#include "crypto/ripemd.h"
+#include "crypto/SHA256.h"
 
 using namespace std;
 
@@ -160,18 +158,18 @@ const ExchangeRate DigiAsset::standardExchangeRates[] = {
  * Takes binary data stored in a string and hashes it twice.  First with sha256 then with ripemd160
  */
 void DigiAsset::insertSRHash(vector<uint8_t> dataToHash, vector<uint8_t>& result, size_t startIndex) {
-    //do sha256
-    CryptoPP::byte abDigest[CryptoPP::SHA256::DIGESTSIZE];
-    CryptoPP::SHA256().CalculateDigest(abDigest, reinterpret_cast<const CryptoPP::byte*>(dataToHash.data()),
-                                       dataToHash.size());
+    // Perform SHA256 hash
+    SHA256 sha256;
+    sha256.update(dataToHash.data(), dataToHash.size());
+    auto sha256Digest = sha256.digest();
 
-    //do ripemd160
-    CryptoPP::byte abDigest2[CryptoPP::RIPEMD160::DIGESTSIZE];
-    CryptoPP::RIPEMD160().CalculateDigest(abDigest2, abDigest, CryptoPP::SHA256::DIGESTSIZE);
+    // Perform RIPEMD160 hash on the SHA256 result
+    uint8_t ripemd160Digest[20]; // RIPEMD160 produces a 160-bit hash (20 bytes)
+    ripemd160(sha256Digest.data(), sha256Digest.size(), ripemd160Digest);
 
-    //add to assetId
-    for (size_t i = 0; i < CryptoPP::RIPEMD160::DIGESTSIZE; i++) {
-        result[i + startIndex] = abDigest2[i];
+    // Add the RIPEMD160 hash to the result vector starting at the specified index
+    for (size_t i = 0; i < 20; i++) {
+        result[i + startIndex] = ripemd160Digest[i];
     }
 }
 
@@ -179,19 +177,21 @@ void DigiAsset::insertSRHash(vector<uint8_t> dataToHash, vector<uint8_t>& result
  * Takes binary data stored in a string and hashes it twice.  First with sha256 then with ripemd160
  */
 void DigiAsset::insertSRHash(const std::string& dataToHash, vector<uint8_t>& result, size_t startIndex) {
-    auto* hashData = (CryptoPP::byte*) dataToHash.c_str();
+    // Convert string to byte array for hashing
+    std::vector<uint8_t> dataBytes(dataToHash.begin(), dataToHash.end());
 
-    //do sha256
-    CryptoPP::byte abDigest[CryptoPP::SHA256::DIGESTSIZE];
-    CryptoPP::SHA256().CalculateDigest(abDigest, hashData, dataToHash.length());
+    // Perform SHA256 hash
+    SHA256 sha256;
+    sha256.update(dataBytes.data(), dataBytes.size());
+    auto sha256Digest = sha256.digest();
 
-    //do ripemd160
-    CryptoPP::byte abDigest2[CryptoPP::RIPEMD160::DIGESTSIZE];
-    CryptoPP::RIPEMD160().CalculateDigest(abDigest2, abDigest, CryptoPP::SHA256::DIGESTSIZE);
+    // Perform RIPEMD160 hash on the SHA256 result
+    uint8_t ripemd160Digest[20];
+    ripemd160(sha256Digest.data(), sha256Digest.size(), ripemd160Digest);
 
-    //add to assetId
-    for (size_t i = 0; i < CryptoPP::RIPEMD160::DIGESTSIZE; i++) {
-        result[i + startIndex] = abDigest2[i];
+    // Add the RIPEMD160 hash to the result vector starting at the specified index
+    for (size_t i = 0; i < 20; i++) {
+        result[i + startIndex] = ripemd160Digest[i];
     }
 }
 
@@ -264,13 +264,15 @@ string DigiAsset::calculateAssetId(const vin_t& firstVin, uint8_t issuanceFlags)
     assetIdBinary[22] = 0;
     assetIdBinary[23] = issuanceFlags >> 5;
 
-    //create check footer(first 4 bytes of double sha256)
-    CryptoPP::byte abDigest3[CryptoPP::SHA256::DIGESTSIZE];
-    CryptoPP::byte abDigest4[CryptoPP::SHA256::DIGESTSIZE];
-    CryptoPP::SHA256().CalculateDigest(abDigest3, assetIdBinary.data(), 24);
-    CryptoPP::SHA256().CalculateDigest(abDigest4, abDigest3, CryptoPP::SHA256::DIGESTSIZE);
+    //create check footer(first 4 bytes of double sha256b)
+    SHA256 sha256a;
+    sha256a.update(assetIdBinary.data(), 24);
+    auto firstHash = sha256a.digest();
+    SHA256 sha256b;
+    sha256b.update(firstHash.data(), 32);
+    auto secondHash = sha256b.digest();
     for (size_t i = 0; i < 4; i++) {
-        assetIdBinary[24 + i] = abDigest4[i];
+        assetIdBinary[24 + i] = secondHash[i];
     }
 
     //convert to base 58

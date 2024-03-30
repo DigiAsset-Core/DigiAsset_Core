@@ -23,7 +23,7 @@ set(TESTS
 # 'Google_Tests_run' is the target name
 # 'test1.cpp tests2.cpp' are source files with tests
 add_executable(Google_Tests_run ${TESTS})   #digibyteapi
-target_link_libraries(Google_Tests_run digiasset_core_lib sqlite3 cryptopp curl)
+target_link_libraries(Google_Tests_run digiasset_core_lib sqlite3 curl)
 target_link_libraries(Google_Tests_run gtest gtest_main)
 
 target_link_libraries(Google_Tests_run /lib/x86_64-linux-gnu/libjsoncpp.so jsonrpccpp-common jsonrpccpp-client)

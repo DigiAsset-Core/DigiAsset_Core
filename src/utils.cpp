@@ -8,6 +8,7 @@
 #include <sstream>
 #include <sys/stat.h>
 #include <iostream>
+#include <fstream>
 
 namespace utils {
 
@@ -88,5 +89,28 @@ namespace utils {
      */
     void printJson(const Json::Value& params) {
         std::cout << params.toStyledString() << std::endl;
+    }
+
+
+    bool copyFile(const std::string& sourcePath, const std::string& destinationPath) {
+        std::ifstream source(sourcePath, std::ios::binary);
+        std::ofstream destination(destinationPath, std::ios::binary);
+
+        // Check if the source file and destination file are opened successfully
+        if (!source.is_open() || !destination.is_open()) {
+            std::cerr << "Error opening files!" << std::endl;
+            return false;
+        }
+
+        // Copy the file
+        destination << source.rdbuf();
+
+        // Check if the copying was successful
+        if (!source || !destination) {
+            std::cerr << "Error copying the file!" << std::endl;
+            return false;
+        }
+
+        return true;
     }
 } // namespace utils

@@ -11,6 +11,7 @@
 #include "Log.h"
 #include "TestHelpers.h"
 #include "gtest/gtest.h"
+#include "utils.h"
 #include <cmath>
 
 #include <algorithm>
@@ -279,6 +280,9 @@ TEST(DigiAssetTransaction, existingAssetTransactions) {
         chrono::minutes dura(1);
         this_thread::sleep_for(dura);
     }
+
+    //copy processed database so rpc tests can run on it
+    utils::copyFile("../tests/testFiles/assetTest.db","../tests/testFiles/rpcTest.db");
 
     //clean up
     main->reset();

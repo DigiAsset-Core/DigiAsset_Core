@@ -21,7 +21,7 @@ namespace utils {
     bool fileExists(const std::string& fileName);
     bool isInteger(const std::string& s);
     void printJson(const Json::Value& params);  //added to make debugging easier
-
+    bool copyFile(const std::string& sourcePath, const std::string& destinationPath);
 } // namespace utils
 
 #endif //DIGIASSET_CORE_UTILS_H

@@ -148,11 +148,7 @@ sudo ln -s /opt/vcpkg/vcpkg /usr/local/bin/vcpkg
 Warning: The following steps build a lot of code and can take a long time to complete
 
 ```bash
-sudo vcpkg install cryptopp
-sudo mkdir /usr/local/include/cryptopp870
-sudo cp /opt/vcpkg/packages/cryptopp_x64-linux/include/cryptopp/* /usr/local/include/cryptopp870/
 sudo vcpkg install sqlite3
-sudo apt install libcrypto++-dev
 ```
 
 ## Update CMAKE
