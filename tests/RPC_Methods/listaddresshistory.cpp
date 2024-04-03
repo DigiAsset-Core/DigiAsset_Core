@@ -208,7 +208,6 @@ TEST_F(RPCMethodsTest, listaddresshistory) {
         EXPECT_EQ(results[7].asString(),"8992f848247b6ddefe480e7770289697e75f7e657d194ceb0571ae6f6254b138");
         EXPECT_EQ(results[8].asString(),"9c8f8d879cca60d83a4561b4db015f953b6cf02b7e488e3bc6adf1ed5a8ef910");
         EXPECT_EQ(results[9].asString(),"9ee5c2045e338ea13aac311d4068c63e3160550f7ab7a66ae0862edf46bb85e1");
-        utils::printJson(results);
     } catch (...) {
         EXPECT_TRUE(false);
     }

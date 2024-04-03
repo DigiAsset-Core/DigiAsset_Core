@@ -68,10 +68,8 @@ TEST(DigiAssetTransaction, existingAssetTransactions) {
             std::string line;
             DigiByteTransaction test;
             while (std::getline(file, line)) {
-                if ((!showAll) && (testNumber % 100 == 0)) {    //todo need a better progress bar
-                    cout << "*";
-                    if (testNumber%2000 == 0) cout << "\n";
-                    std::cout.flush();
+                if ((!showAll) && (testTotal>0) && (testNumber % 1000 == 0)) {
+                    utils::printProgressBar(static_cast<float>(testNumber) / static_cast<float>(testTotal) );
                 }
 
                 //initialize some variables that are needed by the test script

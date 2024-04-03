@@ -235,6 +235,8 @@ void Database::initializeClassValues() {
                                          "FROM utxos u\n"
                                          "JOIN assets a ON u.assetIndex = a.assetIndex\n"
                                          "WHERE a.assetId = ? AND u.heightDestroyed IS NULL;");
+    addPerformanceIndex("utxos","assetIndex","heightDestroyed");
+    addPerformanceIndex("assets","assetId");
 
     //statement to get number of assets that exist
     _stmtGetOriginalAssetCounta.prepare(_db,"SELECT sum(amount) FROM utxos where assetIndex=? and issuance=1;");
@@ -242,6 +244,8 @@ void Database::initializeClassValues() {
                                             "FROM utxos u\n"
                                             "JOIN assets a ON u.assetIndex = a.assetIndex\n"
                                             "WHERE a.assetId = ? AND u.issuance=1;");
+    addPerformanceIndex("utxos","assetIndex","issuance");
+    addPerformanceIndex("assets","assetId");
 
     //statement to get tx history
     _stmtGetAssetTxHistorya.prepare(_db,"SELECT txid\n"

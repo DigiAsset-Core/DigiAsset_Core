@@ -73,18 +73,26 @@ void BitcoinRpcServer::start() {
  */
 
 [[noreturn]] void BitcoinRpcServer::accept() {
+    Log* log=Log::GetInstance();
     while (true) {
+        std::chrono::steady_clock::time_point startTime;
+        string method="NA";
         try {
             //get the socket
             tcp::socket socket(_io);
             SocketRAII socketGuard(socket); //make sure socket always gets closed
             _acceptor.accept(socket);
 
+            //start timer and add debug log
+            log->addMessage("request start",Log::DEBUG);
+            startTime=std::chrono::steady_clock::now();
+
             // Handle the request and send the response
             Value response;
             Value request;
             try {
                 request = parseRequest(socket);
+                method=request["method"].asString();
                 response = handleRpcRequest(request);
             } catch (const DigiByteException& e) {
                 response = createErrorResponse(e.getCode(), e.getMessage(), request);
@@ -98,6 +106,10 @@ void BitcoinRpcServer::start() {
             Log* log = Log::GetInstance();
             log->addMessage("Unexpected exception caught", Log::DEBUG);
         }
+
+        //calculate time took
+        auto duration = std::chrono::steady_clock::now() - startTime;
+        log->addMessage("request("+method+") finished in "+to_string(std::chrono::duration_cast<std::chrono::microseconds>(duration).count())+" µs",Log::DEBUG);
     }
 }
 

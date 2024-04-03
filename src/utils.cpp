@@ -9,6 +9,8 @@
 #include <sys/stat.h>
 #include <iostream>
 #include <fstream>
+#include <iomanip>
+#include <algorithm>
 
 namespace utils {
 
@@ -112,5 +114,19 @@ namespace utils {
         }
 
         return true;
+    }
+
+    /**
+     * Erases last line and prints a progress bar
+     * @param fraction
+     * @param progressWidth
+     */
+    void printProgressBar(float fraction, int progressWidth) {
+        int left=std::max(static_cast<int>(fraction*progressWidth),1);
+        int right=progressWidth-left;
+        std::cout << "\r[" << std::setfill('#') << std::setw(left) << '#';
+        std::cout << std::setfill(' ') << std::setw(right) << "]";
+        std::cout << std::fixed << std::setprecision(1) << std::setw(5) << (fraction*100) << "%";
+        std::cout.flush();
     }
 } // namespace utils
