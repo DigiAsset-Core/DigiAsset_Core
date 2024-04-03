@@ -18,7 +18,7 @@ namespace RPCMethods {
         if (params.size() < 1 || params.size() > 3) {
             throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
         }
-        if (!params[0].isString()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+        if (!params[0].isString() || (params[0].asString().length()!=64)) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
 
         //get what core wallet has to say
         Json::Value rawTransactionData = AppMain::GetInstance()->getDigiByteCore()->sendcommand("getrawtransaction", params);
@@ -27,10 +27,14 @@ namespace RPCMethods {
         }
 
         //load transaction
-        DigiByteTransaction tx{params[0].asString()};
+        try {
+            DigiByteTransaction tx{params[0].asString()};
 
-        //convert to a value and return
-        tx.lookupAssetIndexes();
-        return tx.toJSON(rawTransactionData);
+            //convert to a value and return
+            tx.lookupAssetIndexes();
+            return tx.toJSON(rawTransactionData);
+        } catch (const Database::exceptionDataPruned& e) {
+            throw DigiByteException(RPC_MISC_ERROR, "Desired data has been pruned");
+        }
     }
 }

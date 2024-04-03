@@ -917,6 +917,7 @@ void DigiAsset::checkRulesPass(const vector<AssetUTXO>& inputs, const vector<Ass
  *                       a quantity
  *                     - decimals (unsigned int): The number of decimals for the asset.  If decimal is 2 and count is 100
  *                       that means there are 1.00 assets
+ *                     - height (unsigned int):  Height created
  *
  *  Additional Fields (included if simplified is false):
  *                     - ipfs (string or Json::Value): IPFS metadata or error message
@@ -967,6 +968,7 @@ Value DigiAsset::toJSON(bool simplified) const {
     result["cid"] = getCID();
     result["count"] = static_cast<Json::UInt64>(getCount());
     result["decimals"] = getDecimals();
+    result["height"] = _heightCreated;
 
     if (simplified) return result;
 

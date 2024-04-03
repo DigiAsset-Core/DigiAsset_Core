@@ -18,7 +18,13 @@ set(TESTS
         DigiAssetTest.cpp
         DigiAssetRulesTest.cpp
         DigiAssetTransactionTest.cpp
-        TestHelpers.cpp TestHelpers.h)
+        TestHelpers.cpp TestHelpers.h RPCMethods.cpp RPCMethods.h)
+
+#load RPC tests
+file(GLOB RPC_METHOD_TEST_SOURCES RPC_Methods/*.cpp)
+foreach(SOURCE_FILE ${RPC_METHOD_TEST_SOURCES})
+    list(APPEND TESTS ${SOURCE_FILE})
+endforeach()
 
 # 'Google_Tests_run' is the target name
 # 'test1.cpp tests2.cpp' are source files with tests

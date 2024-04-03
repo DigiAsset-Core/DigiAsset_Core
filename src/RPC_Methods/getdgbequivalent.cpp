@@ -21,9 +21,9 @@ namespace RPCMethods {
         if (params.size() != 3) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
         if (!params[0].isString()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
         if (!params[1].isUInt()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+        if (params[1].asUInt()>=10) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
         if (!params[2].isUInt64()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
-        if (main->getChainAnalyzer()->getSync()<-120) throw DigiByteException(RPC_MISC_ERROR,"To far behind to get current exchange rate");
-
+        if (main->getChainAnalyzer()->getSync() < -120) throw DigiByteException(RPC_MISC_ERROR, "To far behind to get current exchange rate");
         string address=params[0].asString();
         uint8_t index=params[1].asUInt();
         uint64_t amount=params[2].asUInt64();

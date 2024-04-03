@@ -31,7 +31,7 @@ TEST(DigiAssetTransaction, existingAssetTransactions) {
     Log* log = Log::GetInstance("debug.log");
     log->setMinLevelToFile(Log::INFO);
 
-    const bool showAll = true; ///set true if debugging and want it to show the txid before doing each test
+    const bool showAll = false; ///set true if debugging and want it to show the txid before doing each test
     string errorList = "";
 
     //delete old test database if still exists
@@ -41,7 +41,7 @@ TEST(DigiAssetTransaction, existingAssetTransactions) {
 
     IPFS ipfs("config.cfg", false);
     ipfs.downloadFile("QmNPyr5tkm48cUu5iMbReiM8GN8AW6PRpzUztPFadaxC8j", "../tests/testFiles/assetTest.csv", true);
-    ipfs.downloadFile("QmcvaYnWtft2zxYoj8Mzy9cauB6Je11cTwtD7Qi2oThJdh", "../tests/testFiles/assetTest.db", true);
+    ipfs.downloadFile("QmVoawgnYej8TNwpBB7DtJ75KbrAB99k7f9VAWzqSLJBeX", "../tests/testFiles/assetTest.db", true);
 
     //initialize prerequisites
     AppMain* main = AppMain::GetInstance();
@@ -68,8 +68,9 @@ TEST(DigiAssetTransaction, existingAssetTransactions) {
             std::string line;
             DigiByteTransaction test;
             while (std::getline(file, line)) {
-                if ((!showAll) && (testNumber % 100 == 0)) {
+                if ((!showAll) && (testNumber % 100 == 0)) {    //todo need a better progress bar
                     cout << "*";
+                    if (testNumber%2000 == 0) cout << "\n";
                     std::cout.flush();
                 }
 
@@ -281,8 +282,10 @@ TEST(DigiAssetTransaction, existingAssetTransactions) {
         this_thread::sleep_for(dura);
     }
 
-    //copy processed database so rpc tests can run on it
-    utils::copyFile("../tests/testFiles/assetTest.db","../tests/testFiles/rpcTest.db");
+    //copy processed database if all good so rpc tests can run on it
+    if (errorList.empty()) {
+        utils::copyFile("../tests/testFiles/assetTest.db", "../tests/testFiles/rpcTest.db");
+    }
 
     //clean up
     main->reset();

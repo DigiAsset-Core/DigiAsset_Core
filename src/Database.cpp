@@ -330,7 +330,7 @@ void Database::initializeClassValues() {
     _stmtExchangeRatesAtHeight.prepare(_db,"WITH cte AS (\n"
                                             "  SELECT *, ROW_NUMBER() OVER (PARTITION BY [address], [index] ORDER BY height DESC) AS row_number\n"
                                             "  FROM exchange\n"
-                                            "  WHERE height < ?\n"
+                                            "  WHERE height <= ?\n"
                                             ")\n"
                                             "SELECT [height], [address], [index], [value]\n"
                                             "FROM cte\n"
@@ -441,6 +441,7 @@ void Database::initializeClassValues() {
     _stmtIsAssetInAPool.prepare(_db,"SELECT 1 FROM \"pspAssets\" WHERE \"assetIndex\" = ?;");
 
     _stmtPSPFileList.prepare(_db,"SELECT cid FROM \"pspFiles\" WHERE \"poolIndex\" = ? GROUP BY cid;");
+    addPerformanceIndex("pspFiles","poolIndex","cid");
 
     _stmtPSPFindBadAsset.prepare(_db,"SELECT a.assetIndex, a.cid "
                                      "FROM assets a "
@@ -800,7 +801,7 @@ uint64_t Database::getAssetIndex(const string& assetId, const string& txid, unsi
         getAssetIndex.bindText(1,assetId);
         int rc = getAssetIndex.executeStep();
         if (rc != SQLITE_ROW) {
-            throw out_of_range("assetIndex does not exist");
+            throw exceptionFailedSelect();
         }
         assetIndex = getAssetIndex.getColumnInt(0);
 
@@ -811,7 +812,7 @@ uint64_t Database::getAssetIndex(const string& assetId, const string& txid, unsi
     }
 
     //more than 1 so see if the txid and vout provided match a utxo
-    if (txid.empty()) throw out_of_range("specific utxo needed");
+    if (txid.empty()) throw exceptionFailedSelect();
     vector<uint64_t> assetIndexPossibilities;
     { //shorten life of database lock
         LockedStatement getAssetIndexOnUTXO{_stmtGetAssetIndexOnUTXO};
@@ -828,7 +829,7 @@ uint64_t Database::getAssetIndex(const string& assetId, const string& txid, unsi
         DigiAsset asset = getAsset(assetIndexTest);
         if (asset.getAssetId() == assetId) return assetIndexTest;
     }
-    throw out_of_range("assetId not found in utxo");
+    throw exceptionFailedSelect();
 }
 
 vector<uint64_t> Database::getAssetIndexes(const std::string& assetId) {
@@ -1220,9 +1221,10 @@ void Database::pruneUTXO(unsigned int height) {
  * not storing non digiasset utxos.
  * @param txid
  * @param vout
+ * @param height - optional used for better error handling
  * @return
  */
-AssetUTXO Database::getAssetUTXO(const string& txid, unsigned int vout) {
+AssetUTXO Database::getAssetUTXO(const string& txid, unsigned int vout, unsigned int height) {
     //try to get data from database
     AssetUTXO result;
     {
@@ -1248,8 +1250,9 @@ AssetUTXO Database::getAssetUTXO(const string& txid, unsigned int vout) {
     }
 
     //check if we can/should get from the wallet
+    //if (height<getBeenPrunedUTXOHistory()) means the data we want has been pruned and may contain asset data
     AppMain* main = AppMain::GetInstance();
-    if (!main->isDigiByteCoreSet() || (!getBeenPrunedNonAssetUTXOHistory())) throw exceptionDataPruned();
+    if (!main->isDigiByteCoreSet() || (static_cast<int>(height)<getBeenPrunedUTXOHistory())) throw exceptionDataPruned();
 
     //get tx data from wallet
     getrawtransaction_t txData = main->getDigiByteCore()->getRawTransaction(txid);
@@ -1483,17 +1486,17 @@ std::vector<std::string> Database::getAssetTxHistory(const string& assetId) {
  * @return
  */
 std::vector<std::string> Database::getAddressTxList(const string& address, unsigned int minHeight, unsigned int maxHeight, unsigned int limit) {
-    if (getBeenPrunedUTXOHistory()>-1) throw exceptionDataPruned();
+    if (getBeenPrunedUTXOHistory()>0) throw exceptionDataPruned();
     vector<string> results;
     LockedStatement getAddressTxHistory{_stmtGetAddressTxHistory};
     getAddressTxHistory.bindText(1,address);
     getAddressTxHistory.bindInt64(2, minHeight);
     getAddressTxHistory.bindInt64(3, maxHeight);
-    getAddressTxHistory.bindInt64(4, limit);
+    getAddressTxHistory.bindInt64(4, limit*2);
     getAddressTxHistory.bindText(5,address);
     getAddressTxHistory.bindInt64(6, minHeight);
     getAddressTxHistory.bindInt64(7, maxHeight);
-    getAddressTxHistory.bindInt64(8, limit);
+    getAddressTxHistory.bindInt64(8, limit*2);
     getAddressTxHistory.bindInt64(9, limit);
     while (getAddressTxHistory.executeStep() == SQLITE_ROW) {
         Blob txid=getAddressTxHistory.getColumnBlob(0);

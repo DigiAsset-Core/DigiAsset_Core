@@ -52,9 +52,9 @@ place the following at the end(if swap.img is already there replace it)
 ## Install DigiByte
 
 ```bash
-wget https://github.com/digibyte/digibyte/releases/download/v7.17.2/digibyte-7.17.2-x86_64-linux-gnu.tar.gz
-tar -xf digibyte-7.17.2-x86_64-linux-gnu.tar.gz
-rm digibyte-7.17.2-x86_64-linux-gnu.tar.gz
+wget wget https://github.com/DigiByte-Core/digibyte/releases/download/v7.17.3/digibyte-7.17.3-x86_64-linux-gnu.tar.gz
+tar -xf digibyte-7.17.3-x86_64-linux-gnu.tar.gz
+rm digibyte-7.17.3-x86_64-linux-gnu.tar.gz
 mkdir .digibyte
 nano .digibyte/digibyte.conf
 ```

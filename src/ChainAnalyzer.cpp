@@ -100,6 +100,16 @@ void ChainAnalyzer::loadConfig() {
     _verifyDatabaseWrite=config.getBool("verifydatabasewrite",true);
 }
 
+/**
+ * This function is used for testing purposes.  It allows creating the object without starting but still having realistic values
+ * @param databaseHeight
+ * @param syncLevel
+ */
+void ChainAnalyzer::loadFake(unsigned int databaseHeight, int syncLevel) {
+    _height=databaseHeight;
+    _state=syncLevel;
+}
+
 void ChainAnalyzer::saveConfig() {
     Config config = Config(_configFileName);
     config.setInteger("pruneage", _pruneAge);

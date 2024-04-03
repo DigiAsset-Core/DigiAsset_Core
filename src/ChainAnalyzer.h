@@ -28,6 +28,7 @@ public:
     void setFileName(const std::string& fileName);
     void saveConfig();
     void loadConfig();
+    void loadFake(unsigned int databaseHeight,int syncLevel);
 
     //set config values
     void setPruneAge(int age); //-1 disable pruning

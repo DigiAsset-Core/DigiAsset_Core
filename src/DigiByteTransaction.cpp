@@ -50,7 +50,7 @@ DigiByteTransaction::DigiByteTransaction(const string& txid, unsigned int height
         }
 
         //find any assets on input utxos
-        AssetUTXO input = db->getAssetUTXO(vin.txid, vin.n);
+        AssetUTXO input = db->getAssetUTXO(vin.txid, vin.n,height);
         if (!input.assets.empty()) _assetFound = true;
         _inputs.push_back(input);
     }

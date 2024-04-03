@@ -32,23 +32,27 @@ namespace RPCMethods {
         Database* db = AppMain::GetInstance()->getDatabase();
         DigiAsset asset;
 
-        if (params.size() == 3) {
-            //definitely usage 2(all values included)
-            if (!params[0].isString() || !params[1].isString() || !params[2].isInt()) {
+        try {
+            if (params.size() == 3) {
+                //definitely usage 2(all values included)
+                if (!params[0].isString() || !params[1].isString() || (params[1].asString().length()!=64) || !params[2].isInt()) {
+                    throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+                }
+                asset = db->getAsset(db->getAssetIndex(
+                        params[0].asString(),
+                        params[1].asString(),
+                        params[2].asInt()));
+            } else if (params.size() == 2) {
+                throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+            } else if (params[0].isString()) {
+                asset = db->getAsset(db->getAssetIndex(params[0].asString()));
+            } else if (params[0].isInt()) {
+                asset = db->getAsset(params[0].asInt());
+            } else {
                 throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
             }
-            asset = db->getAsset(db->getAssetIndex(
-                    params[0].asString(),
-                    params[1].asString(),
-                    params[2].asInt()));
-        } else if (params.size() == 2) {
-            throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
-        } else if (params[0].isString()) {
-            asset = db->getAsset(db->getAssetIndex(params[0].asString()));
-        } else if (params[0].isInt()) {
-            asset = db->getAsset(params[0].asInt());
-        } else {
-            throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+        } catch (const Database::exceptionFailedSelect& e) {
+            throw DigiByteException(RPC_MISC_ERROR,"Asset Doesn't Exist");
         }
 
         //look up how many assets exist
