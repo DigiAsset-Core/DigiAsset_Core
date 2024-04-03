@@ -312,7 +312,7 @@ void Database::initializeClassValues() {
 
     //statements to get asset holdings
     _stmtGetAddressHoldings.prepare(_db,"SELECT assetIndex,SUM(amount) FROM utxos WHERE heightDestroyed IS NULL AND address=? GROUP BY assetIndex");
-    addPerformanceIndex("utxos","address","assetIndex");
+    addPerformanceIndex("utxos","address","heightDestroyed","assetIndex");
 
     //statement to get valid utxos for a given address
     _stmtGetValidUTXO.prepare(_db,"SELECT `txid`,`vout`,`aout`,`assetIndex`,`amount` FROM utxos WHERE heightDestroyed IS NULL AND address=? AND heightCreated>=? AND heightCreated<=? ORDER BY txid ASC, vout ASC, aout ASC;");
