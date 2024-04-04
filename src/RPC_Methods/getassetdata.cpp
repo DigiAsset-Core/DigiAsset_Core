@@ -44,6 +44,8 @@ namespace RPCMethods {
                         params[0].asString(),
                         params[1].asString(),
                         params[2].asInt()));
+            } if (params.size() == 2 && !params[1].isBool()) {
+                throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
             } else if (params[0].isString()) {
                 asset = db->getAsset(db->getAssetIndex(params[0].asString()));
             } else if (params[0].isInt()) {
