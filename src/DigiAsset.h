@@ -121,8 +121,7 @@ public:
     checkRulesPass(const std::vector<AssetUTXO>& inputs, const std::vector<AssetUTXO>& outputs, unsigned int height,
                    uint64_t time) const;
 
-    Value toJSON(bool simplified = false) const;
-
+    Value toJSON(bool simplified = false, bool ignoreIpfs = false) const;
 
     /*
    ███████╗██████╗ ██████╗  ██████╗ ██████╗ ███████╗

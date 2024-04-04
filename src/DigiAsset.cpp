@@ -959,7 +959,7 @@ void DigiAsset::checkRulesPass(const vector<AssetUTXO>& inputs, const vector<Ass
  *                         - hash (string, optional): Issuer's hash
  *                         name and hash will never both be present.  hash is returned if creator is anonymous
  */
-Value DigiAsset::toJSON(bool simplified) const {
+Value DigiAsset::toJSON(bool simplified, bool ignoreIpfs) const {
     Json::Value result(Json::objectValue);
 
     // Simplified
@@ -973,7 +973,7 @@ Value DigiAsset::toJSON(bool simplified) const {
     if (simplified) return result;
 
     // Include meta data
-    if (!_cid.empty()) {
+    if (!_cid.empty() && !ignoreIpfs) {
         try {
             IPFS* ipfs = AppMain::GetInstance()->getIPFS();
             string metadata = ipfs->callOnDownloadSync(_cid, "", DIGIASSET_JSON_IPFS_MAX_WAIT);
