@@ -202,7 +202,8 @@ TEST_F(RPCMethodsTest, getassetdata) {
         EXPECT_EQ(results["count"].asUInt64(),20999397);
         EXPECT_EQ(results["decimals"].asUInt(),0);
         EXPECT_FALSE(results.isMember("ipfs"));
-        EXPECT_FALSE(results.isMember("issuer"));
+        //todo when add hash verification this asset should fail
+        EXPECT_EQ(results["issuer"]["address"].asString(),"DPdHP3JSC42wQNotcj9tuWFy8hwvKQMW73");
         EXPECT_FALSE(results.isMember("rules"));
     } catch (...) {
         EXPECT_TRUE(false);
@@ -252,11 +253,15 @@ TEST_F(RPCMethodsTest, getassetdata) {
         EXPECT_EQ(results["count"].asUInt64(),0);
         EXPECT_EQ(results["decimals"].asUInt(),0);
         EXPECT_FALSE(results.isMember("ipfs"));
-        EXPECT_FALSE(results.isMember("issuer"));
+        //todo when add hash verification this asset should pass
+        EXPECT_EQ(results["issuer"]["address"].asString(),"DDeskxHKkHxc3J9g98ZtEvkots3r19u3gp");
+        EXPECT_EQ(results["issuer"]["country"].asString(),"PER");
+        EXPECT_EQ(results["issuer"]["hash"].asString(),"8af4ebe735f40efc2a296fc5ca53afd142cd86495c8b828d2c8eaa38c04cf019");
         EXPECT_FALSE(results.isMember("rules"));
     } catch (...) {
         EXPECT_TRUE(false);
     }
+
     //test known good hybrid asset using assetId
     try {
         Json::Value params=Json::arrayValue;
@@ -289,6 +294,36 @@ TEST_F(RPCMethodsTest, getassetdata) {
     }
 
     //todo test known good asset with decimals
+
+    //test assets with rules and basic data
+    try {
+        Json::Value params=Json::arrayValue;
+        params.append(2005);
+        auto results=rpcMethods[METHOD](params);
+        EXPECT_TRUE(results.isObject());
+        EXPECT_EQ(results["assetId"].asString(),"La5oE1Y6Yt2ofTuTJVj87cH6hpar4bR2KtT8Ad");
+        EXPECT_EQ(results["assetIndex"].asUInt(),2005);
+        EXPECT_EQ(results["cid"].asString(),"bafkreia2qu7gybs7kvedli6vqodxlxsv3anmer7lybqvepmc6yi3pp3xru");
+        EXPECT_EQ(results["count"].asUInt64(),5);
+        EXPECT_EQ(results["decimals"].asUInt(),0);
+        EXPECT_FALSE(results.isMember("ipfs"));
+        //todo when add hash verification this asset should pass
+        EXPECT_EQ(results["issuer"]["address"].asString(),"DLstC5wedL6cZ5hVAG5wA5BKfqdksBPqkM");
+        EXPECT_EQ(results["issuer"]["country"].asString(),"USA");
+        EXPECT_EQ(results["issuer"]["hash"].asString(),"863537bdb07313a16a355e2efb9418055418f6d22560944a8bb2ab4344cac4f9");
+        EXPECT_TRUE(results.isMember("rules"));
+        EXPECT_EQ(results["rules"]["changeable"].asBool(),false);
+        EXPECT_EQ(results["rules"]["royalty"]["addresses"]["dgb1qln5tskmffn3a4cq0gz56lagzzwmvk7zwnlnn0c"].asUInt64(),1980000000);
+        EXPECT_EQ(results["rules"]["royalty"]["addresses"]["dgb1qwlnzswupjvlczfclqxgwcsgzlzf803yzzv97q8"].asUInt64(),20000000);
+        EXPECT_FALSE(results["rules"]["royalty"].isMember("units"));
+        EXPECT_FALSE(results["rules"].isMember("deflation"));
+        EXPECT_FALSE(results["rules"].isMember("expiry"));
+        EXPECT_FALSE(results["rules"].isMember("geofence"));
+        EXPECT_FALSE(results["rules"].isMember("voting"));
+        EXPECT_FALSE(results["rules"].isMember("approval"));
+    } catch (...) {
+        EXPECT_TRUE(false);
+    }
 
     //test assets with rules
     try {

@@ -122,6 +122,7 @@ public:
                    uint64_t time) const;
 
     Value toJSON(bool simplified = false) const;
+    Value toJSON(bool ipfs, bool rules, bool kyc) const;
 
 
     /*
