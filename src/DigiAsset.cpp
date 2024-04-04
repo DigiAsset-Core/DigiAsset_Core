@@ -959,7 +959,7 @@ void DigiAsset::checkRulesPass(const vector<AssetUTXO>& inputs, const vector<Ass
  *                         - hash (string, optional): Issuer's hash
  *                         name and hash will never both be present.  hash is returned if creator is anonymous
  */
-Value DigiAsset::toJSON(bool simplified) const {
+Value DigiAsset::toJSON(bool simplified, bool ignoreIpfs) const {
     Json::Value result(Json::objectValue);
 
     // Simplified
@@ -973,7 +973,7 @@ Value DigiAsset::toJSON(bool simplified) const {
     if (simplified) return result;
 
     // Include meta data
-    if (!_cid.empty()) {
+    if (!_cid.empty() && !ignoreIpfs) {
         try {
             IPFS* ipfs = AppMain::GetInstance()->getIPFS();
             string metadata = ipfs->callOnDownloadSync(_cid, "", DIGIASSET_JSON_IPFS_MAX_WAIT);
@@ -1011,61 +1011,6 @@ Value DigiAsset::toJSON(bool simplified) const {
     }
     result["issuer"] = kycObj;
 
-    return result;
-}
-Value DigiAsset::toJSON(bool ipfs, bool rules, bool kyc) const {
-    Json::Value result(Json::objectValue);
-
-    // Simplified
-    result["assetIndex"] = static_cast<Json::UInt64>(getAssetIndex());
-    result["assetId"] = getAssetId();
-    result["cid"] = getCID();
-    result["count"] = static_cast<Json::UInt64>(getCount());
-    result["decimals"] = getDecimals();
-    result["height"] = _heightCreated;
-
-    // Include meta data
-    if (!_cid.empty() && ipfs) {
-        try {
-            IPFS* ipfs = AppMain::GetInstance()->getIPFS();
-            string metadata = ipfs->callOnDownloadSync(_cid, "", DIGIASSET_JSON_IPFS_MAX_WAIT);
-            Json::Value metadataValue;
-            Json::Reader reader;
-            bool parsingSuccessful = reader.parse(metadata, metadataValue);
-            if (!parsingSuccessful) {
-                result["ipfs"] = "Metadata is corrupt";
-            } else {
-                result["ipfs"] = metadataValue;
-            }
-        } catch (const IPFS::exception& e) {
-            result["ipfs"] = "Metadata could not be found";
-        }
-    }
-
-    // Rules
-    if (rules) {
-        DigiAssetRules rules = getRules();
-        if (!rules.empty()) {
-            result["rules"] = rules.toJSON();
-        }
-    }
-
-    // Issuer
-    if (kyc) {
-        Json::Value kycObj(Json::objectValue);
-        kycObj["address"] = _issuer.getAddress();
-        if (_issuer.valid()) {
-            kycObj["country"] = _issuer.getCountry();
-            string name = _issuer.getName();
-            if (!name.empty()) {
-                kycObj["name"] = name;
-            } else {
-                string hash = _issuer.getHash();
-                kycObj["hash"] = hash;
-            }
-        }
-        result["issuer"] = kycObj;
-    }
     return result;
 }
 

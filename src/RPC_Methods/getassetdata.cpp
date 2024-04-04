@@ -73,9 +73,9 @@ namespace RPCMethods {
             }
         }
 
-        if (simplified) return asset.toJSON(false, true, true);
 
         //return result
+        if (simplified) return asset.toJSON(false, true);
         return asset.toJSON();
     }
 }
