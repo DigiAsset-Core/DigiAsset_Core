@@ -315,14 +315,13 @@ public:
         // Generate the index name
         std::stringstream indexName;
         indexName << "idx_" << table;
-        // Use an initializer list to append underscores and column names to the index name
         auto appendWithUnderscore = [&indexName](const std::string& col) {
-            indexName << "_" << col;
+            indexName << "_" << col.substr(0, col.find(' ')); // Use only the column name part for the index name
         };
         std::initializer_list<int> dummy = { (appendWithUnderscore(cols), 0)... };
         static_cast<void>(dummy); // Avoid unused variable warning
 
-        //check if index exists
+        // Check if index exists
         if (indexExists(indexName.str())) return;
 
         // Create SQL command using a lambda
@@ -333,18 +332,25 @@ public:
             if (!first) {
                 indexCommand << ", ";
             }
-            indexCommand << col;
+            // Check if col contains a space, indicating a sort direction is specified
+            size_t spacePos = col.find(' ');
+            if (spacePos != std::string::npos) {
+                // Column name and direction are specified
+                indexCommand << "\"" << col.substr(0, spacePos) << "\" " << col.substr(spacePos + 1);
+            } else {
+                // Only column name is specified
+                indexCommand << "\"" << col << "\"";
+            }
             first = false;
         };
-        // Use an initializer list to iterate over cols and append them to the command
         std::initializer_list<int> dummy2 = { (appendColumn(cols), 0)... };
         static_cast<void>(dummy2); // Avoid unused variable warning
         indexCommand << ");";
 
         // Store the index creation command for later use
         _performanceIndexes.emplace_back(PerformanceIndex{
-                .name =  indexName.str(),
-                .command =  indexCommand.str()
+                .name = indexName.str(),
+                .command = indexCommand.str()
         });
     }
     void executePerformanceIndex(int& state);

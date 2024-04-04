@@ -339,6 +339,7 @@ void Database::initializeClassValues() {
                                             "SELECT [height], [address], [index], [value]\n"
                                             "FROM cte\n"
                                             "WHERE row_number = 1;");
+    addPerformanceIndex("exchange", "address", "index", "height DESC");
 
     //statement to delete exchange rates bellow a specific height
     _stmtPruneExchangeRate.prepare(_db,"DELETE FROM exchange WHERE height<?;");
