@@ -247,6 +247,13 @@ void Database::initializeClassValues() {
     addPerformanceIndex("utxos","assetIndex","issuance");
     addPerformanceIndex("assets","assetId");
 
+    //statement to get issuance txids
+    _stmtGetAssetIssuanceTXIDs.prepare(_db, "SELECT u.txid, u.amount, u.heightCreated, a.cid\n"
+                                              "FROM utxos u\n"
+                                              "JOIN assets a ON u.assetIndex = a.assetIndex\n"
+                                              "WHERE a.assetId = ? AND issuance = 1\n"
+                                              "ORDER BY u.heightCreated ASC");
+
     //statement to get tx history
     _stmtGetAssetTxHistorya.prepare(_db,"SELECT txid\n"
                                          "FROM (\n"
@@ -1443,6 +1450,25 @@ uint64_t Database::getOriginalAssetCount(const string& assetId) {
     return getOriginalAssetCountb.getColumnInt64(0);
 }
 
+/**
+ * Returns the TXIDs where the asset was created.
+ * @param assetId
+ * @return
+ */
+std::vector<IssuanceBasics> Database::getAssetIssuanceTXIDs(const string& assetId) {
+    vector<IssuanceBasics> results;
+    LockedStatement getAssetIssuanceTXIDs{_stmtGetAssetIssuanceTXIDs};
+    getAssetIssuanceTXIDs.bindText(1,assetId);
+    while (getAssetIssuanceTXIDs.executeStep() == SQLITE_ROW) {
+        IssuanceBasics issuance;
+        issuance.txid = getAssetIssuanceTXIDs.getColumnBlob(0).toHex();
+        issuance.amount = getAssetIssuanceTXIDs.getColumnInt(1);
+        issuance.height = getAssetIssuanceTXIDs.getColumnInt(2);
+        issuance.cid = getAssetIssuanceTXIDs.getColumnText(3);
+        results.push_back(issuance);
+    }
+    return results;
+}
 /**
  * Returns a list of TXIDs that involve this asset in order they happened
  * The difference between this and the other getAssetTxHistory function is that if the asset has sub types this will only give history for the sub type provide
