@@ -557,6 +557,15 @@ bool DigiAsset::operator!=(const DigiAsset& rhs) const {
 /**
  * Get Original Asset Count
  */
+std::string DigiAsset::getIssuanceTXID() const {
+    Database* db = AppMain::GetInstance()->getDatabase();
+    std::string txid = db->getAssetIssuanceTXID(getAssetIndex());
+    return txid;
+}
+
+/**
+ * Get Original Asset Count
+ */
 uint64_t DigiAsset::getOriginalCount() const {
     Database* db = AppMain::GetInstance()->getDatabase();
     uint64_t count = db->getOriginalAssetCount(getAssetIndex());
@@ -979,6 +988,7 @@ Value DigiAsset::toJSON(bool simplified, bool ignoreIpfs) const {
     result["decimals"] = getDecimals();
     result["height"] = _heightCreated;
     result["initial"] = static_cast<Json::UInt64>(getOriginalCount());
+    result["txid"] = getIssuanceTXID();
 
     if (simplified) return result;
 

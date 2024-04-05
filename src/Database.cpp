@@ -247,6 +247,9 @@ void Database::initializeClassValues() {
     addPerformanceIndex("utxos","assetIndex","issuance");
     addPerformanceIndex("assets","assetId");
 
+    //statement to get issuance txid
+    _stmtGetAssetIssuanceTXID.prepare(_db, "SELECT txid FROM utxos WHERE assetIndex = ? AND issuance = 1");
+
     //statement to get tx history
     _stmtGetAssetTxHistorya.prepare(_db,"SELECT txid\n"
                                          "FROM (\n"
@@ -1441,6 +1444,19 @@ uint64_t Database::getOriginalAssetCount(const string& assetId) {
     getOriginalAssetCountb.bindText(1,assetId);
     if (getOriginalAssetCountb.executeStep() != SQLITE_ROW) throw exceptionFailedSelect();
     return getOriginalAssetCountb.getColumnInt64(0);
+}
+
+/**
+ * Returns the TXID where the asset was created.
+ * @param assetIndex
+ * @return
+ */
+std::string Database::getAssetIssuanceTXID(uint64_t assetIndex) {
+    LockedStatement getAssetIssuanceTXID{_stmtGetAssetIssuanceTXID};
+    getAssetIssuanceTXID.bindInt64(1,assetIndex);
+    if (getAssetIssuanceTXID.executeStep() != SQLITE_ROW) throw exceptionFailedSelect();
+    Blob txid=getAssetIssuanceTXID.getColumnBlob(0);
+    return txid.toHex();
 }
 
 /**
