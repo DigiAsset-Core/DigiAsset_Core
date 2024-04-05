@@ -609,6 +609,22 @@ uint8_t DigiAsset::getDecimals() const {
 }
 
 /**
+ * Allows setting the number of assets in the object
+ */
+void DigiAsset::setInitial(uint64_t initial) {
+    _initial = initial;
+}
+
+/**
+ * Returns the total number of assets this asset had.
+ * Remember to take in to account the number of decimals.  If getCount() returns 100 and getDecimals(2) there where 1.00.
+ * @return
+ */
+uint64_t DigiAsset::getInitial() const {
+    return _initial;
+}
+
+/**
  * Calculates the CID based on a sha256
  * returns empty if there is no meta data
  */
@@ -959,7 +975,7 @@ void DigiAsset::checkRulesPass(const vector<AssetUTXO>& inputs, const vector<Ass
  *                         - hash (string, optional): Issuer's hash
  *                         name and hash will never both be present.  hash is returned if creator is anonymous
  */
-Value DigiAsset::toJSON(bool simplified) const {
+Value DigiAsset::toJSON(bool simplified, bool ignoreIPFS) const {
     Json::Value result(Json::objectValue);
 
     // Simplified
@@ -969,11 +985,12 @@ Value DigiAsset::toJSON(bool simplified) const {
     result["count"] = static_cast<Json::UInt64>(getCount());
     result["decimals"] = getDecimals();
     result["height"] = _heightCreated;
+    result["initial"] = static_cast<Json::UInt64>(getInitial());
 
     if (simplified) return result;
 
     // Include meta data
-    if (!_cid.empty()) {
+    if (!_cid.empty() && !ignoreIPFS) {
         try {
             IPFS* ipfs = AppMain::GetInstance()->getIPFS();
             string metadata = ipfs->callOnDownloadSync(_cid, "", DIGIASSET_JSON_IPFS_MAX_WAIT);
