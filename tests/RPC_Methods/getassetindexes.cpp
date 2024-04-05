@@ -4,7 +4,7 @@
 
 #include "AppMain.h"
 #include "utils.h"
-#include "BitcoinRpcServerMethods.h"
+#include "RPC/MethodList.h"
 #include "gtest/gtest.h"
 #include "../tests/RPCMethods.h"
 
@@ -20,7 +20,7 @@ TEST_F(RPCMethodsTest, getassetindexes) {
     //0 parameters
     try {
         Json::Value params=Json::arrayValue;
-        rpcMethods[METHOD](params);
+        RPC::methods[METHOD](params);
         result=false;
     } catch (const DigiByteException& e) {
         result=true;
@@ -35,7 +35,7 @@ TEST_F(RPCMethodsTest, getassetindexes) {
         Json::Value params=Json::arrayValue;
         params.append("bad1");
         params.append("bad2");
-        rpcMethods[METHOD](params);
+        RPC::methods[METHOD](params);
         result=false;
     } catch (const DigiByteException& e) {
         result=true;
@@ -49,7 +49,7 @@ TEST_F(RPCMethodsTest, getassetindexes) {
     try {
         Json::Value params=Json::arrayValue;
         params.append(5);
-        rpcMethods[METHOD](params);
+        RPC::methods[METHOD](params);
         result=false;
     } catch (const DigiByteException& e) {
         result=true;
@@ -62,7 +62,7 @@ TEST_F(RPCMethodsTest, getassetindexes) {
     try {
         Json::Value params=Json::arrayValue;
         params.append("La8u7WcjtGmDdZaUhSmspUw5oPkzCch1ALrJzh");
-        auto results=rpcMethods[METHOD](params);
+        auto results=RPC::methods[METHOD](params).toJSON(1)["result"];
         EXPECT_TRUE(results.isArray());
         EXPECT_EQ(results.size(),0);
     } catch (...) {
@@ -73,7 +73,7 @@ TEST_F(RPCMethodsTest, getassetindexes) {
     try {
         Json::Value params=Json::arrayValue;
         params.append("La3LdaAT4PEYsN4qZ2vnjdeWbE6hY7VrMZHYBU");
-        auto results=rpcMethods[METHOD](params);
+        auto results=RPC::methods[METHOD](params).toJSON(1)["result"];
         EXPECT_TRUE(results.isArray());
         EXPECT_EQ(results.size(),1);
         EXPECT_EQ(results[0].asUInt(),245);
@@ -85,7 +85,7 @@ TEST_F(RPCMethodsTest, getassetindexes) {
     try {
         Json::Value params=Json::arrayValue;
         params.append("Uh7bZqJKs5tH4Dm64A39kkQMhUNrsa43LyLcdJ");
-        auto results=rpcMethods[METHOD](params);
+        auto results=RPC::methods[METHOD](params).toJSON(1)["result"];
         EXPECT_TRUE(results.isArray());
         EXPECT_EQ(results.size(),10);
         EXPECT_EQ(results[0].asUInt(),4595);

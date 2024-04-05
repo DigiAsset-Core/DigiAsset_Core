@@ -4,7 +4,7 @@
 
 #include "AppMain.h"
 #include "utils.h"
-#include "BitcoinRpcServerMethods.h"
+#include "RPC/MethodList.h"
 #include "gtest/gtest.h"
 #include "../tests/RPCMethods.h"
 
@@ -21,7 +21,7 @@ TEST_F(RPCMethodsTest, getipfscount) {
     try {
         Json::Value params=Json::arrayValue;
         params.append(15000000);
-        rpcMethods[METHOD](params);
+        RPC::methods[METHOD](params);
         result=false;
     } catch (const DigiByteException& e) {
         result=true;
@@ -33,7 +33,7 @@ TEST_F(RPCMethodsTest, getipfscount) {
     //test proper usage
     try {
         Json::Value params=Json::arrayValue;
-        auto results=rpcMethods[METHOD](params);
+        auto results=RPC::methods[METHOD](params).toJSON(1)["result"];
         EXPECT_TRUE(results.isUInt());
     } catch (...) {
         result=false;

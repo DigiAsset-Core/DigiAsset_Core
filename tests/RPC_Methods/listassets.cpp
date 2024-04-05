@@ -4,7 +4,7 @@
 
 #include "AppMain.h"
 #include "utils.h"
-#include "BitcoinRpcServerMethods.h"
+#include "RPC/MethodList.h"
 #include "gtest/gtest.h"
 #include "../tests/RPCMethods.h"
 
@@ -25,7 +25,7 @@ TEST_F(RPCMethodsTest, listassets) {
         params.append(true);
         params.append(Json::objectValue);
         params.append(50);
-        rpcMethods[METHOD](params);
+        RPC::methods[METHOD](params);
         result=false;
     } catch (const DigiByteException& e) {
         result=true;
@@ -39,7 +39,7 @@ TEST_F(RPCMethodsTest, listassets) {
     try {
         Json::Value params=Json::arrayValue;
         params.append("bad");
-        rpcMethods[METHOD](params);
+        RPC::methods[METHOD](params);
         result=false;
     } catch (const DigiByteException& e) {
         result=true;
@@ -54,7 +54,7 @@ TEST_F(RPCMethodsTest, listassets) {
         Json::Value params=Json::arrayValue;
         params.append(100);
         params.append("bad");
-        rpcMethods[METHOD](params);
+        RPC::methods[METHOD](params);
         result=false;
     } catch (const DigiByteException& e) {
         result=true;
@@ -70,7 +70,7 @@ TEST_F(RPCMethodsTest, listassets) {
         params.append(100);
         params.append(5);
         params.append("bad");
-        rpcMethods[METHOD](params);
+        RPC::methods[METHOD](params);
         result=false;
     } catch (const DigiByteException& e) {
         result=true;
@@ -87,7 +87,7 @@ TEST_F(RPCMethodsTest, listassets) {
         params.append(5);
         params.append(true);
         params.append("bad");
-        rpcMethods[METHOD](params);
+        RPC::methods[METHOD](params);
         result=false;
     } catch (const DigiByteException& e) {
         result=true;
@@ -99,7 +99,7 @@ TEST_F(RPCMethodsTest, listassets) {
     //default value
     try {
         Json::Value params=Json::arrayValue;
-        auto results=rpcMethods[METHOD](params);
+        auto results=RPC::methods[METHOD](params).toJSON(1)["result"];
         EXPECT_TRUE(results.isArray());
         EXPECT_EQ(results.size(),4633);
         EXPECT_EQ(results[0]["assetId"].asString(),"Ua94nEKabzhJeDJtxGFXdviT185tYeHqyHKeWC");
@@ -119,7 +119,7 @@ TEST_F(RPCMethodsTest, listassets) {
         Json::Value params=Json::arrayValue;
         params.append(100);
         params.append(0);
-        auto results=rpcMethods[METHOD](params);
+        auto results=RPC::methods[METHOD](params).toJSON(1)["result"];
         EXPECT_TRUE(results.isArray());
         EXPECT_EQ(results.size(),100);
         EXPECT_EQ(results[0]["assetId"].asString(),"DigiByte");
@@ -143,7 +143,7 @@ TEST_F(RPCMethodsTest, listassets) {
         Json::Value params=Json::arrayValue;
         params.append(100);
         params.append(100);
-        auto results=rpcMethods[METHOD](params);
+        auto results=RPC::methods[METHOD](params).toJSON(1)["result"];
         EXPECT_TRUE(results.isArray());
         EXPECT_EQ(results.size(),100);
         EXPECT_EQ(results[0]["assetId"].asString(),"Lh5YyPKjEUPqqoLkL7REHfp5JhNaJ32EkFiNmW");
@@ -164,7 +164,7 @@ TEST_F(RPCMethodsTest, listassets) {
         params.append(5);
         params.append(0);
         params.append(false);
-        auto results=rpcMethods[METHOD](params);
+        auto results=RPC::methods[METHOD](params).toJSON(1)["result"];
         EXPECT_TRUE(results.isArray());
         EXPECT_EQ(results.size(),5);
         EXPECT_EQ(results[0]["assetId"].asString(),"DigiByte");
@@ -194,7 +194,7 @@ TEST_F(RPCMethodsTest, listassets) {
         Json::Value filter=Json::objectValue;
         filter["psp"]=true;
         params.append(filter);
-        auto results=rpcMethods[METHOD](params);
+        auto results=RPC::methods[METHOD](params).toJSON(1)["result"];
         EXPECT_TRUE(results.isArray());
         EXPECT_EQ(results.size(),3209);
         EXPECT_EQ(results[0]["assetId"].asString(),"La9oiVh9bLhXtxB2GtHQCwtztoSR8EDJgFPUEP");

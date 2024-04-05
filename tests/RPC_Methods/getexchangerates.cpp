@@ -4,7 +4,7 @@
 
 #include "AppMain.h"
 #include "utils.h"
-#include "BitcoinRpcServerMethods.h"
+#include "RPC/MethodList.h"
 #include "gtest/gtest.h"
 #include "../tests/RPCMethods.h"
 
@@ -22,7 +22,7 @@ TEST_F(RPCMethodsTest, getexchangerates) {
         Json::Value params=Json::arrayValue;
         params.append(15000000);
         params.append(0);
-        rpcMethods[METHOD](params);
+        RPC::methods[METHOD](params);
         result=false;
     } catch (const DigiByteException& e) {
         result=true;
@@ -36,7 +36,7 @@ TEST_F(RPCMethodsTest, getexchangerates) {
     try {
         Json::Value params=Json::arrayValue;
         params.append("bad");
-        rpcMethods[METHOD](params);
+        RPC::methods[METHOD](params);
         result=false;
     } catch (const DigiByteException& e) {
         result=true;
@@ -49,7 +49,7 @@ TEST_F(RPCMethodsTest, getexchangerates) {
     try {
         Json::Value params=Json::arrayValue;
         params.append(5000);
-        auto results=rpcMethods[METHOD](params);
+        auto results=RPC::methods[METHOD](params).toJSON(1)["result"];
         EXPECT_TRUE(results.isArray());
         EXPECT_TRUE(results.empty());
     } catch (...) {
@@ -61,7 +61,7 @@ TEST_F(RPCMethodsTest, getexchangerates) {
     try {
         Json::Value params=Json::arrayValue;
         params.append(13774816);
-        auto results=rpcMethods[METHOD](params);
+        auto results=RPC::methods[METHOD](params).toJSON(1)["result"];
         EXPECT_TRUE(results.isArray());
         EXPECT_EQ(results.size(),20);
         for (unsigned int i=0;i<10;i++) {
@@ -103,7 +103,7 @@ TEST_F(RPCMethodsTest, getexchangerates) {
     try {
         Json::Value params=Json::arrayValue;
         params.append(15697995);
-        auto results=rpcMethods[METHOD](params);
+        auto results=RPC::methods[METHOD](params).toJSON(1)["result"];
         EXPECT_TRUE(results.isArray());
         EXPECT_EQ(results.size(),20);
         for (unsigned int i=0;i<10;i++) {
@@ -143,7 +143,7 @@ TEST_F(RPCMethodsTest, getexchangerates) {
     //test getting newest rate
     try {
         Json::Value params=Json::arrayValue;
-        auto results=rpcMethods[METHOD](params);
+        auto results=RPC::methods[METHOD](params).toJSON(1)["result"];
         EXPECT_TRUE(results.isArray());
         EXPECT_EQ(results.size(),20);
         for (unsigned int i=0;i<10;i++) {

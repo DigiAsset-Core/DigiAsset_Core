@@ -4,7 +4,7 @@
 
 #include "AppMain.h"
 #include "utils.h"
-#include "BitcoinRpcServerMethods.h"
+#include "RPC/MethodList.h"
 #include "gtest/gtest.h"
 #include "../tests/RPCMethods.h"
 
@@ -20,7 +20,7 @@ TEST_F(RPCMethodsTest, getassetholders) {
     //0 parameters
     try {
         Json::Value params=Json::arrayValue;
-        rpcMethods[METHOD](params);
+        RPC::methods[METHOD](params);
         result=false;
     } catch (const DigiByteException& e) {
         result=true;
@@ -35,7 +35,7 @@ TEST_F(RPCMethodsTest, getassetholders) {
         Json::Value params=Json::arrayValue;
         params.append("bad1");
         params.append("bad2");
-        rpcMethods[METHOD](params);
+        RPC::methods[METHOD](params);
         result=false;
     } catch (const DigiByteException& e) {
         result=true;
@@ -49,7 +49,7 @@ TEST_F(RPCMethodsTest, getassetholders) {
     try {
         Json::Value params=Json::arrayValue;
         params.append("La");
-        rpcMethods[METHOD](params);
+        RPC::methods[METHOD](params);
         result=false;
     } catch (const DigiByteException& e) {
         result=true;
@@ -62,7 +62,7 @@ TEST_F(RPCMethodsTest, getassetholders) {
     try {
         Json::Value params=Json::arrayValue;
         params.append(50000);
-        auto results=rpcMethods[METHOD](params);
+        auto results=RPC::methods[METHOD](params).toJSON(1)["result"];
         EXPECT_TRUE(results.isObject());
         EXPECT_TRUE(results.empty());
     } catch (...) {
@@ -73,7 +73,7 @@ TEST_F(RPCMethodsTest, getassetholders) {
     try {
         Json::Value params=Json::arrayValue;
         params.append(245);
-        auto results=rpcMethods[METHOD](params);
+        auto results=RPC::methods[METHOD](params).toJSON(1)["result"];
         EXPECT_TRUE(results.isObject());
         EXPECT_EQ(results.size(),121);
         EXPECT_EQ(results["D5QATG7Avxk5awXBsiY4NouT4xvevNehGo"].asUInt64(),100);

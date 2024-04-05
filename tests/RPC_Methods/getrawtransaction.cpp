@@ -4,7 +4,7 @@
 
 #include "AppMain.h"
 #include "utils.h"
-#include "BitcoinRpcServerMethods.h"
+#include "RPC/MethodList.h"
 #include "gtest/gtest.h"
 #include "../tests/RPCMethods.h"
 
@@ -20,7 +20,7 @@ TEST_F(RPCMethodsTest, getrawtransaction) {
     //0 parameters
     try {
         Json::Value params=Json::arrayValue;
-        rpcMethods[METHOD](params);
+        RPC::methods[METHOD](params);
         result=false;
     } catch (const DigiByteException& e) {
         result=true;
@@ -37,7 +37,7 @@ TEST_F(RPCMethodsTest, getrawtransaction) {
         params.append(true);
         params.append(true);
         params.append(true);
-        rpcMethods[METHOD](params);
+        RPC::methods[METHOD](params);
         result=false;
     } catch (const DigiByteException& e) {
         result=true;
@@ -51,7 +51,7 @@ TEST_F(RPCMethodsTest, getrawtransaction) {
     try {
         Json::Value params=Json::arrayValue;
         params.append("7c475da839f1a795d474f43480a6c101dbbfd3c4c4fda8dbfe96a36224fa5956");
-        rpcMethods[METHOD](params);
+        RPC::methods[METHOD](params);
         result=false;
     } catch (const DigiByteException& e) {
         result=true;
@@ -65,7 +65,7 @@ TEST_F(RPCMethodsTest, getrawtransaction) {
     try {
         Json::Value params=Json::arrayValue;
         params.append("test");
-        rpcMethods[METHOD](params);
+        RPC::methods[METHOD](params);
         result=false;
     } catch (const DigiByteException& e) {
         result=true;
@@ -78,7 +78,7 @@ TEST_F(RPCMethodsTest, getrawtransaction) {
     try {
         Json::Value params=Json::arrayValue;
         params.append("63beff1347087215be8992caf4f79448291c656235618c95c8bee6cc7d4cb4d3");
-        auto results=rpcMethods[METHOD](params);
+        auto results=RPC::methods[METHOD](params).toJSON(1)["result"];
         EXPECT_EQ(results.asString(),"010000000101ae21be5438a995991f8e958bb3917d8d3a80f3229583819f932ca0b541da2f000000006a473044022007d03dbb3acadb18bc3a2663e9db005e69a530a329482736c3f26fd2958f5930022051f944149291bbdf10805ecd81253f3876e4938a6cffe8de6e1ba143d1cce5c4012102efe415534320dcb2bb139da7a7e52aeab0d145a2ae3caea4906a5ddf997cbba5feffffff0280c3c901000000001976a9147d2243ca8cf8c4bd1ee49aa4096d4e62ecfc6c3388ac14752a9a250000001976a9144720d96cae6ea1be8978d17abc54938f6225aef388ac9d23f400");
     } catch (...) {
         EXPECT_TRUE(false);
@@ -89,7 +89,7 @@ TEST_F(RPCMethodsTest, getrawtransaction) {
         Json::Value params=Json::arrayValue;
         params.append("63beff1347087215be8992caf4f79448291c656235618c95c8bee6cc7d4cb4d3");
         params.append(true);
-        auto results=rpcMethods[METHOD](params);
+        auto results=RPC::methods[METHOD](params).toJSON(1)["result"];
         EXPECT_TRUE(results.isObject());
         EXPECT_EQ(results["blockhash"].asString(),"5c0c7d7baecc5e13c69f06eb90534ab2db8ff0cc98a1ac8d8797f11dc16ea0ad");
         EXPECT_EQ(results["blocktime"].asUInt(),1666719839);
@@ -145,7 +145,7 @@ TEST_F(RPCMethodsTest, getrawtransaction) {
         Json::Value params=Json::arrayValue;
         params.append("d254074d0e558e4ff027b576d7fc7074ab5e7ef092c29cb665c4d45712f16b4b");
         params.append(true);
-        auto results=rpcMethods[METHOD](params);
+        auto results=RPC::methods[METHOD](params).toJSON(1)["result"];
         EXPECT_TRUE(results.isObject());
         EXPECT_EQ(results["blockhash"].asString(),"000000000000000084ac88668e938437c91d3eef206bfc995bdc48a689607950");
         EXPECT_EQ(results["blocktime"].asUInt(),1650864019);

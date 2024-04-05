@@ -129,4 +129,26 @@ namespace utils {
         std::cout << std::fixed << std::setprecision(1) << std::setw(5) << (fraction*100) << "%";
         std::cout.flush();
     }
+
+    /**
+     * Estimates how much ram a Json::Value uses
+     * @param value
+     * @return
+     */
+    size_t estimateJsonMemoryUsage(const Json::Value& value) {
+        size_t size = sizeof(Json::Value);
+
+        if (value.isString()) {
+            // Add the size of the string
+            size += value.asString().size();
+        } else if (value.isArray() || value.isObject()) {
+            // For arrays and objects, add the size of each element/member
+            for (Json::ValueConstIterator it = value.begin(); it != value.end(); ++it) {
+                size += estimateJsonMemoryUsage(*it);
+            }
+        }
+        // Add additional memory used by other types as needed
+
+        return size;
+    }
 } // namespace utils

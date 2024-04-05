@@ -10,6 +10,7 @@
 #include "ChainAnalyzer.h"
 #include "Database.h"
 #include "PermanentStoragePool/PermanentStoragePoolList.h"
+#include "RPC/Cache.h"
 #include <mutex>
 class AppMain {
     /**
@@ -39,6 +40,7 @@ private:
     DigiByteCore* _dgb = nullptr;
     PermanentStoragePoolList* _psp = nullptr;
     ChainAnalyzer* _analyzer = nullptr;
+    RPC::Cache* _rpcCache = nullptr;
 
 public:
     void setDatabase(Database* db);
@@ -56,6 +58,9 @@ public:
 
     void setChainAnalyzer(ChainAnalyzer* analyzer);
     ChainAnalyzer* getChainAnalyzer();
+
+    void setRpcCache(RPC::Cache* cache);
+    RPC::Cache* getRpcCache();
 
     void reset();
 };

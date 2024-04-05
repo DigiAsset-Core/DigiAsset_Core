@@ -4,7 +4,7 @@
 
 #include "AppMain.h"
 #include "utils.h"
-#include "BitcoinRpcServerMethods.h"
+#include "RPC/MethodList.h"
 #include "gtest/gtest.h"
 #include "../tests/RPCMethods.h"
 
@@ -20,7 +20,7 @@ TEST_F(RPCMethodsTest, getdgbequivalent) {
     //0 parameters
     try {
         Json::Value params=Json::arrayValue;
-        rpcMethods[METHOD](params);
+        RPC::methods[METHOD](params);
         result=false;
     } catch (const DigiByteException& e) {
         result=true;
@@ -35,7 +35,7 @@ TEST_F(RPCMethodsTest, getdgbequivalent) {
         Json::Value params=Json::arrayValue;
         params.append("bad1");
         params.append(0);
-        rpcMethods[METHOD](params);
+        RPC::methods[METHOD](params);
         result=false;
     } catch (const DigiByteException& e) {
         result=true;
@@ -52,7 +52,7 @@ TEST_F(RPCMethodsTest, getdgbequivalent) {
         params.append(0);
         params.append(10);
         params.append("bad2");
-        rpcMethods[METHOD](params);
+        RPC::methods[METHOD](params);
         result=false;
     } catch (const DigiByteException& e) {
         result=true;
@@ -68,7 +68,7 @@ TEST_F(RPCMethodsTest, getdgbequivalent) {
         params.append(0);
         params.append(0);
         params.append(0);
-        rpcMethods[METHOD](params);
+        RPC::methods[METHOD](params);
         result=false;
     } catch (const DigiByteException& e) {
         result=true;
@@ -84,7 +84,7 @@ TEST_F(RPCMethodsTest, getdgbequivalent) {
         params.append("test");
         params.append("test");
         params.append(0);
-        rpcMethods[METHOD](params);
+        RPC::methods[METHOD](params);
         result=false;
     } catch (const DigiByteException& e) {
         result=true;
@@ -100,7 +100,7 @@ TEST_F(RPCMethodsTest, getdgbequivalent) {
         params.append("test");
         params.append(10);
         params.append(0);
-        rpcMethods[METHOD](params);
+        RPC::methods[METHOD](params);
         result=false;
     } catch (const DigiByteException& e) {
         result=true;
@@ -116,7 +116,7 @@ TEST_F(RPCMethodsTest, getdgbequivalent) {
         params.append("test");
         params.append(0);
         params.append("test");
-        rpcMethods[METHOD](params);
+        RPC::methods[METHOD](params);
         result=false;
     } catch (const DigiByteException& e) {
         result=true;
@@ -131,7 +131,7 @@ TEST_F(RPCMethodsTest, getdgbequivalent) {
         params.append("dgb1qunxh378eltj2jrwza5sj9grvu5xud43vqvudwh");
         params.append(0);
         params.append(100000000);
-        auto results=rpcMethods[METHOD](params);
+        auto results=RPC::methods[METHOD](params).toJSON(1)["result"];
         EXPECT_EQ(results.asUInt64(),9887716274);
     } catch (...) {
         EXPECT_TRUE(false);
@@ -143,7 +143,7 @@ TEST_F(RPCMethodsTest, getdgbequivalent) {
         params.append("dgb1qlk3hldeynl3prqw259u8gv0jh7w5nwppxlvt3v");
         params.append(0);
         params.append(100000000);
-        auto results=rpcMethods[METHOD](params);
+        auto results=RPC::methods[METHOD](params).toJSON(1)["result"];
         EXPECT_EQ(results.asUInt64(),381777420134996);
     } catch (...) {
         EXPECT_TRUE(false);

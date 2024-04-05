@@ -75,6 +75,7 @@ void AppMain::reset() {
     _ipfs = nullptr;
     _dgb = nullptr;
     _db = nullptr;
+    _rpcCache = nullptr;
 }
 void AppMain::setPermanentStoragePoolList(PermanentStoragePoolList* psp) {
     _psp = psp;
@@ -98,4 +99,15 @@ ChainAnalyzer* AppMain::getChainAnalyzer() {
         throw runtime_error("Not available");
     }
     return _analyzer;
+}
+void AppMain::setRpcCache(RPC::Cache* cache) {
+    _rpcCache=cache;
+}
+RPC::Cache* AppMain::getRpcCache() {
+    if (_rpcCache == nullptr) {
+        Log* log = Log::GetInstance();
+        log->addMessage("Tried to get RPC Cache without first loading", Log::CRITICAL);
+        throw runtime_error("Not available");
+    }
+    return _rpcCache;
 }

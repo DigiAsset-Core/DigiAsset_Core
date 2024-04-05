@@ -357,6 +357,9 @@ void ChainAnalyzer::phaseSync() {
             ss.clear();
         }
 
+        //clear invalid RPC cached
+        AppMain::GetInstance()->getRpcCache()->newBlockAdded();
+
         //prune database
         phasePrune();
 
@@ -425,6 +428,28 @@ void ChainAnalyzer::processTX(const string& txid, unsigned int height) {
     //get raw transaction
     DigiByteTransaction tx(txid, height);
     tx.addToDatabase();
+
+    //get list of addresses that have been changed
+    vector<string> addresses;
+    size_t inputCount=tx.getInputCount();
+    for (size_t i=0; i<inputCount; i++) {
+        addresses.emplace_back(tx.getInput(i).address);
+    }
+    size_t outputCount=tx.getOutputCount();
+    for (size_t i=0; i<outputCount; i++) {
+        addresses.emplace_back(tx.getOutput(i).address);
+    }
+
+    // Remove duplicates from addresses
+    std::sort(addresses.begin(), addresses.end()); // Sort the vector
+    auto last = std::unique(addresses.begin(), addresses.end()); // Remove consecutive duplicates
+    addresses.erase(last, addresses.end()); // Erase the non-unique elements
+
+    //invalidate rpc caches based on addresses that have changed
+    RPC::Cache* cache=AppMain::GetInstance()->getRpcCache();
+    for (auto address: addresses) {
+        cache->addressChanged(address);
+    }
 }
 
 

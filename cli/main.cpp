@@ -1,7 +1,7 @@
-#include "BitcoinRpcServer.h"
 #include "Config.h"
 #include "Database.h"
 #include "DigiByteCore.h"
+#include "RPC/Server.h"
 #include <iostream>
 #include <jsonrpccpp/client.h>
 

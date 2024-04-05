@@ -2,11 +2,11 @@
 // Created by mctrivia on 31/03/24.
 //
 
-#include "AppMain.h"
-#include "utils.h"
-#include "BitcoinRpcServerMethods.h"
-#include "gtest/gtest.h"
 #include "../tests/RPCMethods.h"
+#include "AppMain.h"
+#include "RPC/MethodList.h"
+#include "utils.h"
+#include "gtest/gtest.h"
 
 using namespace std;
 
@@ -20,7 +20,7 @@ TEST_F(RPCMethodsTest, getaddresskyc) {
     //0 parameters
     try {
         Json::Value params=Json::arrayValue;
-        rpcMethods[METHOD](params);
+        RPC::methods[METHOD](params);
         result=false;
     } catch (const DigiByteException& e) {
         result=true;
@@ -35,7 +35,7 @@ TEST_F(RPCMethodsTest, getaddresskyc) {
         Json::Value params=Json::arrayValue;
         params.append("bad1");
         params.append("bad2");
-        rpcMethods[METHOD](params);
+        RPC::methods[METHOD](params);
         result=false;
     } catch (const DigiByteException& e) {
         result=true;
@@ -49,7 +49,7 @@ TEST_F(RPCMethodsTest, getaddresskyc) {
     try {
         Json::Value params=Json::arrayValue;
         params.append(5);
-        rpcMethods[METHOD](params);
+        RPC::methods[METHOD](params);
         result=false;
     } catch (const DigiByteException& e) {
         result=true;
@@ -62,7 +62,7 @@ TEST_F(RPCMethodsTest, getaddresskyc) {
     try {
         Json::Value params=Json::arrayValue;
         params.append("DL9qVq1qSHwjs3ZJNEAfeKJYooPTCS7BLD");
-        auto results=rpcMethods[METHOD](params);
+        auto results=RPC::methods[METHOD](params).toJSON(1)["result"];
         EXPECT_TRUE(results.isObject());
         EXPECT_TRUE(results.isMember("address"));
         EXPECT_EQ(results["address"].asString(),"DL9qVq1qSHwjs3ZJNEAfeKJYooPTCS7BLD");
@@ -77,7 +77,7 @@ TEST_F(RPCMethodsTest, getaddresskyc) {
     try {
         Json::Value params=Json::arrayValue;
         params.append("DP6p2hn7FSHRosjGRgSfnue4epaFgc4EHv");
-        auto results=rpcMethods[METHOD](params);
+        auto results=RPC::methods[METHOD](params).toJSON(1)["result"];
         EXPECT_TRUE(results.isObject());
         EXPECT_TRUE(results.isMember("address"));
         EXPECT_EQ(results["address"].asString(),"DP6p2hn7FSHRosjGRgSfnue4epaFgc4EHv");
@@ -94,7 +94,7 @@ TEST_F(RPCMethodsTest, getaddresskyc) {
     try {
         Json::Value params=Json::arrayValue;
         params.append("dgb1qzhmej4tt4y4t8a2n3ntp35z02aq438hgs54u5u");
-        auto results=rpcMethods[METHOD](params);
+        auto results=RPC::methods[METHOD](params).toJSON(1)["result"];
         EXPECT_TRUE(results.isObject());
         EXPECT_TRUE(results.isMember("address"));
         EXPECT_EQ(results["address"].asString(),"dgb1qzhmej4tt4y4t8a2n3ntp35z02aq438hgs54u5u");

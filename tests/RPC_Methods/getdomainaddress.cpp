@@ -4,7 +4,7 @@
 
 #include "AppMain.h"
 #include "utils.h"
-#include "BitcoinRpcServerMethods.h"
+#include "RPC/MethodList.h"
 #include "gtest/gtest.h"
 #include "../tests/RPCMethods.h"
 
@@ -20,7 +20,7 @@ TEST_F(RPCMethodsTest, getdomainaddress) {
     //0 parameters
     try {
         Json::Value params=Json::arrayValue;
-        rpcMethods[METHOD](params);
+        RPC::methods[METHOD](params);
         result=false;
     } catch (const DigiByteException& e) {
         result=true;
@@ -35,7 +35,7 @@ TEST_F(RPCMethodsTest, getdomainaddress) {
         Json::Value params=Json::arrayValue;
         params.append("bad1");
         params.append(0);
-        rpcMethods[METHOD](params);
+        RPC::methods[METHOD](params);
         result=false;
     } catch (const DigiByteException& e) {
         result=true;
@@ -49,7 +49,7 @@ TEST_F(RPCMethodsTest, getdomainaddress) {
     try {
         Json::Value params=Json::arrayValue;
         params.append(0);
-        rpcMethods[METHOD](params);
+        RPC::methods[METHOD](params);
         result=false;
     } catch (const DigiByteException& e) {
         result=true;
@@ -63,7 +63,7 @@ TEST_F(RPCMethodsTest, getdomainaddress) {
     try {
         Json::Value params=Json::arrayValue;
         params.append("dgb1qunx.dgb");
-        rpcMethods[METHOD](params);
+        RPC::methods[METHOD](params);
         result=false;
     } catch (const DigiByteException& e) {
         result=true;
@@ -76,7 +76,7 @@ TEST_F(RPCMethodsTest, getdomainaddress) {
     try {
         Json::Value params=Json::arrayValue;
         params.append("mctrivia.dgb");
-        auto results=rpcMethods[METHOD](params);
+        auto results=RPC::methods[METHOD](params).toJSON(1)["result"];
         EXPECT_EQ(results.asString(),"DDd3bSJKCD4M57PVawrw3ud7Mcw5DkXNRx");
     } catch (...) {
         EXPECT_TRUE(false);
@@ -86,7 +86,7 @@ TEST_F(RPCMethodsTest, getdomainaddress) {
     try {
         Json::Value params=Json::arrayValue;
         params.append("saltedlolly.dgb");
-        auto results=rpcMethods[METHOD](params);
+        auto results=RPC::methods[METHOD](params).toJSON(1)["result"];
         EXPECT_EQ(results.asString(),"dgb1q9nwl9v2xqap0cdnx7ra08c0ftwct3lzhpfmdgk");
     } catch (...) {
         EXPECT_TRUE(false);

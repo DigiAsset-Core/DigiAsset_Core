@@ -1,14 +1,14 @@
 #include "AppMain.h"
-#include "BitcoinRpcServer.h"
 #include "ChainAnalyzer.h"
 #include "Config.h"
 #include "Database.h"
 #include "DigiByteCore.h"
 #include "IPFS.h"
 #include "Log.h"
+#include "RPC/Server.h"
+#include "Version.h"
 #include "utils.h"
 #include <iostream>
-#include "Version.h"
 
 
 int main() {
@@ -94,6 +94,13 @@ int main() {
     main->setPermanentStoragePoolList(&psp);
 
     /**
+     * Start RPC Cache
+     */
+    log->addMessage("Starting RPC Cache");
+    RPC::Cache rpcCache;
+    main->setRpcCache(&rpcCache);
+
+    /**
      * Start Chain Analyzer
      */
     log->addMessage("Starting Chain Analyzer");
@@ -111,7 +118,7 @@ int main() {
     try {
         // Create and start the Bitcoin RPC server
         log->addMessage("Starting RPC Server");
-        BitcoinRpcServer server;
+        RPC::Server server;
         server.start();
 
     } catch (const std::exception& e) {
