@@ -149,7 +149,7 @@ private:
     Statement _stmtGetTotalAssetCountb;
     Statement _stmtGetOriginalAssetCounta;
     Statement _stmtGetOriginalAssetCountb;
-    Statement _stmtGetAssetIssuanceTXID;
+    Statement _stmtGetAssetIssuanceTXIDs;
     Statement _stmtGetAssetTxHistorya;
     Statement _stmtGetAssetTxHistoryb;
     Statement _stmtGetAddressTxHistory;
@@ -234,7 +234,7 @@ public:
         result+=printStatementInfo("_stmtGetTotalAssetCountb", _stmtGetTotalAssetCountb);
         result+=printStatementInfo("_stmtGetOriginalAssetCounta", _stmtGetOriginalAssetCounta);
         result+=printStatementInfo("_stmtGetOriginalAssetCountb", _stmtGetOriginalAssetCountb);
-        result+=printStatementInfo("_stmtGetAssetIssuanceTXID", _stmtGetAssetIssuanceTXID);
+        result+=printStatementInfo("_stmtGetAssetIssuanceTXIDs", _stmtGetAssetIssuanceTXIDs);
         result+=printStatementInfo("_stmtGetAssetTxHistorya", _stmtGetAssetTxHistorya);
         result+=printStatementInfo("_stmtGetAssetTxHistoryb", _stmtGetAssetTxHistoryb);
         result+=printStatementInfo("_stmtGetAddressTxHistory", _stmtGetAddressTxHistory);
@@ -418,7 +418,7 @@ public:
     uint64_t getTotalAssetCount(const std::string& assetId); //returns total count of specific asset(sum of all variants)
     uint64_t getOriginalAssetCount(uint64_t assetIndex);
     uint64_t getOriginalAssetCount(const std::string& assetId);
-    std::string getAssetIssuanceTXID(uint64_t assetIndex);
+    std::vector<IssuanceBasics> getAssetIssuanceTXIDs(const std::string& assetId);
     std::vector<std::string> getAssetTxHistory(uint64_t assetIndex);
     std::vector<std::string> getAssetTxHistory(const std::string& assetId);
 

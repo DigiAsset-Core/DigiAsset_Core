@@ -557,15 +557,6 @@ bool DigiAsset::operator!=(const DigiAsset& rhs) const {
 /**
  * Get Original Asset Count
  */
-std::string DigiAsset::getIssuanceTXID() const {
-    Database* db = AppMain::GetInstance()->getDatabase();
-    std::string txid = db->getAssetIssuanceTXID(getAssetIndex());
-    return txid;
-}
-
-/**
- * Get Original Asset Count
- */
 uint64_t DigiAsset::getOriginalCount() const {
     Database* db = AppMain::GetInstance()->getDatabase();
     uint64_t count = db->getOriginalAssetCount(getAssetIndex());
@@ -936,6 +927,7 @@ void DigiAsset::checkRulesPass(const vector<AssetUTXO>& inputs, const vector<Ass
  *                     - decimals (unsigned int): The number of decimals for the asset.  If decimal is 2 and count is 100
  *                       that means there are 1.00 assets
  *                     - height (unsigned int):  Height created
+ *                     - initial (unsigned int):  Total supply count of assets
  *
  *  Additional Fields (included if simplified is false):
  *                     - ipfs (string or Json::Value): IPFS metadata or error message
@@ -988,7 +980,6 @@ Value DigiAsset::toJSON(bool simplified, bool ignoreIpfs) const {
     result["decimals"] = getDecimals();
     result["height"] = _heightCreated;
     result["initial"] = static_cast<Json::UInt64>(getOriginalCount());
-    result["txid"] = getIssuanceTXID();
 
     if (simplified) return result;
 

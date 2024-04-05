@@ -88,7 +88,6 @@ public:
     bool operator==(const DigiAsset& rhs) const;
     bool operator!=(const DigiAsset& rhs) const;
 
-    std::string getIssuanceTXID() const;
     uint64_t getOriginalCount() const;
     void removeCount(uint64_t count);
     void setCount(uint64_t count);

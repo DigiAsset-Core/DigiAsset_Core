@@ -19,6 +19,13 @@ struct AssetBasics {
     unsigned int height;
 };
 
+struct IssuanceBasics {
+    std::string txid;
+    uint64_t amount;
+    unsigned int height;
+    std::string cid;
+};
+
 struct AssetHolder {
     std::string address;
     uint64_t count; //in sats
