@@ -555,6 +555,15 @@ bool DigiAsset::operator!=(const DigiAsset& rhs) const {
 }
 
 /**
+ * Get Original Asset Count
+ */
+uint64_t DigiAsset::getOriginalCount() const {
+    Database* db = AppMain::GetInstance()->getDatabase();
+    uint64_t count = db->getOriginalAssetCount(getAssetIndex());
+    return count;
+}
+
+/**
  * Allow reducing the number of assets in the object
  */
 void DigiAsset::removeCount(uint64_t count) {
@@ -969,6 +978,7 @@ Value DigiAsset::toJSON(bool simplified, bool ignoreIpfs) const {
     result["count"] = static_cast<Json::UInt64>(getCount());
     result["decimals"] = getDecimals();
     result["height"] = _heightCreated;
+    result["initial"] = static_cast<Json::UInt64>(getOriginalCount());
 
     if (simplified) return result;
 

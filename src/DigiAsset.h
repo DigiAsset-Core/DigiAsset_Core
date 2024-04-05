@@ -88,6 +88,7 @@ public:
     bool operator==(const DigiAsset& rhs) const;
     bool operator!=(const DigiAsset& rhs) const;
 
+    uint64_t getOriginalCount() const;
     void removeCount(uint64_t count);
     void setCount(uint64_t count);
     void addCount(uint64_t count);
