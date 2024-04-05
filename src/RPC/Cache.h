@@ -13,6 +13,7 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <cstring>
 
 namespace RPC {
 
@@ -21,7 +22,7 @@ namespace RPC {
             static_assert(sizeof(std::size_t) <= 32, "size_t is too small");
             std::size_t hash = 0;
             // Copy the first sizeof(std::size_t) bytes from the array into hash
-            std::memcpy(&hash, arr.data(), sizeof(std::size_t));
+            memcpy(&hash, arr.data(), sizeof(std::size_t));
             return hash;
         }
     };
