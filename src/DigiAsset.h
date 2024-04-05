@@ -44,6 +44,9 @@ class DigiAsset {
     //count(optional to allow including a count of specific asset type)
     uint64_t _count;
 
+    //count(optional to allow including the total count of specific asset type)
+    uint64_t _initial;
+
     //functions to help process chain data
     bool
     processIssuance(const getrawtransaction_t& txData, unsigned int height, unsigned char version, unsigned char opcode,
@@ -95,6 +98,9 @@ public:
     std::string getStrCount() const;
     uint8_t getDecimals() const;
 
+    void setInitial(uint64_t initial);
+    uint64_t getInitial() const;
+
     uint64_t getAssetIndex(bool allowUnknownAssetIndex=false) const;
     bool isAssetIndexSet() const;
     void lookupAssetIndex(const std::string& txid, unsigned int vout);
@@ -121,7 +127,7 @@ public:
     checkRulesPass(const std::vector<AssetUTXO>& inputs, const std::vector<AssetUTXO>& outputs, unsigned int height,
                    uint64_t time) const;
 
-    Value toJSON(bool simplified = false) const;
+    Value toJSON(bool simplified = false, bool ignoreIPFS = false) const;
 
 
     /*
