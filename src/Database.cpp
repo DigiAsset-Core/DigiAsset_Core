@@ -248,10 +248,11 @@ void Database::initializeClassValues() {
     addPerformanceIndex("assets","assetId");
 
     //statement to get issuance txids
-    _stmtGetAssetIssuanceTXIDs.prepare(_db, "SELECT u.txid, u.amount, u.heightCreated, a.cid\n"
+    _stmtGetAssetIssuanceTXIDs.prepare(_db, "SELECT u.assetIndex, u.txid, sum(u.amount) as amount, u.heightCreated, a.cid\n"
                                               "FROM utxos u\n"
                                               "JOIN assets a ON u.assetIndex = a.assetIndex\n"
                                               "WHERE a.assetId = ? AND issuance = 1\n"
+                                              "GROUP BY u.assetIndex\n"
                                               "ORDER BY u.heightCreated ASC");
 
     //statement to get tx history
@@ -1461,10 +1462,11 @@ std::vector<IssuanceBasics> Database::getAssetIssuanceTXIDs(const string& assetI
     getAssetIssuanceTXIDs.bindText(1,assetId);
     while (getAssetIssuanceTXIDs.executeStep() == SQLITE_ROW) {
         IssuanceBasics issuance;
-        issuance.txid = getAssetIssuanceTXIDs.getColumnBlob(0).toHex();
-        issuance.amount = getAssetIssuanceTXIDs.getColumnInt(1);
-        issuance.height = getAssetIssuanceTXIDs.getColumnInt(2);
-        issuance.cid = getAssetIssuanceTXIDs.getColumnText(3);
+        issuance.assetIndex = getAssetIssuanceTXIDs.getColumnInt(0);
+        issuance.txid = getAssetIssuanceTXIDs.getColumnBlob(1).toHex();
+        issuance.amount = getAssetIssuanceTXIDs.getColumnInt(2);
+        issuance.height = getAssetIssuanceTXIDs.getColumnInt(3);
+        issuance.cid = getAssetIssuanceTXIDs.getColumnText(4);
         results.push_back(issuance);
     }
     return results;

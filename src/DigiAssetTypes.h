@@ -20,6 +20,7 @@ struct AssetBasics {
 };
 
 struct IssuanceBasics {
+    uint64_t assetIndex;
     std::string txid;
     uint64_t amount;
     unsigned int height;
