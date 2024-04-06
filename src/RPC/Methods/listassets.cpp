@@ -14,7 +14,8 @@ namespace RPC {
         *  params[0] - numberOfRecords(unsigned int) - default is infinity
         *  params[1] - startIndex(unsigned int) - default is 1
         *  params[2] - basic output - default is true
-        *  params[3] - filter object
+        *  params[3] - reverse - default is false
+        *  params[4] - filter object
         *      {
         *        psp:  bool - if true only returns assets that are part of a psp, false only those that are not part of a psp
         *              int  - if int returns only ones that are part of that specific psp
@@ -33,7 +34,7 @@ namespace RPC {
         *                       Refer to DigiAsset::toJSON for the format of the returned JSON object.
         */
         extern const Response listassets(const Json::Value& params) {
-            if (params.size() > 4) {
+            if (params.size() > 5) {
                 throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
             }
 
@@ -67,10 +68,20 @@ namespace RPC {
                 }
             }
 
-            Json::Value filter=Json::objectValue;
+            //get reverse default is false
+            bool reverse=false;
             if (params.size()>3) {
-                if (params[3].isObject()) {
-                    filter=params[3];
+                if (params[3].isBool()) {
+                    reverse = params[3].asBool();
+                } else if (!params[3].isNull()) {
+                    throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+                }
+            }
+
+            Json::Value filter=Json::objectValue;
+            if (params.size()>4) {
+                if (params[4].isObject()) {
+                    filter=params[4];
                 } else {
                     throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
                 }
@@ -78,7 +89,7 @@ namespace RPC {
 
             //get asset list
             Database* db=AppMain::GetInstance()->getDatabase();
-            auto assets=db->getAssetIDsOrderedByIssuanceHeight(numberOfRecords, startIndex);
+            auto assets=db->getAssetIDsOrderedByIssuanceHeight(numberOfRecords, startIndex, reverse);
 
             Value jsonArray=Json::arrayValue;
 
@@ -95,14 +106,14 @@ namespace RPC {
 
                 //output
                 if (basic) {
+                    jsonArray.append(static_cast<Json::UInt64>(asset.assetIndex));
+                } else {
                     Json::Value assetJSON(Json::objectValue);
                     assetJSON["assetIndex"] = static_cast<Json::UInt64>(asset.assetIndex);
                     assetJSON["assetId"] = asset.assetId;
                     assetJSON["cid"] = asset.cid;
                     assetJSON["height"] = asset.height;
                     jsonArray.append(assetJSON);
-                } else {
-                    jsonArray.append(db->getAsset(asset.assetIndex).toJSON());
                 }
             }
 
