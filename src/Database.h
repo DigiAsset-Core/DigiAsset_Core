@@ -71,6 +71,13 @@ struct AssetCount {
     uint64_t count;
 };
 
+struct BlockBasics {
+    unsigned int height;
+    std::string hash;
+    unsigned int time;
+    unsigned int algo;
+};
+
 
 
 
