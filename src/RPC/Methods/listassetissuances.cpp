@@ -26,6 +26,7 @@ namespace RPC {
             Value jsonArray=Json::arrayValue;
             for (const auto& result : results) {
                 Json::Value assetJSON(Json::objectValue);
+                assetJSON["assetIndex"] = result.assetIndex;
                 assetJSON["txid"] = result.txid;
                 assetJSON["amount"] = static_cast<Json::UInt64>(result.amount);
                 assetJSON["height"] = result.height;
