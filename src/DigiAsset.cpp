@@ -609,19 +609,17 @@ uint8_t DigiAsset::getDecimals() const {
 }
 
 /**
- * Allows setting the number of assets in the object
- */
-void DigiAsset::setInitial(uint64_t initial) {
-    _initial = initial;
-}
-
-/**
  * Returns the total number of assets this asset had.
  * Remember to take in to account the number of decimals.  If getCount() returns 100 and getDecimals(2) there where 1.00.
  * @return
  */
-uint64_t DigiAsset::getInitial() const {
-    return _initial;
+uint64_t DigiAsset::getInitialCount() {
+    //see if cached
+    if (_initialCount==-1) {
+        //get from database
+        _initialCount=AppMain::GetInstance()->getDatabase()->getOriginalAssetCount(_assetIndex);
+    }
+    return _initialCount;
 }
 
 /**
@@ -985,7 +983,6 @@ Value DigiAsset::toJSON(bool simplified, bool ignoreIPFS) const {
     result["count"] = static_cast<Json::UInt64>(getCount());
     result["decimals"] = getDecimals();
     result["height"] = _heightCreated;
-    result["initial"] = static_cast<Json::UInt64>(getInitial());
 
     if (simplified) return result;
 
@@ -1005,6 +1002,11 @@ Value DigiAsset::toJSON(bool simplified, bool ignoreIPFS) const {
         } catch (const IPFS::exception& e) {
             result["ipfs"] = "Metadata could not be found";
         }
+    }
+
+    // Initial Supply
+    if (_initialCount > -1) {
+        result["initial"] = static_cast<Json::UInt64>(_initialCount);
     }
 
     // Rules

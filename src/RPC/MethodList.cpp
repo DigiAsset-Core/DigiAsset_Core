@@ -21,6 +21,7 @@ namespace RPC {
         {"getpsp", Methods::getpsp},
         {"getrawtransaction", Methods::getrawtransaction},
         {"listaddresshistory", Methods::listaddresshistory},
+        {"listassetissuances", Methods::listassetissuances},
         {"listassets", Methods::listassets},
         {"listunspent", Methods::listunspent},
         {"resyncmetadata", Methods::resyncmetadata},

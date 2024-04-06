@@ -42,10 +42,10 @@ class DigiAsset {
     KYC _issuer;
 
     //count(optional to allow including a count of specific asset type)
-    uint64_t _count;
+    uint64_t _count = 0;
 
     //count(optional to allow including the total count of specific asset type)
-    uint64_t _initial;
+    int64_t _initialCount = -1;
 
     //functions to help process chain data
     bool
@@ -98,8 +98,7 @@ public:
     std::string getStrCount() const;
     uint8_t getDecimals() const;
 
-    void setInitial(uint64_t initial);
-    uint64_t getInitial() const;
+    uint64_t getInitialCount();
 
     uint64_t getAssetIndex(bool allowUnknownAssetIndex=false) const;
     bool isAssetIndexSet() const;
