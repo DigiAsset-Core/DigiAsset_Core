@@ -325,8 +325,8 @@ void Database::initializeClassValues() {
     //statement to get valid utxos for a given address
     _stmtGetValidUTXO.prepare(_db,"SELECT `txid`,`vout`,`aout`,`assetIndex`,`amount` FROM utxos WHERE heightDestroyed IS NULL AND address=? AND heightCreated>=? AND heightCreated<=? ORDER BY txid ASC, vout ASC, aout ASC;");
 
-
-
+    //statement to get a list of the last n blocks
+    _stmtGetLastBlocks.prepare(_db, "SELECT height, hash, time, algo FROM blocks ORDER BY height DESC LIMIT ?");
 
     //statement to check if exchange watch address
     _stmtIsWatchAddress.prepare(_db,"SELECT address FROM exchangeWatch WHERE address=?;");
@@ -1090,7 +1090,23 @@ void Database::clearBlocksAboveHeight(uint height) {
     }
 }
 
-
+/**
+ * Get last blocks
+ */
+std::vector<BlockBasics> Database::getLastBlocks(int limit) {
+    std::vector<BlockBasics> results;
+    LockedStatement getLastBlocks{_stmtGetLastBlocks};
+    getLastBlocks.bindInt(1, limit);
+    while (getLastBlocks.executeStep() == SQLITE_ROW) {
+        BlockBasics block;
+        block.height = getLastBlocks.getColumnInt(0);
+        block.hash = getLastBlocks.getColumnBlob(1).toHex();
+        block.time = getLastBlocks.getColumnInt(2);
+        block.algo = getLastBlocks.getColumnInt(3);
+        results.push_back(block);
+    }
+    return results;
+}
 
 
 /*

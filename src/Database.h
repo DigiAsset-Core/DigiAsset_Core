@@ -156,6 +156,7 @@ private:
     Statement _stmtGetAssetCreateByAddress;
     Statement _stmtGetAddressHoldings;
     Statement _stmtGetValidUTXO;
+    Statement _stmtGetLastBlocks;
 
 public:
     std::string printProfilingInfo() {
@@ -241,6 +242,7 @@ public:
         result+=printStatementInfo("_stmtGetAssetCreateByAddress", _stmtGetAssetCreateByAddress);
         result+= printStatementInfo("_stmtGetAddressHoldings",_stmtGetAddressHoldings);
         result+=printStatementInfo("_stmtGetValidUTXO", _stmtGetValidUTXO);
+        result+=printStatementInfo("_stmtGetLastBlocks", _stmtGetLastBlocks);
         return result;
     }
 
@@ -376,6 +378,7 @@ public:
     std::string getBlockHash(uint height);
     uint getBlockHeight();
     void clearBlocksAboveHeight(uint height);
+    std::vector<BlockBasics> getLastBlocks(int limit);
 
     //exchange table
     void addExchangeRate(const std::string& address, unsigned int index, unsigned int height, double exchangeRate);
