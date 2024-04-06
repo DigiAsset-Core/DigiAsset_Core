@@ -67,7 +67,8 @@ namespace RPC {
 
             //look up how many assets exist
             asset.setCount(db->getTotalAssetCount(asset.getAssetIndex()));
-
+            asset.getInitialCount();
+            
             //get simplified default is false
             bool excludeIPFS = false;
             if (params.size()==2) {
