@@ -27,13 +27,6 @@ struct IssuanceBasics {
     std::string cid;
 };
 
-struct BlockBasics {
-    unsigned int height;
-    std::string hash;
-    unsigned int time;
-    unsigned int algo;
-};
-
 struct AssetHolder {
     std::string address;
     uint64_t count; //in sats
