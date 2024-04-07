@@ -109,6 +109,8 @@ namespace RPC {
             //return response
             Response response;
             response.setResult(jsonArray);
+            response.setBlocksGoodFor(5760);    //day
+            response.setInvalidateOnNewAsset();
             return response;
         }
 

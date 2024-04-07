@@ -55,6 +55,8 @@ TEST(DigiAssetTransaction, existingAssetTransactions) {
     ipfs.start();
     PermanentStoragePoolList psp("config.cfg");
     main->setPermanentStoragePoolList(&psp);
+    RPC::Cache rpcCache;
+    main->setRpcCache(&rpcCache);
 
 
     //download test files

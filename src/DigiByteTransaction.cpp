@@ -498,6 +498,9 @@ void DigiByteTransaction::addToDatabase() {
             }
             break;
         case DIGIASSET_ISSUANCE:
+            //Set that caches based on new issuances should be deleted
+            main->getRpcCache()->newAssetIssued();
+
             //add to the database and get the asset index number
             bool indexAlreadySet=_newAsset.isAssetIndexSet();
             uint64_t assetIndex = db->addAsset(_newAsset);

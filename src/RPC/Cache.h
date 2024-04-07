@@ -70,6 +70,8 @@ namespace RPC {
         void addressChanged(const std::string& address);
 
         void newBlockAdded();
+
+        void newAssetIssued();
     };
 }
 

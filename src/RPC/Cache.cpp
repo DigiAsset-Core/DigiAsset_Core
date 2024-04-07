@@ -76,6 +76,19 @@ namespace RPC {
         }
     }
 
+    void Cache::newAssetIssued() {
+        std::lock_guard<std::mutex> lock(_cacheMutex);
+        for (auto it = _cacheMap.begin(); it != _cacheMap.end(); ) {
+            size_t deleteSize=it->second.response.newAssetIssued();
+            if ( deleteSize > 0) {
+                _currentCacheSize -= (deleteSize + _entryOverhead);
+                it = _cacheMap.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+
     void Cache::removeOldestEntries() {
         while (_currentCacheSize > _maxCacheSize && !_cacheMap.empty()) {
             auto oldest = _cacheMap.begin();

@@ -28,6 +28,8 @@ namespace RPC {
             //load the psp and return it to json
             Response response;
             response.setResult(list->getPool(params[0].asUInt())->toJSON());
+            response.setBlocksGoodFor(5760);    //day
+            response.setInvalidateOnNewAsset();
             return response;
         }
     }

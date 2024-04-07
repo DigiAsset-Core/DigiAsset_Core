@@ -18,6 +18,7 @@ protected:
     static IPFS* ipfs;
     static PermanentStoragePoolList* psp;
     static ChainAnalyzer* analyzer;
+    static RPC::Cache* rpcCache;
 };
 
 #endif // RPC_METHODS_TEST_H

@@ -11,6 +11,7 @@ Database* RPCMethodsTest::db = nullptr;
 IPFS* RPCMethodsTest::ipfs = nullptr;
 PermanentStoragePoolList* RPCMethodsTest::psp = nullptr;
 ChainAnalyzer* RPCMethodsTest::analyzer = nullptr;
+RPC::Cache* RPCMethodsTest::rpcCache = nullptr;
 
 void RPCMethodsTest::SetUpTestSuite() {
 
@@ -40,6 +41,9 @@ void RPCMethodsTest::SetUpTestSuite() {
     ///do not start() analyzer we are using in fake mode
     appMain->setChainAnalyzer(analyzer);
 
+    rpcCache = new RPC::Cache();
+    appMain->setRpcCache(rpcCache);
+
 }
 
 void RPCMethodsTest::TearDownTestSuite() {
@@ -48,4 +52,5 @@ void RPCMethodsTest::TearDownTestSuite() {
     delete psp;
     delete db;
     delete analyzer;
+    delete rpcCache;
 }

@@ -28,6 +28,9 @@ namespace RPC {
     void Response::setBlocksGoodFor(int blocks) {
         _blocksGoodFor = blocks;
     }
+    void Response::setInvalidateOnNewAsset() {
+        _invalidateOnNewAsset=true;
+    }
     bool Response::empty() const {
         return (_size == sizeof(Response));
     }
@@ -47,6 +50,10 @@ namespace RPC {
         _blocksGoodFor--;
         if (_blocksGoodFor<0) return _size;
         return 0;
+    }
+    size_t Response::newAssetIssued() {
+        if (!_invalidateOnNewAsset) return 0;
+        return _size;
     }
     size_t Response::size() const {
         return _size;
