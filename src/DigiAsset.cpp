@@ -1006,7 +1006,7 @@ Value DigiAsset::toJSON(bool simplified, bool ignoreIPFS) const {
 
     // Initial Supply
     if (_initialCount > -1) {
-        result["initial"] = static_cast<Json::UInt64>(_initialCount);
+        result["initialCount"] = static_cast<Json::UInt64>(_initialCount);
     }
 
     // Rules
