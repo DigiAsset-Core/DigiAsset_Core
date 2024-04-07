@@ -12,9 +12,8 @@ namespace RPC {
         /**
         * Returns a list of assetIDs ordered by issuance height
         *  params[0] - numberOfRecords(unsigned int) - default is infinity
-        *  params[1] - startIndex(unsigned int) - default is 1
-        *  params[2] - basic output - default is true
-        *  params[3] - reverse - default is false
+        *  params[2] - firstAsset(unsigned int) - default is infinity
+        *  params[3] - basic output - default is true
         *  params[4] - filter object
         *      {
         *        psp:  bool - if true only returns assets that are part of a psp, false only those that are not part of a psp
@@ -33,26 +32,32 @@ namespace RPC {
         * @return array[Json::Value] - Returns a Json::Value object that represents the DigiAsset in JSON format.
         *                       Refer to DigiAsset::toJSON for the format of the returned JSON object.
         */
-        extern const Response listassets(const Json::Value& params) {
+        extern const Response listlastassets(const Json::Value& params) {
             if (params.size() > 5) {
                 throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
             }
 
             //get number of records default is infinity
-            unsigned int numberOfRecords=std::numeric_limits<unsigned int>::max();;
+            unsigned int numberOfRecords=std::numeric_limits<unsigned int>::max();
             if (params.size()>0) {
                 if (params[0].isUInt()) {
                     numberOfRecords = params[0].asUInt();
+                    if (numberOfRecords < 1) {
+                        throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+                    }
                 } else if (!params[0].isNull()) {
                     throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
                 }
             }
 
-            //get start index default is 1
-            unsigned int startIndex=1;
+            //get firstAsset default is infinity
+            int firstAsset=std::numeric_limits<int>::max();
             if (params.size()>1) {
                 if (params[1].isUInt()) {
-                    startIndex = params[1].asUInt();
+                    firstAsset = params[1].asUInt();
+                    if (firstAsset < 1) {
+                        throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+                    }
                 } else if (!params[1].isNull()) {
                     throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
                 }
@@ -68,20 +73,10 @@ namespace RPC {
                 }
             }
 
-            //get reverse default is false
-            bool reverse=false;
-            if (params.size()>3) {
-                if (params[3].isBool()) {
-                    reverse = params[3].asBool();
-                } else if (!params[3].isNull()) {
-                    throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
-                }
-            }
-
             Json::Value filter=Json::objectValue;
-            if (params.size()>4) {
-                if (params[4].isObject()) {
-                    filter=params[4];
+            if (params.size()>3) {
+                if (params[3].isObject()) {
+                    filter=params[3];
                 } else {
                     throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
                 }
@@ -89,7 +84,7 @@ namespace RPC {
 
             //get asset list
             Database* db=AppMain::GetInstance()->getDatabase();
-            auto assets=db->getAssetIDsOrderedByIssuanceHeight(numberOfRecords, startIndex, reverse);
+            auto assets=db->getLastAssetsIssued(numberOfRecords, firstAsset);
 
             Value jsonArray=Json::arrayValue;
 
