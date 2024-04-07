@@ -387,7 +387,7 @@ public:
     std::string getBlockHash(uint height);
     uint getBlockHeight();
     void clearBlocksAboveHeight(uint height);
-    std::vector<BlockBasics> getLastBlocks(int limit);
+    std::vector<BlockBasics> getLastBlocks(unsigned int limit, unsigned int start=std::numeric_limits<unsigned int>::max());
 
     //exchange table
     void addExchangeRate(const std::string& address, unsigned int index, unsigned int height, double exchangeRate);

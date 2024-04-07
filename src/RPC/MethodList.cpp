@@ -23,6 +23,7 @@ namespace RPC {
         {"listaddresshistory", Methods::listaddresshistory},
         {"listassetissuances", Methods::listassetissuances},
         {"listassets", Methods::listassets},
+        {"listlastblocks", Methods::listlastblocks},
         {"listunspent", Methods::listunspent},
         {"resyncmetadata", Methods::resyncmetadata},
         {"send", Methods::send},

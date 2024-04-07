@@ -12,16 +12,25 @@ namespace RPC {
         /**
         * Returns a list the last blocks processed
         *  params[0] - limit(unsigned int) - number of records
+        *  params[1] - start(optional unsigned int default newest block) - what block to start from
         *
         * @return array of unsigned ints
         */
         extern const Response listlastblocks(const Json::Value& params) {
-            if (params.size() != 1) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
-            if (!params[0].isInt()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+            if (params.size() > 2) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+            if (!params[0].isUInt()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+
+            //get variables
+            unsigned int limit=params[0].asUInt();
+            unsigned int start=std::numeric_limits<unsigned int>::max();
+            if (params.size()==2) {
+                if (!params[1].isUInt()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+                start=params[1].asUInt();
+            }
 
             //look up blocks
             Database* db = AppMain::GetInstance()->getDatabase();
-            std::vector<BlockBasics> results= db->getLastBlocks(params[0].asInt());
+            std::vector<BlockBasics> results= db->getLastBlocks(limit,start);
 
             //convert to json
             Value jsonArray=Json::arrayValue;

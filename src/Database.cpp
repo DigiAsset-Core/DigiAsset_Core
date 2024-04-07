@@ -326,7 +326,7 @@ void Database::initializeClassValues() {
     _stmtGetValidUTXO.prepare(_db,"SELECT `txid`,`vout`,`aout`,`assetIndex`,`amount` FROM utxos WHERE heightDestroyed IS NULL AND address=? AND heightCreated>=? AND heightCreated<=? ORDER BY txid ASC, vout ASC, aout ASC;");
 
     //statement to get a list of the last n blocks
-    _stmtGetLastBlocks.prepare(_db, "SELECT height, hash, time, algo FROM blocks ORDER BY height DESC LIMIT ?");
+    _stmtGetLastBlocks.prepare(_db, "SELECT height, hash, time, algo FROM blocks WHERE height<=? ORDER BY height DESC LIMIT ?");
 
     //statement to check if exchange watch address
     _stmtIsWatchAddress.prepare(_db,"SELECT address FROM exchangeWatch WHERE address=?;");
@@ -1094,10 +1094,11 @@ void Database::clearBlocksAboveHeight(uint height) {
 /**
  * Get last blocks
  */
-std::vector<BlockBasics> Database::getLastBlocks(int limit) {
+std::vector<BlockBasics> Database::getLastBlocks(unsigned int limit, unsigned int start) {
     std::vector<BlockBasics> results;
     LockedStatement getLastBlocks{_stmtGetLastBlocks};
-    getLastBlocks.bindInt(1, limit);
+    getLastBlocks.bindInt64(1, start);
+    getLastBlocks.bindInt(2, limit);
     while (getLastBlocks.executeStep() == SQLITE_ROW) {
         BlockBasics block;
         block.height = getLastBlocks.getColumnInt(0);
@@ -1447,7 +1448,7 @@ uint64_t Database::getTotalAssetCount(const string& assetId) {
  * @return
  */
 uint64_t Database::getOriginalAssetCount(uint64_t assetIndex) {
-    if (getBeenPrunedUTXOHistory()>-1) throw exceptionDataPruned();
+    if (getBeenPrunedUTXOHistory()>0) throw exceptionDataPruned();
     LockedStatement getOriginalAssetCounta{_stmtGetOriginalAssetCounta};
     getOriginalAssetCounta.bindInt64(1, assetIndex);
     if (getOriginalAssetCounta.executeStep() != SQLITE_ROW) throw exceptionFailedSelect();

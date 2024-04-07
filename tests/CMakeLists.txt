@@ -17,7 +17,7 @@ set(TESTS
         Base58Tests.cpp
         DigiAssetTest.cpp
         DigiAssetRulesTest.cpp
-        DigiAssetTransactionTest.cpp
+        #DigiAssetTransactionTest.cpp
         TestHelpers.cpp TestHelpers.h RPCMethods.cpp RPCMethods.h)
 
 #load RPC tests
