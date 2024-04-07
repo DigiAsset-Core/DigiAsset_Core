@@ -284,6 +284,7 @@ void ChainAnalyzer::phaseSync() {
     chrono::steady_clock::time_point beginTotalTime;
     long totalProcessed = 0;
     stringstream ss;
+    blockinfo_t blockData = dgb->getBlock(hash);        //get first blocks data in syncing process(all future ones are at end of loop)
     while ((hash == _nextHash) && !stopRequested()) {
         if (totalProcessed == 0) {
             beginTotalTime = chrono::steady_clock::now();
@@ -302,7 +303,6 @@ void ChainAnalyzer::phaseSync() {
         }
 
         //process block
-        blockinfo_t blockData = dgb->getBlock(hash);                 //get the next blocks data
         _state = 0 - blockData.confirmations;                        //calculate how far behind we are
         if (!fastMode) ss << "(" << setw(8) << (_state + 1) << ") "; //+1 because message is related to after block is done
 
@@ -387,11 +387,16 @@ void ChainAnalyzer::phaseSync() {
             blockData = dgb->getBlock(hash);
         }
 
-        //set what block we will work on next
+        //get what would be next block based on the block we just processed
         _nextHash = blockData.nextblockhash;
+
+        //get what actually is the next block(we check both ways because if they don't match there was a rollback)
         _height++;
-        db->insertBlock(_height, _nextHash, blockData.time, blockData.algo, blockData.difficulty);
         hash = dgb->getBlockHash(_height);
+        blockData = dgb->getBlock(hash);
+
+        //save the next block to be processed to the database
+        db->insertBlock(blockData.height, blockData.hash, blockData.time, blockData.algo, blockData.difficulty);
     }
 }
 
