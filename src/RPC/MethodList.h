@@ -28,7 +28,8 @@ namespace RPC {
         extern const Response getrawtransaction(const Json::Value& params);
         extern const Response listaddresshistory(const Json::Value& params);
         extern const Response listassetissuances(const Json::Value& params);
-        extern const Response listassets(const Json::Value& params);
+        extern const Response listlastassets(const Json::Value& params);
+        extern const Response listlastassetspageindexes(const Json::Value& params);
         extern const Response listlastblocks(const Json::Value& params);
         extern const Response listunspent(const Json::Value& params);
         extern const Response resyncmetadata(const Json::Value& params);

@@ -11,15 +11,15 @@ namespace RPC {
     namespace Methods {
         /**
         * Returns a list of assetIDs ordered by issuance height
-        *  params[0] - numberOfRecords(unsigned int) - default is infinity
-        *  params[2] - firstAsset(unsigned int) - default is infinity
-        *  params[3] - basic output - default is true
-        *  params[4] - filter object
+        *  params[0] - numberOfRecords(optional unsigned int) - default is infinity
+        *  params[1] - firstAsset(optional unsigned int) - default is newest
+        *  params[2] - basic output(optional bool) - default is true
+        *  params[3] - filter(optional object)
         *      {
         *        psp:  bool - if true only returns assets that are part of a psp, false only those that are not part of a psp
         *              int  - if int returns only ones that are part of that specific psp
         *      }
-        * ** please note filtering may result in the number of items not equaling the number asked for.  It can also result in several pages of empty results
+        * ** please note filtering may result in the number of items not equaling the number asked for.
         *
         *
         * In basic mode, the function returns an array of Json::Value objects, each representing basic information about a DigiAsset, including:
@@ -33,7 +33,7 @@ namespace RPC {
         *                       Refer to DigiAsset::toJSON for the format of the returned JSON object.
         */
         extern const Response listlastassets(const Json::Value& params) {
-            if (params.size() > 5) {
+            if (params.size() > 4) {
                 throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
             }
 
@@ -51,7 +51,7 @@ namespace RPC {
             }
 
             //get firstAsset default is infinity
-            int firstAsset=std::numeric_limits<int>::max();
+            unsigned int firstAsset=std::numeric_limits<unsigned int>::max();
             if (params.size()>1) {
                 if (params[1].isUInt()) {
                     firstAsset = params[1].asUInt();
@@ -84,10 +84,12 @@ namespace RPC {
 
             //get asset list
             Database* db=AppMain::GetInstance()->getDatabase();
-            auto assets=db->getLastAssetsIssued(numberOfRecords, firstAsset);
+            unsigned int limit=filter.empty()?numberOfRecords:numberOfRecords*4;
+            auto assets=db->getLastAssetsIssued(limit, firstAsset);
 
             Value jsonArray=Json::arrayValue;
 
+            unsigned int left=numberOfRecords;
             for (const auto& asset: assets) {
                 //skip if fails filter
                 if (filter.isMember("psp")) {
@@ -101,15 +103,19 @@ namespace RPC {
 
                 //output
                 if (basic) {
-                    jsonArray.append(static_cast<Json::UInt64>(asset.assetIndex));
-                } else {
                     Json::Value assetJSON(Json::objectValue);
                     assetJSON["assetIndex"] = static_cast<Json::UInt64>(asset.assetIndex);
                     assetJSON["assetId"] = asset.assetId;
                     assetJSON["cid"] = asset.cid;
                     assetJSON["height"] = asset.height;
                     jsonArray.append(assetJSON);
+                } else {
+                    jsonArray.append(db->getAsset(asset.assetIndex).toJSON());
                 }
+
+                //break out of loop if we don't need any more
+                left--;
+                if (left==0) break;
             }
 
             //return response
