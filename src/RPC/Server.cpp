@@ -19,6 +19,14 @@
 #include <jsonrpccpp/client/connectors/httpclient.h>
 #include <openssl/bio.h>
 #include <openssl/evp.h>
+#include <thread>
+#include <vector>
+#include <memory>
+
+#include <boost/asio.hpp>
+#include <vector>
+#include <thread>
+
 
 
 using namespace std;
@@ -44,24 +52,45 @@ namespace RPC {
     ███████║███████╗   ██║   ╚██████╔╝██║
     ╚══════╝╚══════╝   ╚═╝    ╚═════╝ ╚═╝
      */
-    Server::Server(const string& fileName) {
+    Server::Server(const string& fileName) :_io(), _work(_io){
         Config config = Config(fileName);
         _username = config.getString("rpcuser");
         _password = config.getString("rpcpassword");
         _port = config.getInteger("rpcassetport", 14024);
+
+        // Create work to keep io_ running
+        boost::asio::io_service::work work(_io);
+
+        // Create a pool of threads to run all of the io_services.
+        size_t poolSize=config.getInteger("rpcparallel",8);
+        for (std::size_t i = 0; i < poolSize; ++i) {
+            thread_pool.emplace_back([this] { run_thread(); });
+        }
+
         tcp::endpoint endpoint(tcp::v4(), _port);
         _acceptor.open(endpoint.protocol());
         _acceptor.set_option(tcp::acceptor::reuse_address(true));
         _acceptor.bind(endpoint);
         _acceptor.listen();
+
         _allowedRPC = config.getBoolMap("rpcallow");
+    }
+
+    Server::~Server() {
+        // Wait for all threads in the pool to exit.
+        for (auto& thread : thread_pool) {
+            if (thread.joinable()) {
+                thread.join();
+            }
+        }
+    }
+
+    void Server::run_thread() {
+        _io.run();
     }
 
     void Server::start() {
         accept();
-
-        // Run the IO service to handle asynchronous operations
-        _io.run();
     }
 
     /*
@@ -73,47 +102,58 @@ namespace RPC {
      ╚═════╝ ╚══════╝╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝╚═╝ ╚═════╝
      */
 
-    [[noreturn]] void Server::accept() {
-        Log* log=Log::GetInstance();
+    void Server::accept() {
+        Log* log = Log::GetInstance();
         while (true) {
-            std::chrono::steady_clock::time_point startTime;
-            string method="NA";
             try {
-                //get the socket
-                tcp::socket socket(_io);
-                SocketRAII socketGuard(socket); //make sure socket always gets closed
-                _acceptor.accept(socket);
+                auto socket = std::make_shared<tcp::socket>(_io);
+                _acceptor.accept(*socket);
 
-                //start timer and add debug log
-                log->addMessage("request start",Log::DEBUG);
-                startTime=std::chrono::steady_clock::now();
-
-                // Handle the request and send the response
-                Value response;
-                Value request;
-                try {
-                    request = parseRequest(socket);
-                    method=request["method"].asString();
-                    response = handleRpcRequest(request);
-                } catch (const DigiByteException& e) {
-                    response = createErrorResponse(e.getCode(), e.getMessage(), request);
-                } catch (const out_of_range& e) {
-                    string text = e.what();
-                    response = createErrorResponse(-32601, "Unauthorized", request);
-                }
-
-                sendResponse(socket, response);
+                _io.post([this, socket]() { this->handleConnection(socket); });
             } catch (...) {
-                Log* log = Log::GetInstance();
-                log->addMessage("Unexpected exception caught", Log::DEBUG);
+                log->addMessage("Unexpected exception caught in accept loop", Log::DEBUG);
             }
-
-            //calculate time took
-            auto duration = std::chrono::steady_clock::now() - startTime;
-            log->addMessage("request("+method+") finished in "+to_string(std::chrono::duration_cast<std::chrono::microseconds>(duration).count())+" µs",Log::DEBUG);
         }
     }
 
+    void Server::handleConnection(std::shared_ptr<tcp::socket> socket) {
+        Log* log=Log::GetInstance();
+
+        std::chrono::steady_clock::time_point startTime;
+        string method="NA";
+        try {
+            //get the socket
+            SocketRAII socketGuard(*socket); //make sure socket always gets closed
+
+            //start timer and add debug log
+            log->addMessage("request start",Log::DEBUG);
+            startTime=std::chrono::steady_clock::now();
+
+            // Handle the request and send the response
+            Value response;
+            Value request;
+            try {
+                request = parseRequest(*socket);
+                method=request["method"].asString();
+                response = handleRpcRequest(request);
+            } catch (const DigiByteException& e) {
+                response = createErrorResponse(e.getCode(), e.getMessage(), request);
+            } catch (const out_of_range& e) {
+                string text = e.what();
+                response = createErrorResponse(-32601, "Unauthorized", request);
+            }
+
+            sendResponse(*socket, response);
+        } catch (...) {
+            Log* log = Log::GetInstance();
+            log->addMessage("Unexpected exception caught", Log::DEBUG);
+        }
+
+        //calculate time took
+        auto duration = std::chrono::steady_clock::now() - startTime;
+        log->addMessage("request("+method+") finished in "+to_string(std::chrono::duration_cast<std::chrono::microseconds>(duration).count())+" µs",Log::DEBUG);
+
+    }
 
     Value Server::parseRequest(tcp::socket& socket) {
         // Read the HTTP request headers

@@ -36,6 +36,9 @@ namespace RPC {
     class Server {
 
         boost::asio::io_service _io{};
+        boost::asio::io_service::work _work;
+        std::vector<std::thread> thread_pool;
+
         tcp::acceptor _acceptor{_io};
         std::string _username;
         std::string _password;
@@ -46,14 +49,17 @@ namespace RPC {
         //functions to handle requests
         Value parseRequest(tcp::socket& socket);
         [[noreturn]] void accept();
+        void handleConnection(std::shared_ptr<tcp::socket> socket);
         Value handleRpcRequest(const Value& request);
         Value createErrorResponse(int code, const std::string& message, const Value& request);
         void sendResponse(tcp::socket& socket, const Value& response);
         bool basicAuth(const std::string& header);
         static std::string getHeader(const std::string& headers, const std::string& wantedHeader);
+        void run_thread();
 
     public:
         explicit Server(const std::string& fileName = "config.cfg");
+        ~Server();
 
         void start();
         unsigned int getPort();
