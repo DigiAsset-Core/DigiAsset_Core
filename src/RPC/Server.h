@@ -23,6 +23,7 @@
 #include <boost/asio.hpp>
 #include <jsonrpccpp/server.h>
 #include <jsonrpccpp/server/connectors/httpserver.h>
+#include <sstream>
 #include "DigiByteCore.h"
 #include "ChainAnalyzer.h"
 #include "UniqueTaskQueue.h"

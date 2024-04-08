@@ -176,12 +176,17 @@ namespace RPC {
         // Find the Content-Length header
         int contentLength = stoi(getHeader(headers, "Content-Length"));
 
-        // Read the JSON content based on the content length
-        string jsonContent;
-        if (requestStr.size() < bodyStart + 4 + contentLength) {
-            throw DigiByteException(HTTP_BAD_REQUEST, "Invalid Content-Length");
+        // Prepare to read the body
+        std::string jsonContent = requestStr.substr(bodyStart + 4);
+        int remainingContent = contentLength - jsonContent.size();
+
+        // Read the rest of the body if not all content was received
+        while (remainingContent > 0) {
+            char buffer[1024];
+            std::size_t bytesRead = socket.read_some(boost::asio::buffer(buffer, std::min(remainingContent, static_cast<int>(sizeof(buffer)))));
+            jsonContent.append(buffer, bytesRead);
+            remainingContent -= bytesRead;
         }
-        jsonContent = requestStr.substr(bodyStart + 4, contentLength);
 
         // Parse the JSON content
         Json::CharReaderBuilder readerBuilder;
