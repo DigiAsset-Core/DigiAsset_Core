@@ -865,10 +865,10 @@ vector<uint64_t> Database::getAssetIndexes(const std::string& assetId) {
  * Returns a list of {assetIndex, assetId, cid, height} ordered by the issuance height
  * @return
  */
-std::vector<AssetBasics> Database::getLastAssetsIssued(unsigned int amount, int firstAsset) {
+std::vector<AssetBasics> Database::getLastAssetsIssued(unsigned int amount, unsigned int firstAsset) {
     std::vector<AssetBasics> results;
     LockedStatement getAssetIDsOrderedByHeight{_stmtGetLastAssetIssued};
-    getAssetIDsOrderedByHeight.bindInt(1, firstAsset);
+    getAssetIDsOrderedByHeight.bindInt64(1, firstAsset);
     getAssetIDsOrderedByHeight.bindInt(2, amount);
     while (getAssetIDsOrderedByHeight.executeStep() == SQLITE_ROW) {
         AssetBasics asset;
