@@ -6,7 +6,6 @@
 #include "RPC/MethodList.h"
 #include "RPC/Response.h"
 #include "RPC/Server.h"
-#include "utils.h"
 #include <jsoncpp/json/value.h>
 
 namespace RPC {
@@ -127,6 +126,8 @@ namespace RPC {
             //return response
             Response response;
             response.setResult(results);
+            response.setBlocksGoodFor(5760);    //day
+            response.setInvalidateOnNewAsset();
             return response;
         }
 
