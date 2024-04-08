@@ -117,6 +117,7 @@ private:
     Statement _stmtUpdateAsset;
     Statement _stmtGetAssetIndex;
     Statement _stmtGetAssetIndexOnUTXO;
+    Statement _stmtGetAssetIDsOrderedByHeight;
     Statement _stmtGetLastAssetIssued;
     Statement _stmtGetHeightAssetCreated;
     Statement _stmtGetAssetRules;
@@ -203,6 +204,7 @@ public:
         result+=printStatementInfo("_stmtUpdateAsset", _stmtUpdateAsset);
         result+=printStatementInfo("_stmtGetAssetIndex", _stmtGetAssetIndex);
         result+=printStatementInfo("_stmtGetAssetIndexOnUTXO", _stmtGetAssetIndexOnUTXO);
+        result+=printStatementInfo("_stmtGetAssetIDsOrderedByHeight", _stmtGetAssetIDsOrderedByHeight);
         result+=printStatementInfo("_stmtGetLastAssetIssued", _stmtGetLastAssetIssued);
         result+=printStatementInfo("_stmtGetHeightAssetCreated", _stmtGetHeightAssetCreated);
         result+=printStatementInfo("_stmtGetAssetRules", _stmtGetAssetRules);
@@ -374,6 +376,7 @@ public:
     DigiAsset getAsset(uint64_t assetIndex, uint64_t amount = 0);
     uint64_t getAssetIndex(const std::string& assetId, const std::string& txid = "", unsigned int vout = 0);
     std::vector<uint64_t> getAssetIndexes(const std::string& assetId);
+    std::vector<AssetBasics> getAssetsIssued(unsigned int amount, unsigned int offset);
     std::vector<AssetBasics> getLastAssetsIssued(unsigned int amount=std::numeric_limits<unsigned int>::max(), unsigned int startAsset=std::numeric_limits<unsigned int>::max());
 
     //assets table not to be used on assets that may have more than one assetIndex

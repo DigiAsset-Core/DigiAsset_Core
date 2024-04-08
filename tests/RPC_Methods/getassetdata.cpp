@@ -274,7 +274,27 @@ TEST_F(RPCMethodsTest, getassetdata) {
         EXPECT_TRUE(false);
     }
 
-    //todo test known good asset with decimals
+    //test known good asset with decimals
+    try {
+        Json::Value params=Json::arrayValue;
+        params.append("La5CDCbrVBuKmXBRAxp8SGG1q12BVR6mEToHes");
+        params.append(true);
+        auto results=RPC::methods[METHOD](params).toJSON(1)["result"];
+        EXPECT_TRUE(results.isObject());
+        EXPECT_EQ(results["assetId"].asString(),"La5CDCbrVBuKmXBRAxp8SGG1q12BVR6mEToHes");
+        EXPECT_EQ(results["assetIndex"].asUInt(),1524);
+        EXPECT_EQ(results["cid"].asString(),"bafkreif4iaaf7ympqe6fahxpopmbmi3crgxcj2weosgze4qazdfqe3xeje");
+        EXPECT_EQ(results["count"].asUInt64(),999999999);
+        EXPECT_EQ(results["initialCount"].asUInt64(),1000000000);
+        EXPECT_EQ(results["decimals"].asUInt(),3);
+        EXPECT_FALSE(results.isMember("ipfs"));
+        EXPECT_EQ(results["issuer"]["address"].asString(),"DDd3bSJKCD4M57PVawrw3ud7Mcw5DkXNRx");
+        EXPECT_EQ(results["issuer"]["country"].asString(),"CAN");
+        EXPECT_EQ(results["issuer"]["name"].asString(),"MATTHEW KENNETH CORNELISSE");
+        EXPECT_TRUE(results.isMember("rules"));
+    } catch (...) {
+        EXPECT_TRUE(false);
+    }
 
     //test assets with rules
     try {

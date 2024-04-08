@@ -22,6 +22,7 @@ namespace RPC {
         {"getrawtransaction", Methods::getrawtransaction},
         {"listaddresshistory", Methods::listaddresshistory},
         {"listassetissuances", Methods::listassetissuances},
+        {"listassets", Methods::listassets},
         {"listlastassets", Methods::listlastassets},
         {"listlastassetspageindexes", Methods::listlastassetspageindexes},
         {"listlastblocks", Methods::listlastblocks},

@@ -201,7 +201,11 @@ namespace RPC {
         end_loop:
             Json::Value result=Json::arrayValue;
             for (const auto& utxo: utxos) {
-                result.append(utxo.toJSON(!detailedAssetData));
+                Json::Value temp=utxo.toJSON(!detailedAssetData);
+
+                //fill in some values normally in listunspent
+                temp["amount"]=static_cast<double>(utxo.digibyte)/100000000;
+                result.append(temp);
             }
 
             //return response
