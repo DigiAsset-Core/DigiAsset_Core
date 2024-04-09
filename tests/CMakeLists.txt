@@ -31,5 +31,6 @@ endforeach()
 add_executable(Google_Tests_run ${TESTS})   #digibyteapi
 target_link_libraries(Google_Tests_run digiasset_core_lib sqlite3 curl)
 target_link_libraries(Google_Tests_run gtest gtest_main)
+target_link_libraries(Google_Tests_run ssl crypto pthread)
 
 target_link_libraries(Google_Tests_run /lib/x86_64-linux-gnu/libjsoncpp.so jsonrpccpp-common jsonrpccpp-client)

@@ -175,6 +175,7 @@ TEST_F(RPCMethodsTest, getassetdata) {
         EXPECT_EQ(results["cid"].asString(),"bafkreihmr3pnmiq27obhm2epq2b6crfcbe54dclaz326zibunti5k7szaa");
         EXPECT_EQ(results["count"].asUInt64(),20999397);
         EXPECT_EQ(results["initialCount"].asUInt(),21000000);
+        EXPECT_TRUE(results["psp"].empty());
         EXPECT_EQ(results["decimals"].asUInt(),0);
         EXPECT_TRUE(results["ipfs"].isObject());
         EXPECT_EQ(results["ipfs"]["data"]["assetName"].asString(),"d-BTC");
@@ -201,6 +202,8 @@ TEST_F(RPCMethodsTest, getassetdata) {
         EXPECT_EQ(results["cid"].asString(),"bafkreigi7batlvadnz6cqkbihwsnq6tuo4uivemd6vihyjs2ciosa6ysze");
         EXPECT_EQ(results["count"].asUInt64(),299);
         EXPECT_EQ(results["initialCount"].asUInt(),300);
+        EXPECT_EQ(results["psp"].size(),1);
+        EXPECT_EQ(results["psp"][0].asUInt(),1);
         EXPECT_EQ(results["decimals"].asUInt(),0);
         EXPECT_TRUE(results["ipfs"].isObject());
         EXPECT_EQ(results["ipfs"]["data"]["assetName"].asString(),"2-tone background");

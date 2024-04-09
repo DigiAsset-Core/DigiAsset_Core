@@ -52,8 +52,8 @@ namespace RPC {
         [[noreturn]] void accept();
         void handleConnection(std::shared_ptr<tcp::socket> socket);
         Value handleRpcRequest(const Value& request);
-        Value createErrorResponse(int code, const std::string& message, const Value& request);
-        void sendResponse(tcp::socket& socket, const Value& response);
+        static Value createErrorResponse(int code, const std::string& message, const Value& request);
+        static void sendResponse(tcp::socket& socket, const Value& response);
         bool basicAuth(const std::string& header);
         static std::string getHeader(const std::string& headers, const std::string& wantedHeader);
         void run_thread();
@@ -65,6 +65,8 @@ namespace RPC {
         void start();
         unsigned int getPort();
         bool isRPCAllowed(const string& method);
+        Value executeCall(const std::string& methodName, const Json::Value& params, const Json::Value& id=1);
+
     };
 
 }

@@ -47,6 +47,9 @@ class DigiAsset {
     //count(optional to allow including the total count of specific asset type)
     int64_t _initialCount = -1;
 
+    //array of PSP that asset is a member of.  [-1] means we have not looked it up yet
+    std::vector<int> _pspMembership={-1};
+
     //functions to help process chain data
     bool
     processIssuance(const getrawtransaction_t& txData, unsigned int height, unsigned char version, unsigned char opcode,
@@ -99,6 +102,7 @@ public:
     uint8_t getDecimals() const;
 
     uint64_t getInitialCount();
+    std::vector<int> getPspMembership();
 
     uint64_t getAssetIndex(bool allowUnknownAssetIndex=false) const;
     bool isAssetIndexSet() const;

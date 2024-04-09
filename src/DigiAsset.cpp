@@ -10,8 +10,8 @@
 #include "IPFS.h"
 #include "KYC.h"
 #include "PermanentStoragePool/PermanentStoragePoolList.h"
-#include "crypto/ripemd.h"
 #include "crypto/SHA256.h"
+#include "crypto/ripemd.h"
 
 using namespace std;
 
@@ -324,9 +324,9 @@ DigiAsset::DigiAsset(uint64_t assetIndex, const string& assetId, const string& c
             _aggregation = HYBRID;
             break;
         default:
-            if ((assetId!="DigiByte")&&(assetIndex==1)) throw out_of_range("invalid assetId");
+            if ((assetId != "DigiByte") && (assetIndex == 1)) throw out_of_range("invalid assetId");
             _aggregation = AGGREGABLE;
-            _divisibility=8;
+            _divisibility = 8;
             return;
     }
     _divisibility = Base58::decode(assetId)[23];
@@ -615,9 +615,9 @@ uint8_t DigiAsset::getDecimals() const {
  */
 uint64_t DigiAsset::getInitialCount() {
     //see if cached
-    if (_initialCount==-1) {
+    if (_initialCount == -1) {
         //get from database
-        _initialCount=AppMain::GetInstance()->getDatabase()->getOriginalAssetCount(_assetIndex);
+        _initialCount = AppMain::GetInstance()->getDatabase()->getOriginalAssetCount(_assetIndex);
     }
     return _initialCount;
 }
@@ -638,7 +638,7 @@ std::string DigiAsset::getCID() const {
  */
 uint64_t DigiAsset::getAssetIndex(bool allowUnknownAssetIndex) const {
     if (allowUnknownAssetIndex) return _assetIndex;
-    if (_assetIndex==0) throw exceptionUnknownAssetIndex();
+    if (_assetIndex == 0) throw exceptionUnknownAssetIndex();
     return _assetIndex;
 }
 
@@ -972,6 +972,11 @@ void DigiAsset::checkRulesPass(const vector<AssetUTXO>& inputs, const vector<Ass
  *                         - name (string, optional): Issuer's name
  *                         - hash (string, optional): Issuer's hash
  *                         name and hash will never both be present.  hash is returned if creator is anonymous
+ *
+ *  Additional Fields only included if looked up:
+ *                     - psp (Json::arrayValue):  array of PSP indexes that the asset is a member of
+ *                     - initialCount (uint64_t):   number of assets that where issued
+ *
  */
 Value DigiAsset::toJSON(bool simplified, bool ignoreIPFS) const {
     Json::Value result(Json::objectValue);
@@ -1009,6 +1014,14 @@ Value DigiAsset::toJSON(bool simplified, bool ignoreIPFS) const {
         result["initialCount"] = static_cast<Json::UInt64>(_initialCount);
     }
 
+    // PSP Membership
+    if ( _pspMembership.empty() || (_pspMembership[0] != -1)) {
+        result["psp"]=Json::arrayValue;
+        for (const auto pspId: _pspMembership) {
+            result["psp"].append(pspId);
+        }
+    }
+
     // Rules
     DigiAssetRules rules = getRules();
     if (!rules.empty()) {
@@ -1038,10 +1051,23 @@ Value DigiAsset::toJSON(bool simplified, bool ignoreIPFS) const {
  * Will do nothing if already known
  */
 void DigiAsset::lookupAssetIndex(const string& txid, unsigned int vout) {
-    if (_assetIndex>0) return;
-    Database* db=AppMain::GetInstance()->getDatabase();
-    _assetIndex=db->getAssetIndex(_assetId,txid,vout);
+    if (_assetIndex > 0) return;
+    Database* db = AppMain::GetInstance()->getDatabase();
+    _assetIndex = db->getAssetIndex(_assetId, txid, vout);
 }
 bool DigiAsset::isAssetIndexSet() const {
-    return _assetIndex!=0;
+    return _assetIndex != 0;
+}
+
+/**
+ * Returns a list of PSP that this asset is a member of
+ * @return
+ */
+std::vector<int> DigiAsset::getPspMembership() {
+    if (
+            (!_pspMembership.empty()) &&
+            (_pspMembership[0] == -1)) {
+        _pspMembership = AppMain::GetInstance()->getDatabase()->listPoolsAssetIsIn(_assetIndex);
+    }
+    return _pspMembership;
 }

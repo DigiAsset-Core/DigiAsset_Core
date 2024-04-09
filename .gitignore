@@ -1,6 +1,7 @@
 cmake-build-debug
 .idea
 bin/*
+bin/cache/*
 bin/stream/*
 build
 build/*

@@ -101,7 +101,7 @@ ChainAnalyzer* AppMain::getChainAnalyzer() {
     return _analyzer;
 }
 void AppMain::setRpcCache(RPC::Cache* cache) {
-    _rpcCache=cache;
+    _rpcCache = cache;
 }
 RPC::Cache* AppMain::getRpcCache() {
     if (_rpcCache == nullptr) {
@@ -110,4 +110,16 @@ RPC::Cache* AppMain::getRpcCache() {
         throw runtime_error("Not available");
     }
     return _rpcCache;
+}
+
+void AppMain::setRpcServer(RPC::Server* server) {
+    _rpcServer = server;
+}
+RPC::Server* AppMain::getRpcServer() {
+    if (_rpcServer == nullptr) {
+        Log* log = Log::GetInstance();
+        log->addMessage("Tried to get RPC Server without first loading", Log::CRITICAL);
+        throw runtime_error("Not available");
+    }
+    return _rpcServer;
 }

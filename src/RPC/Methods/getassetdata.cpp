@@ -42,10 +42,9 @@ namespace RPC {
                     //definitely usage 2(all values included)
                     if (
                             !params[0].isString() ||
-                            !params[1].isString() || (params[1].asString().length()!=64) ||
+                            !params[1].isString() || (params[1].asString().length() != 64) ||
                             !params[2].isInt() ||
-                            ((params.size() == 4) && (!params[3].isBool()))
-                        ) {
+                            ((params.size() == 4) && (!params[3].isBool()))) {
                         throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
                     }
                     asset = db->getAsset(db->getAssetIndex(
@@ -62,19 +61,22 @@ namespace RPC {
                     throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
                 }
             } catch (const Database::exceptionFailedSelect& e) {
-                throw DigiByteException(RPC_MISC_ERROR,"Asset Doesn't Exist");
+                throw DigiByteException(RPC_MISC_ERROR, "Asset Doesn't Exist");
             }
 
             //look up how many assets exist
             asset.setCount(db->getTotalAssetCount(asset.getAssetIndex()));
             asset.getInitialCount();
-            
+
+            //lookup PSP Membership
+            asset.getPspMembership();
+
             //get simplified default is false
             bool excludeIPFS = false;
-            if (params.size()==2) {
+            if (params.size() == 2) {
                 excludeIPFS = params[1].asBool();
             }
-            if (params.size()==4) {
+            if (params.size() == 4) {
                 excludeIPFS = params[3].asBool();
             }
 
@@ -84,5 +86,5 @@ namespace RPC {
             return response;
         }
 
-    }
-}
+    } // namespace Methods
+} // namespace RPC

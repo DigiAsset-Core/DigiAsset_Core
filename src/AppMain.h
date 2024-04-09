@@ -11,6 +11,7 @@
 #include "Database.h"
 #include "PermanentStoragePool/PermanentStoragePoolList.h"
 #include "RPC/Cache.h"
+#include "RPC/Server.h"
 #include <mutex>
 class AppMain {
     /**
@@ -41,6 +42,7 @@ private:
     PermanentStoragePoolList* _psp = nullptr;
     ChainAnalyzer* _analyzer = nullptr;
     RPC::Cache* _rpcCache = nullptr;
+    RPC::Server* _rpcServer = nullptr;
 
 public:
     void setDatabase(Database* db);
@@ -61,6 +63,9 @@ public:
 
     void setRpcCache(RPC::Cache* cache);
     RPC::Cache* getRpcCache();
+
+    void setRpcServer(RPC::Server* server);
+    RPC::Server* getRpcServer();
 
     void reset();
 };

@@ -119,6 +119,7 @@ int main() {
         // Create and start the Bitcoin RPC server
         log->addMessage("Starting RPC Server");
         RPC::Server server;
+        main->setRpcServer(&server);
         server.start();
 
     } catch (const std::exception& e) {

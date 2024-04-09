@@ -479,6 +479,7 @@ public:
     void removeAssetFromPool(unsigned int poolIndex, const std::string& assetId, bool unpin);
     bool isAssetInPool(unsigned int poolIndex, unsigned int assetIndex);
     bool isAssetInPool(unsigned int assetIndex);
+    std::vector<int> listPoolsAssetIsIn(unsigned int assetIndex);
     std::vector<std::string> getPSPFileList(unsigned int poolIndex);
 
     //stats table

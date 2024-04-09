@@ -4,28 +4,25 @@
 
 #include "RPC/Server.h"
 #include "AppMain.h"
-#include "RPC/MethodList.h"
 #include "Config.h"
 #include "DigiByteCore.h"
-#include "DigiByteDomain.h"
-#include "DigiByteTransaction.h"
 #include "Log.h"
 #include "OldStream.h"
-#include "PermanentStoragePool/PermanentStoragePoolList.h"
+#include "RPC/MethodList.h"
 #include "Version.h"
 #include "utils.h"
 #include <iostream>
 #include <jsonrpccpp/client.h>
 #include <jsonrpccpp/client/connectors/httpclient.h>
+#include <memory>
 #include <openssl/bio.h>
 #include <openssl/evp.h>
 #include <thread>
 #include <vector>
-#include <memory>
 
 #include <boost/asio.hpp>
-#include <vector>
 #include <thread>
+#include <vector>
 
 
 
@@ -52,7 +49,7 @@ namespace RPC {
     ███████║███████╗   ██║   ╚██████╔╝██║
     ╚══════╝╚══════╝   ╚═╝    ╚═════╝ ╚═╝
      */
-    Server::Server(const string& fileName) :_io(), _work(_io){
+    Server::Server(const string& fileName) : _io(), _work(_io) {
         Config config = Config(fileName);
         _username = config.getString("rpcuser");
         _password = config.getString("rpcpassword");
@@ -62,7 +59,7 @@ namespace RPC {
         boost::asio::io_service::work work(_io);
 
         // Create a pool of threads to run all of the io_services.
-        size_t poolSize=config.getInteger("rpcparallel",8);
+        size_t poolSize = config.getInteger("rpcparallel", 8);
         for (std::size_t i = 0; i < poolSize; ++i) {
             thread_pool.emplace_back([this] { run_thread(); });
         }
@@ -78,7 +75,7 @@ namespace RPC {
 
     Server::~Server() {
         // Wait for all threads in the pool to exit.
-        for (auto& thread : thread_pool) {
+        for (auto& thread: thread_pool) {
             if (thread.joinable()) {
                 thread.join();
             }
@@ -117,24 +114,24 @@ namespace RPC {
     }
 
     void Server::handleConnection(std::shared_ptr<tcp::socket> socket) {
-        Log* log=Log::GetInstance();
+        Log* log = Log::GetInstance();
 
         std::chrono::steady_clock::time_point startTime;
-        string method="NA";
+        string method = "NA";
         try {
             //get the socket
             SocketRAII socketGuard(*socket); //make sure socket always gets closed
 
             //start timer and add debug log
-            log->addMessage("request start",Log::DEBUG);
-            startTime=std::chrono::steady_clock::now();
+            log->addMessage("request start", Log::DEBUG);
+            startTime = std::chrono::steady_clock::now();
 
             // Handle the request and send the response
             Value response;
             Value request;
             try {
                 request = parseRequest(*socket);
-                method=request["method"].asString();
+                method = request["method"].asString();
                 response = handleRpcRequest(request);
             } catch (const DigiByteException& e) {
                 response = createErrorResponse(e.getCode(), e.getMessage(), request);
@@ -151,8 +148,7 @@ namespace RPC {
 
         //calculate time took
         auto duration = std::chrono::steady_clock::now() - startTime;
-        log->addMessage("request("+method+") finished in "+to_string(std::chrono::duration_cast<std::chrono::microseconds>(duration).count())+" µs",Log::DEBUG);
-
+        log->addMessage("request(" + method + ") finished in " + to_string(std::chrono::duration_cast<std::chrono::microseconds>(duration).count()) + " µs", Log::DEBUG);
     }
 
     Value Server::parseRequest(tcp::socket& socket) {
@@ -232,9 +228,33 @@ namespace RPC {
         return (decoded == _username + ":" + _password);
     }
 
+    Value Server::executeCall(const std::string& methodName, const Json::Value& params, const Json::Value& id) {
+        AppMain* app = AppMain::GetInstance();
+
+        //see if method on approved list
+        if (!isRPCAllowed(methodName)) throw DigiByteException(RPC_FORBIDDEN_BY_SAFE_MODE, methodName + " is forbidden");
+
+        //see if cached
+        Response response;
+        if (app->getRpcCache()->isCached(methodName, params, response)) return response.toJSON(id);
+
+        //see if custom method handler
+        if (methods.find(methodName) != methods.end()) {
+            // Method exists in the map, so call it and set the result
+            response = methods[methodName](params);
+        } else {
+            // Method does not exist in the map, fallback to sending to DigiByte core
+            response.setResult(app->getDigiByteCore()->sendcommand(methodName, params));
+        }
+
+        //cache response
+        app->getRpcCache()->addResponse(methodName, params, response);
+
+        //return as json
+        return response.toJSON(id);
+    }
 
     Value Server::handleRpcRequest(const Value& request) {
-        AppMain* app=AppMain::GetInstance();
         Json::Value id;
 
         //lets get the id(user defined value they can use as a reference)
@@ -256,27 +276,7 @@ namespace RPC {
         }
         const Json::Value& params = request.isMember("params") ? request["params"] : Value(Json::nullValue);
 
-        //see if method on approved list
-        if (!isRPCAllowed(methodName)) throw DigiByteException(RPC_FORBIDDEN_BY_SAFE_MODE, methodName + " is forbidden");
-
-        //see if cached
-        Response response;
-        if (app->getRpcCache()->isCached(methodName,params,response)) return response.toJSON(id);
-
-        //see if custom method handler
-        if (methods.find(methodName) != methods.end()) {
-            // Method exists in the map, so call it and set the result
-            response = methods[methodName](params);
-        } else {
-            // Method does not exist in the map, fallback to sending to DigiByte core
-            response.setResult(app->getDigiByteCore()->sendcommand(methodName, params));
-        }
-
-        //cache response
-        app->getRpcCache()->addResponse(methodName,params,response);
-
-        //return as json
-        return response.toJSON(id);
+        return executeCall(methodName, params, id);
     }
 
 
@@ -334,4 +334,4 @@ namespace RPC {
         return it->second;
     }
 
-}
+} // namespace RPC
