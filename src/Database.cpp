@@ -1504,7 +1504,7 @@ std::vector<IssuanceBasics> Database::getAssetIssuanceTXIDs(const string& assetI
         IssuanceBasics issuance;
         issuance.assetIndex = getAssetIssuanceTXIDs.getColumnInt(0);
         issuance.txid = getAssetIssuanceTXIDs.getColumnBlob(1).toHex();
-        issuance.amount = getAssetIssuanceTXIDs.getColumnInt(2);
+        issuance.amount = getAssetIssuanceTXIDs.getColumnInt64(2);
         issuance.height = getAssetIssuanceTXIDs.getColumnInt(3);
         issuance.cid = getAssetIssuanceTXIDs.getColumnText(4);
         results.push_back(issuance);
