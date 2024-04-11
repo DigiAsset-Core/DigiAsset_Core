@@ -45,7 +45,7 @@ public:
     static const int STOPPED = 1;
     static const int INITIALIZING = 2;
     static const int REWINDING = 3;
-    static const int OPTIMIZING = 4;
+    static const int BUSY = 4;
 
     //get state
     int getSync() const;
@@ -100,6 +100,7 @@ private:
     static unsigned int configSizeToInt(unsigned int value);
     static unsigned int extraFileLengthByMimeType(const std::string& mimeType);
 
+    friend class Database;  //so database can modify state
 public:
     /*
    ███████╗██████╗ ██████╗  ██████╗ ██████╗ ███████╗

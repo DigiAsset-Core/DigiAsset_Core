@@ -18,6 +18,19 @@
 
 using namespace std;
 
+namespace {
+    /**
+     * Make sure chain analyzer gets a chance to sync fully
+     * @param analyzer
+     */
+    void waitForSync(ChainAnalyzer* analyzer) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        while (analyzer->getSync() != 0) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        }
+    }
+} // namespace
+
 /**
  * Defines default IPFS callbacks
  */
@@ -1170,9 +1183,9 @@ void Database::createUTXO(const AssetUTXO& value, unsigned int heightCreated, bo
     rc = createUTXO.executeStep();
     if (rc != SQLITE_DONE) {
         string tempErrorMessage = sqlite3_errmsg(_db); //todo have occasionally gotten no more rows error.  This eventually fixes itself but need to figure out why.  to prevent hammering of system have added a 2 second delay when this error occurs
-        Log::GetInstance()->addMessage("Known Unrecoverable Database Error: "+tempErrorMessage,Log::CRITICAL);
-        std::abort();   //crash the program
-        throw exceptionFailedInsert();//just incase
+        Log::GetInstance()->addMessage("Known Unrecoverable Database Error: " + tempErrorMessage, Log::CRITICAL);
+        std::abort();                  //crash the program
+        throw exceptionFailedInsert(); //just incase
     }
 
     //add any assets
@@ -2534,7 +2547,11 @@ bool Database::canGetAddressStats() {
 void Database::updateStats(unsigned int timeFrame) {
     //return if stats are not possible do to pruning being on(no stats are possible if algo stats are not possible)
     if (!canGetAlgoStats()) return;
+    const unsigned int maxDaysToProcessAtOnce = DIGIBYTECORE_DATABASE_STATS_UPDATE_DAYS;
 
+    ChainAnalyzer* analyzer = AppMain::GetInstance()->getChainAnalyzer();
+
+    Log* log = Log::GetInstance();
     int rc;
 
     //prep key variables
@@ -2542,230 +2559,301 @@ void Database::updateStats(unsigned int timeFrame) {
     string timeStr = to_string(timeFrame);
     sqlite3_stmt* stmt;
 
-    //find what height we need to start update from
+    //loop through database until up to current date
     unsigned int startTime = 0;
-    unsigned int beginHeight = 1;
-    sql = "SELECT end_time,begin_height FROM StatsCutOffHeights_" + timeStr + " ORDER BY end_time DESC LIMIT 1;";
-    rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
-    if (rc == SQLITE_OK) {
-        //table exists so get the highest value
-        rc = executeSqliteStepWithRetry(stmt);
-        if (rc != SQLITE_ROW) throw exceptionFailedSelect();
-        startTime = sqlite3_column_int(stmt, 0);
-        beginHeight = sqlite3_column_int(stmt, 1);
-    }
-    sqlite3_finalize(stmt);
+    unsigned int lastStartTime = 1; //must be low non-zero value.  may as well be 1
+    while (true) {  //break is at end of part 1
+        //find what height we need to start update from
+        log->addMessage("Database::updateStats 1 of 13 find what height we need to start update from", Log::DEBUG);
+        unsigned int beginHeight = 1;
+        sql = "SELECT end_time,begin_height FROM StatsCutOffHeights_" + timeStr + " ORDER BY end_time DESC LIMIT 1;";
+        rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
+        if (rc == SQLITE_OK) {
+            //table exists so get the highest value
+            analyzer->_state=ChainAnalyzer::BUSY;
+            rc = executeSqliteStepWithRetry(stmt);
+            if (rc != SQLITE_ROW) throw exceptionFailedSelect();
+            startTime = sqlite3_column_int(stmt, 0);
+            beginHeight = sqlite3_column_int(stmt, 1);
+        }
+        sqlite3_finalize(stmt);
+        waitForSync(analyzer);
+        if (startTime == lastStartTime) break; //we are fully synced
+        log->addMessage("Database::updateStats syncing stats between block: " + to_string(beginHeight) + " & " + to_string(beginHeight + 5760 * maxDaysToProcessAtOnce), Log::DEBUG);
 
-    //create fresh new cutoff table
-    if (startTime > 0) {
-        executeSQLStatement(
-                "DELETE FROM StatsCutOffHeights_" + timeStr,
-                exceptionFailedDelete());
-    } else {
-        executeSQLStatement(
-                "CREATE TABLE StatsCutOffHeights_" + timeStr + " (end_time INTEGER NOT NULL,begin_height INTEGER NOT NULL,end_height INTEGER NOT NULL,PRIMARY KEY(end_time));",
-                exceptionFailedToCreateTable());
-    }
-
-    //populate cutoff table
-    // clang-format off
-executeSQLStatement(
-"INSERT INTO StatsCutOffHeights_" + timeStr + " (end_time, begin_height, end_height) "
-"SELECT "
-    "end_time, "
-    "MIN(begin_height) AS begin_height, "
-    "MAX(end_height) AS end_height "
-"FROM ("
-    "SELECT "
-        "CEIL(time / " + timeStr + ".0) * " + timeStr + " AS end_time, "
-        "LEAD(height, 1, height) OVER (ORDER BY time ASC) - 2 AS end_height, "
-        "LAG(height, 1, 1) OVER (ORDER BY time ASC) AS begin_height "
-    "FROM blocks "
-    "WHERE height >= " + to_string(beginHeight) + " "
-") AS subquery "
-"GROUP BY end_time "
-"HAVING MIN(begin_height) >= " + to_string(beginHeight) + " "
-"ORDER BY end_time ASC;",
-exceptionFailedInsert()
-);
-    // clang-format on
-
-    //create Stats Algo Table
-    if (startTime == 0) {
-        executeSQLStatement(
-                "CREATE TABLE StatsAlgo_" + timeStr + " (end_time INTEGER NOT NULL,algo INTEGER NOT NULL,min_difficulty REAL NOT NULL, max_difficulty REAL NOT NULL, avg_difficulty REAL NOT NULL, num_blocks INTEGER NOT NULL, PRIMARY KEY(end_time, algo));",
-                exceptionFailedToCreateTable());
-    } else {
-        //table exists delete anything that may have been partial info
-        executeSQLStatement(
-                "DELETE FROM StatsAlgo_" + timeStr + " WHERE end_time >= " + to_string(startTime),
-                exceptionFailedToCreateTable());
-    }
-
-    //populate stats algo table
-    // clang-format off
-executeSQLStatement(
-"INSERT INTO StatsAlgo_" + timeStr + " (end_time, algo, min_difficulty, max_difficulty, avg_difficulty, num_blocks) "
-"SELECT "
-    "tch.end_time, "
-    "b.algo, "
-    "MIN(b.difficulty) AS min_difficulty, "
-    "MAX(b.difficulty) AS max_difficulty, "
-    "AVG(b.difficulty) AS avg_difficulty, "
-    "COUNT(*) AS num_blocks "
-"FROM blocks b "
-"JOIN StatsCutOffHeights_" + timeStr + " tch ON b.height >= tch.begin_height AND b.height <= tch.end_height "
-"GROUP BY tch.end_time, b.algo "
-"HAVING COUNT(*) >0 "
-"ORDER BY tch.end_time ASC, b.algo ASC;",
-exceptionFailedInsert()
-);
-    // clang-format on
-
-    //update if can do address stats
-    if (canGetAddressStats()) {
-
-        //create address stats
-        if (startTime == 0) {
+        //create fresh new cutoff table
+        analyzer->_state=ChainAnalyzer::BUSY;
+        if (startTime > 0) {
+            log->addMessage("Database::updateStats 2 of 13 rollback temp cutoff table", Log::DEBUG);
             executeSQLStatement(
-                    "CREATE TABLE StatsAddress_" + timeStr + " ( end_time INTEGER NOT NULL, total INTEGER, Count_Over_0 INTEGER, Count_Over_1 INTEGER, Count_Over_1k INTEGER, Count_Over_1m INTEGER, num_addresses_with_assets INTEGER, num_addresses_created INTEGER, num_addresses_used INTEGER, num_quantum_unsafe INTEGER, PRIMARY KEY(end_time));",
+                    "DELETE FROM StatsCutOffHeights_" + timeStr,
+                    exceptionFailedDelete());
+        } else {
+            log->addMessage("Database::updateStats 2 of 13 create temp cutoff table", Log::DEBUG);
+            executeSQLStatement(
+                    "CREATE TABLE StatsCutOffHeights_" + timeStr + " (end_time INTEGER NOT NULL,begin_height INTEGER NOT NULL,end_height INTEGER NOT NULL,PRIMARY KEY(end_time));",
+                    exceptionFailedToCreateTable());
+        }
+        waitForSync(analyzer);
+
+        //populate cutoff table
+        log->addMessage("Database::updateStats 3 of 13 populate temp cutoff table", Log::DEBUG);
+        analyzer->_state=ChainAnalyzer::BUSY;
+        // clang-format off
+        executeSQLStatement(
+            "INSERT INTO StatsCutOffHeights_" + timeStr + " (end_time, begin_height, end_height) "
+            "SELECT "
+                "end_time, "
+                "MIN(begin_height) AS begin_height, "
+                "MAX(end_height) AS end_height "
+            "FROM ("
+                "SELECT "
+                    "CEIL(time / " + timeStr + ".0) * " + timeStr + " AS end_time, "
+                    "LEAD(height, 1, height) OVER (ORDER BY time ASC) - 2 AS end_height, "
+                    "LAG(height, 1, 1) OVER (ORDER BY time ASC) AS begin_height "
+                "FROM blocks "
+                "WHERE height >= " + to_string(beginHeight) + " AND height <= " + to_string( beginHeight + 5760*maxDaysToProcessAtOnce + 1000) + " "
+            ") AS subquery "
+            "GROUP BY end_time "
+            "HAVING MIN(begin_height) >= " + to_string(beginHeight) + " "
+            "ORDER BY end_time ASC;",
+            exceptionFailedInsert()
+        );
+        // clang-format on
+        waitForSync(analyzer);
+
+        //create Stats Algo Table
+        analyzer->_state=ChainAnalyzer::BUSY;
+        if (startTime == 0) {
+            log->addMessage("Database::updateStats 4 of 13 create temp algo table", Log::DEBUG);
+            executeSQLStatement(
+                    "CREATE TABLE StatsAlgo_" + timeStr + " (end_time INTEGER NOT NULL,algo INTEGER NOT NULL,min_difficulty REAL NOT NULL, max_difficulty REAL NOT NULL, avg_difficulty REAL NOT NULL, num_blocks INTEGER NOT NULL, PRIMARY KEY(end_time, algo));",
                     exceptionFailedToCreateTable());
         } else {
             //table exists delete anything that may have been partial info
+            log->addMessage("Database::updateStats 4 of 13 rollback temp algo table", Log::DEBUG);
             executeSQLStatement(
-                    "DELETE FROM StatsAddress_" + timeStr + " WHERE end_time >= " + to_string(startTime),
+                    "DELETE FROM StatsAlgo_" + timeStr + " WHERE end_time >= " + to_string(startTime),
                     exceptionFailedToCreateTable());
         }
+        waitForSync(analyzer);
 
-        //populate stats address table with funded counts
+        //populate stats algo table
+        log->addMessage("Database::updateStats 5 of 13 populate temp algo table", Log::DEBUG);
+        analyzer->_state=ChainAnalyzer::BUSY;
         // clang-format off
-executeSQLStatement(
-    "INSERT INTO StatsAddress_" + timeStr + " (end_time, Count_Over_0, Count_Over_1, Count_Over_1k, Count_Over_1m) "
-        "SELECT "
-            "sub.end_time, "
-            "COUNT(CASE WHEN sub.total_amount > 0 THEN 1 ELSE NULL END) AS Count_Over_0, "
-            "COUNT(CASE WHEN sub.total_amount > 100000000 THEN 1 ELSE NULL END) AS Count_Over_1, "
-            "COUNT(CASE WHEN sub.total_amount > 100000000000 THEN 1 ELSE NULL END) AS Count_Over_1k, "
-            "COUNT(CASE WHEN sub.total_amount > 100000000000000 THEN 1 ELSE NULL END) AS Count_Over_1m "
-        "FROM ("
+        executeSQLStatement(
+            "INSERT INTO StatsAlgo_" + timeStr + " (end_time, algo, min_difficulty, max_difficulty, avg_difficulty, num_blocks) "
             "SELECT "
                 "tch.end_time, "
-                "u.address, "
-                "SUM(u.amount) AS total_amount "
-            "FROM utxos u "
-            "JOIN StatsCutOffHeights_" + timeStr + " tch ON u.heightCreated <= tch.end_height AND (u.heightDestroyed IS NULL OR u.heightDestroyed > tch.end_height) "
-            "WHERE u.assetIndex = 1 "
-            "GROUP BY tch.end_time, u.address"
-        ") AS sub "
-        "GROUP BY sub.end_time;",
-    exceptionFailedInsert()
-);
+                "b.algo, "
+                "MIN(b.difficulty) AS min_difficulty, "
+                "MAX(b.difficulty) AS max_difficulty, "
+                "AVG(b.difficulty) AS avg_difficulty, "
+                "COUNT(*) AS num_blocks "
+            "FROM blocks b "
+            "JOIN StatsCutOffHeights_" + timeStr + " tch ON b.height >= tch.begin_height AND b.height <= tch.end_height "
+            "WHERE tch.end_time >= " + to_string(startTime) + " "
+            "GROUP BY tch.end_time, b.algo "
+            "HAVING COUNT(*) >0 "
+            "ORDER BY tch.end_time ASC, b.algo ASC;",
+            exceptionFailedInsert()
+        );
         // clang-format on
+        waitForSync(analyzer);
 
-        //populate stats address table with asset counts
-        // clang-format off
-executeSQLStatement(
-    "UPDATE StatsAddress_" + timeStr + " "
-    "SET num_addresses_with_assets = COALESCE(sub.num_addresses_with_assets, 0) "
-    "FROM ( "
-        "SELECT "
-            "tch.end_time, "
-            "COUNT(DISPERSED u.address) AS num_addresses_with_assets "
-        "FROM utxos u "
-        "JOIN StatsCutOffHeights_" + timeStr + " tch ON u.heightCreated <= tch.end_height AND (u.heightDestroyed IS NULL OR u.heightDestroyed > tch.end_height) "
-        "WHERE u.assetIndex > 1 "
-        "GROUP BY tch.end_time "
-    ") AS sub "
-    "WHERE StatsAddress_" + timeStr + ".end_time = sub.end_time;",
-    exceptionFailedUpdate()
-);
-        // clang-format on
+        //update if can do address stats
+        if (canGetAddressStats()) {
+            log->addMessage("Database::updateStats 6 of 13 add indexes if needed", Log::DEBUG);
+            addPerformanceIndex("utxos", "assetIndex", "heightCreated", "heightDestroyed");
+            addPerformanceIndex("utxos", "address", "amount", "heightCreated", "heightDestroyed");
+            addPerformanceIndex("utxos", "heightCreated", "heightDestroyed");
+            addPerformanceIndex("StatsCutOffHeights_" + timeStr, "end_height");
+            addPerformanceIndex("StatsCutOffHeights_" + timeStr, "end_time");
+            while (!_performanceIndexes.empty()) {
+                executePerformanceIndex(analyzer->_state);
+                waitForSync(analyzer);
+            }
 
-        //populate StatsAddress table with address created counts
-        // clang-format off
-executeSQLStatement(
-    "UPDATE StatsAddress_" + timeStr + " "
-    "SET num_addresses_created = COALESCE(sub.num_addresses_created, 0) "
-    "FROM ( "
-        "SELECT "
-            "tch.end_time, "
-            "COUNT(DISPERSED u.address) AS num_addresses_created "
-        "FROM StatsCutOffHeights_" + timeStr + " tch "
-        "LEFT JOIN ( "
-            "SELECT "
-                "address, "
-                "MIN(heightCreated) AS first_utxo_created "
-            "FROM utxos "
-            "GROUP BY address "
-        ") AS u ON u.first_utxo_created >= tch.begin_height AND u.first_utxo_created <= tch.end_height "
-        "GROUP BY tch.end_time "
-    ") AS sub "
-    "WHERE StatsAddress_" + timeStr + ".end_time = sub.end_time;",
-    exceptionFailedUpdate()
-);
-        // clang-format on
+            //create address stats
+            analyzer->_state=ChainAnalyzer::BUSY;
+            if (startTime == 0) {
+                log->addMessage("Database::updateStats 7 of 13 create temp address table", Log::DEBUG);
+                executeSQLStatement(
+                        "CREATE TABLE StatsAddress_" + timeStr + " ( end_time INTEGER NOT NULL, total INTEGER, Count_Over_0 INTEGER, Count_Over_1 INTEGER, Count_Over_1k INTEGER, Count_Over_1m INTEGER, num_addresses_with_assets INTEGER, num_addresses_created INTEGER, num_addresses_used INTEGER, num_quantum_unsafe INTEGER, PRIMARY KEY(end_time));",
+                        exceptionFailedToCreateTable());
+            } else {
+                //table exists delete anything that may have been partial info
+                log->addMessage("Database::updateStats 7 of 13 rollback temp address table", Log::DEBUG);
+                executeSQLStatement(
+                        "DELETE FROM StatsAddress_" + timeStr + " WHERE end_time >= " + to_string(startTime),
+                        exceptionFailedToCreateTable());
+            }
+            waitForSync(analyzer);
 
-        //populate StatsAddress table with number of addresses used
-        // clang-format off
-executeSQLStatement(
-    "UPDATE StatsAddress_" + timeStr + " "
-    "SET num_addresses_used = COALESCE(sub.num_addresses_used, 0) "
-    "FROM ( "
-        "SELECT "
-            "tch.end_time, "
-            "COUNT(DISPERSED u.address) AS num_addresses_used "
-        "FROM StatsCutOffHeights_" + timeStr + " tch "
-        "LEFT JOIN utxos u ON u.heightDestroyed >= tch.begin_height AND u.heightDestroyed <= tch.end_height "
-        "GROUP BY tch.end_time "
-    ") AS sub "
-    "WHERE StatsAddress_" + timeStr + ".end_time = sub.end_time;",
-    exceptionFailedUpdate()
-);
-        // clang-format on
+            //populate stats address table with funded counts
+            log->addMessage("Database::updateStats 8 of 13 populate temp address table with funded count", Log::DEBUG);
+            analyzer->_state=ChainAnalyzer::BUSY;
+            // clang-format off
+            executeSQLStatement(
+                "INSERT INTO StatsAddress_" + timeStr + " (end_time, Count_Over_0, Count_Over_1, Count_Over_1k, Count_Over_1m) "
+                    "SELECT "
+                        "sub.end_time, "
+                        "COUNT(CASE WHEN sub.total_amount > 0 THEN 1 ELSE NULL END) AS Count_Over_0, "
+                        "COUNT(CASE WHEN sub.total_amount > 100000000 THEN 1 ELSE NULL END) AS Count_Over_1, "
+                        "COUNT(CASE WHEN sub.total_amount > 100000000000 THEN 1 ELSE NULL END) AS Count_Over_1k, "
+                        "COUNT(CASE WHEN sub.total_amount > 100000000000000 THEN 1 ELSE NULL END) AS Count_Over_1m "
+                    "FROM ("
+                        "SELECT "
+                            "tch.end_time, "
+                            "u.address, "
+                            "SUM(u.amount) AS total_amount "
+                        "FROM utxos u "
+                        "JOIN StatsCutOffHeights_" + timeStr + " tch ON u.heightCreated <= tch.end_height AND (u.heightDestroyed IS NULL OR u.heightDestroyed > tch.end_height) "
+                        "WHERE u.assetIndex = 1 AND tch.end_time >= " + to_string(startTime) + " "
+                        "GROUP BY tch.end_time, u.address"
+                    ") AS sub "
+                    "GROUP BY sub.end_time;",
+                exceptionFailedInsert()
+            );
+            // clang-format on
+            waitForSync(analyzer);
 
-        //populate StatsAddress table with number of addresses used
-        // clang-format off
-executeSQLStatement(
-    "UPDATE StatsAddress_" + timeStr + " "
-    "SET total = COALESCE(sub.total_addresses, 0) "
-    "FROM ( "
-        "SELECT "
-            "tch.end_time, "
-            "COUNT(DISPERSED u.address) AS total_addresses "
-        "FROM StatsCutOffHeights_" + timeStr + " tch "
-        "LEFT JOIN utxos u ON u.heightCreated <= tch.end_height "
-        "GROUP BY tch.end_time "
-    ") AS sub "
-    "WHERE StatsAddress_" + timeStr + ".end_time = sub.end_time;",
-    exceptionFailedUpdate()
-);
-        // clang-format on
+            //populate stats address table with asset counts
+            log->addMessage("Database::updateStats 9 of 13 populate temp address table with number of addresses with assets", Log::DEBUG);
+            analyzer->_state=ChainAnalyzer::BUSY;
+            // clang-format off
+            executeSQLStatement(
+                "UPDATE StatsAddress_" + timeStr + " "
+                "SET num_addresses_with_assets = ( "
+                    "SELECT COALESCE(COUNT(DISTINCT u.address), 0) "
+                    "FROM utxos u "
+                    "JOIN StatsCutOffHeights_" + timeStr + " tch ON u.heightCreated <= tch.end_height "
+                    "AND (u.heightDestroyed IS NULL OR u.heightDestroyed > tch.end_height) "
+                    "WHERE u.assetIndex > 1 AND tch.end_time >= " + to_string(startTime) + " AND tch.end_time = StatsAddress_" + timeStr + ".end_time "
+                ") "
+                "WHERE EXISTS ("
+                    "SELECT 1 "
+                    "FROM StatsCutOffHeights_" + timeStr + " tch "
+                    "WHERE tch.end_time = StatsAddress_" + timeStr + ".end_time "
+                    "AND tch.end_time >= " + to_string(startTime) + " "
+                ");",
+                exceptionFailedUpdate()
+            );
+            // clang-format on
+            waitForSync(analyzer);
 
-        //populate StatsAddress table with number of quantum unsafe addresses
-        // clang-format off
-executeSQLStatement(
-    "UPDATE StatsAddress_" + timeStr + " "
-    "SET num_quantum_unsafe = COALESCE(sub.num_quantum_unsafe, 0) "
-    "FROM ( "
-        "SELECT "
-            "tch.end_time, "
-            "COUNT(DISPERSED u.address) AS num_quantum_unsafe "
-        "FROM StatsCutOffHeights_" + timeStr + " tch "
-        "LEFT JOIN ("
-            "SELECT u.address, tch_inner.end_height "
-            "FROM utxos u "
-            "JOIN StatsCutOffHeights_" + timeStr + " tch_inner ON TRUE "
-            "GROUP BY u.address, tch_inner.end_height "
-            "HAVING SUM(CASE WHEN heightDestroyed <= tch_inner.end_height THEN 1 ELSE 0 END) > 0 "
-            "AND SUM(CASE WHEN heightCreated <= tch_inner.end_height AND (heightDestroyed IS NULL OR heightDestroyed > tch_inner.end_height) THEN 1 ELSE 0 END) > 0 "
-        ") AS u ON tch.end_height = u.end_height "
-        "GROUP BY tch.end_time "
-    ") AS sub "
-    "WHERE StatsAddress_" + timeStr + ".end_time = sub.end_time;",
-    exceptionFailedUpdate()
-);
-        // clang-format on
+            //populate StatsAddress table with address created counts
+            log->addMessage("Database::updateStats 10 of 13 populate temp address table with number of addresses created", Log::DEBUG);
+            analyzer->_state=ChainAnalyzer::BUSY;
+            // clang-format off
+            executeSQLStatement(
+                "UPDATE StatsAddress_" + timeStr + " "
+                "SET num_addresses_created = ("
+                    "SELECT COALESCE(COUNT(DISTINCT u.address), 0) "
+                    "FROM StatsCutOffHeights_" + timeStr + " tch "
+                    "LEFT JOIN ("
+                        "SELECT address, MIN(heightCreated) AS first_utxo_created "
+                        "FROM utxos "
+                        "GROUP BY address"
+                    ") AS u ON u.first_utxo_created BETWEEN tch.begin_height AND tch.end_height "
+                    "WHERE tch.end_time = StatsAddress_" + timeStr + ".end_time "
+                    "AND tch.end_time >= " + to_string(startTime) + " "
+                ") "
+                "WHERE EXISTS ("
+                    "SELECT 1 "
+                    "FROM StatsCutOffHeights_" + timeStr + " tch "
+                    "WHERE tch.end_time = StatsAddress_" + timeStr + ".end_time "
+                    "AND tch.end_time >= " + to_string(startTime) + " "
+                ");",
+                exceptionFailedUpdate()
+            );
+            // clang-format on
+            waitForSync(analyzer);
+
+            //populate StatsAddress table with number of addresses used
+            log->addMessage("Database::updateStats 11 of 13 populate temp address table with number of addresses used", Log::DEBUG);
+            analyzer->_state=ChainAnalyzer::BUSY;
+            // clang-format off
+            executeSQLStatement(
+                "UPDATE StatsAddress_" + timeStr + " "
+                "SET num_addresses_used = ("
+                    "SELECT COALESCE(COUNT(DISTINCT u.address), 0) "
+                    "FROM StatsCutOffHeights_" + timeStr + " tch "
+                    "LEFT JOIN utxos u ON u.heightDestroyed >= tch.begin_height AND u.heightDestroyed <= tch.end_height "
+                    "WHERE tch.end_time >= " + to_string(startTime) + " AND tch.end_time = StatsAddress_" + timeStr + ".end_time "
+                    "GROUP BY tch.end_time"
+                ") "
+                "WHERE EXISTS ("
+                    "SELECT 1 "
+                    "FROM StatsCutOffHeights_" + timeStr + " tch "
+                    "WHERE tch.end_time = StatsAddress_" + timeStr + ".end_time "
+                    "AND tch.end_time >= " + to_string(startTime) + " "
+                ");",
+                exceptionFailedUpdate()
+            );
+            // clang-format on
+            waitForSync(analyzer);
+
+            //populate StatsAddress table with number of addresses
+            log->addMessage("Database::updateStats 12 of 13 populate temp address table with total number of addresses", Log::DEBUG);
+            analyzer->_state=ChainAnalyzer::BUSY;
+            // clang-format off
+            executeSQLStatement(
+                "UPDATE StatsAddress_" + timeStr + " "
+                "SET total = ("
+                    "SELECT COALESCE(COUNT(DISTINCT u.address), 0) "
+                    "FROM StatsCutOffHeights_" + timeStr + " tch "
+                    "LEFT JOIN utxos u ON u.heightCreated <= tch.end_height "
+                    "WHERE tch.end_time >= " + to_string(startTime) + " AND tch.end_time = StatsAddress_" + timeStr + ".end_time "
+                    "GROUP BY tch.end_time"
+                ") "
+                "WHERE EXISTS ("
+                    "SELECT 1 "
+                    "FROM StatsCutOffHeights_" + timeStr + " tch "
+                    "WHERE tch.end_time = StatsAddress_" + timeStr + ".end_time "
+                    "AND tch.end_time >= " + to_string(startTime) + " "
+                ");",
+                exceptionFailedUpdate()
+            );
+            // clang-format on
+            waitForSync(analyzer);
+
+            //populate StatsAddress table with number of quantum unsafe addresses
+            log->addMessage("Database::updateStats 13 of 13 populate temp address table with number of quantum unsafe addresses", Log::DEBUG);
+            analyzer->_state=ChainAnalyzer::BUSY;
+            // clang-format off
+            executeSQLStatement(
+                "UPDATE StatsAddress_" + timeStr + " SET num_quantum_unsafe = ("
+                    "SELECT COUNT(DISTINCT u.address) "
+                    "FROM utxos u "
+                    "JOIN StatsCutOffHeights_" + timeStr + " tch ON (u.heightCreated <= tch.end_height AND (u.heightDestroyed > tch.end_height OR u.heightDestroyed IS NULL)) "
+                    "WHERE EXISTS ("
+                        "SELECT 1 "
+                        "FROM utxos u2 "
+                        "WHERE u2.address = u.address "
+                        "AND u2.heightDestroyed <= tch.end_height "
+                        "AND u2.heightDestroyed IS NOT NULL "
+                    ") "
+                    "AND tch.end_time = StatsAddress_" + timeStr + ".end_time "
+                    "AND tch.end_time >= " + to_string(startTime) + " "
+                ") "
+                "WHERE EXISTS ("
+                    "SELECT 1 "
+                    "FROM StatsCutOffHeights_" + timeStr + " tch "
+                    "WHERE tch.end_time = StatsAddress_" + timeStr + ".end_time "
+                    "AND tch.end_time >= " + to_string(startTime) + " "
+                ");",
+                exceptionFailedUpdate()
+            );
+            // clang-format on
+            waitForSync(analyzer);
+        }
+
+        //update last start time, so we can check if fully synced
+        lastStartTime = startTime;
     }
+    log->addMessage("Database::updateStats complete", Log::DEBUG);
 }
 
 std::vector<AlgoStats> Database::getAlgoStats(unsigned int start, unsigned int end, unsigned int timeFrame) {
@@ -2906,7 +2994,7 @@ void Database::executePerformanceIndex(int& state) {
     PerformanceIndex index;
     do {
         if (_performanceIndexes.empty()) return; //check if we have emptied the array
-        state = ChainAnalyzer::OPTIMIZING;
+        state = ChainAnalyzer::BUSY;
         index = _performanceIndexes.back(); //get last element
         _performanceIndexes.pop_back();     //remove it
     } while (indexExists(index.name));

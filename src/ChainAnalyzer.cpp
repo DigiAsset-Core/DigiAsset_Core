@@ -365,7 +365,7 @@ void ChainAnalyzer::phaseSync() {
 
         //if fully synced pause until new block
         while (blockData.nextblockhash.empty()) {
-            //see if any performance indexes need to be added(do before marking as synced will set state to OPTIMIZING if there is anything to do)
+            //see if any performance indexes need to be added(do before marking as synced will set state to BUSY if there is anything to do)
             db->executePerformanceIndex(_state);
 
             //mark as synced

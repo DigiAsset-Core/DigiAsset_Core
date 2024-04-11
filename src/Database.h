@@ -19,6 +19,10 @@
 #define DIGIBYTECORE_DATABASE_CHAIN_WATCH_MAX 20
 
 
+//bellow number is how many days the stats syncer will do at a time
+//larger numbers will sync faster.  lower numbers will help keep chain analyzer close to synced
+#define DIGIBYTECORE_DATABASE_STATS_UPDATE_DAYS 20
+
 #include "BitIO.h"
 #include "Blob.h"
 #include "DigiAssetRules.h"

@@ -7,7 +7,6 @@
 #include "Config.h"
 #include "DigiByteCore.h"
 #include "Log.h"
-#include "OldStream.h"
 #include "RPC/MethodList.h"
 #include "Version.h"
 #include "utils.h"
@@ -19,16 +18,45 @@
 #include <openssl/evp.h>
 #include <thread>
 #include <vector>
-
 #include <boost/asio.hpp>
-#include <thread>
-#include <vector>
+#include <algorithm>
 
 
 
 using namespace std;
 
 namespace RPC {
+    namespace {
+        ///List of RPC commands whose values will not change until a new block is added
+        vector<string> cacheableRpcCommands={
+                "getbestblockhash",
+                "getblock",
+                "getblockchaininfo",
+                "getblockcount",
+                "getblockfilter",
+                "getblockhash",
+                "getblockheader",
+                "getblockstats",
+                "getchaintips",
+                "getchaintxstats",
+                "getdifficulty",
+                "getmempoolancestors",
+                "getmempooldescendants",
+                "getmempoolentry",
+                "getmempoolinfo",
+                "getrawmempool",
+                "gettxout",
+                "gettxoutproof",
+                "gettxoutsetinfo",
+                "preciousblock",
+                "pruneblockchain",
+                "savemempool",
+                "scantxoutset",
+                "verifychain",
+                "verifytxoutproof"
+        };
+    }
+
     /**
      * Small class that allows easy forcing close socket when it goes out of scope
      */
@@ -134,9 +162,11 @@ namespace RPC {
                 method = request["method"].asString();
                 response = handleRpcRequest(request);
             } catch (const DigiByteException& e) {
+                log->addMessage("expected error caught: " + e.getMessage(), Log::DEBUG);
                 response = createErrorResponse(e.getCode(), e.getMessage(), request);
             } catch (const out_of_range& e) {
                 string text = e.what();
+                log->addMessage("out of range error caught: " + text, Log::DEBUG);
                 response = createErrorResponse(-32601, "Unauthorized", request);
             }
 
@@ -244,7 +274,13 @@ namespace RPC {
             response = methods[methodName](params);
         } else {
             // Method does not exist in the map, fallback to sending to DigiByte core
-            response.setResult(app->getDigiByteCore()->sendcommand(methodName, params));
+            Json::Value walletResponse=app->getDigiByteCore()->sendcommand(methodName, params);
+            response.setResult(walletResponse);
+
+            //if the method is not it cacheableRpcCommands then disable caching
+            if (std::find(cacheableRpcCommands.begin(), cacheableRpcCommands.end(), methodName) == cacheableRpcCommands.end()) {
+                response.setBlocksGoodFor(-1);
+            }
         }
 
         //cache response
