@@ -12,9 +12,9 @@ namespace RPC {
     namespace Methods {
         extern const Response addressstats(const Json::Value& params);
         extern const Response algostats(const Json::Value& params);
+        extern const Response asyncclear(const Json::Value& params);
         extern const Response asyncget(const Json::Value& params);
         extern const Response asyncstart(const Json::Value& params);
-        extern const Response createoldstreamkey(const Json::Value& params);
         extern const Response debugwaittimes(const Json::Value& params);
         extern const Response getaddressholdings(const Json::Value& params);
         extern const Response getaddresskyc(const Json::Value& params);

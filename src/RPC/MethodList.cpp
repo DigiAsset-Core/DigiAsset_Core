@@ -6,9 +6,9 @@ namespace RPC {
     std::map<std::string, std::function<Response(const Json::Value&)>> methods = {
         {"addressstats", Methods::addressstats},
         {"algostats", Methods::algostats},
+        {"asyncclear", Methods::asyncclear},
         {"asyncget", Methods::asyncget},
         {"asyncstart", Methods::asyncstart},
-        {"createoldstreamkey", Methods::createoldstreamkey},
         {"debugwaittimes", Methods::debugwaittimes},
         {"getaddressholdings", Methods::getaddressholdings},
         {"getaddresskyc", Methods::getaddresskyc},
