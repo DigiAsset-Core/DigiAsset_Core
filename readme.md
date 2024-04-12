@@ -12,8 +12,9 @@
 11. [Configure DigiAsset Core](#configure-digiasset-core)
 12. [Set DigiAsset Core to Run at Boot](#set-digiasset-core-to-run-at-boot)
 13. [Upgrading DigiAsset Core](#upgrading-digiasset-core)
-14. [Other Notes](#other-notes)
-15. [Special Thanks](#special-thanks)
+14. [Documentation](#Documentation)
+15. [Other Notes](#other-notes)
+16. [Special Thanks](#special-thanks)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -227,6 +228,7 @@ cmake -B . -S .. -DCMAKE_TOOLCHAIN_FILE=/opt/vcpkg/scripts/buildsystems/vcpkg.cm
 cmake --build .
 mv src/digiasset_core ../bin
 mv cli/digiasset_core-cli ../bin
+mv web/digiasset_core-web ../bin
 cd ../bin
 ```
 
@@ -308,12 +310,18 @@ cmake -B . -S .. -DCMAKE_TOOLCHAIN_FILE=/opt/vcpkg/scripts/buildsystems/vcpkg.cm
 cmake --build .
 mv src/digiasset_core ../bin
 mv cli/digiasset_core-cli ../bin
+mv web/digiasset_core-web ../bin
 cd ../bin
 sudo systemctl start digiasset_core.service
 ```
 
+---
 
-### Other Notes
+## Documentation
+
+To access documentation run the digiasset_core-web application then go to http://127.0.0.1:8080/
+
+## Other Notes
 
 - If submitting pull requests please utilize the .clang-format file to keep things standardized.
 
