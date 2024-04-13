@@ -107,7 +107,7 @@
             block.addEventListener('scroll', updateButtonPosition);
 
             btn.onclick = function () {
-                navigator.clipboard.writeText(block.textContent).then(() => {
+                navigator.clipboard.writeText(block.textContent.substr(4, block.textContent.length)).then(() => {
                     console.log("Text copied to clipboard");
                     btn.textContent = "Copied!";
                     setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
