@@ -22,7 +22,7 @@ http://opensource.org/licenses/MIT. -->
 <p>Alternatively, the user can specify a fee rate in sat/vB for the new transaction.</p>
 <p>At a minimum, the new fee rate must be high enough to pay an additional new relay fee (incrementalfee
 returned by getnetworkinfo) to enter the node's mempool.</p>
-<p>* WARNING: before version 0.21, fee_rate was in BTC/kvB. As of 0.21, fee_rate is in sat/vB. *</p>
+<p>* WARNING: before version 0.21, fee_rate was in DGB/kvB. As of 0.21, fee_rate is in sat/vB. *</p>
 <div class="section" id="argument-1-txid">
 <h1>Argument #1 - txid</h1>
 <p><strong>Type:</strong> string, required</p>
@@ -38,7 +38,7 @@ returned by getnetworkinfo) to enter the node's mempool.</p>
   &quot;fee_rate&quot;: amount,        (numeric or string, optional, default=not set, fall back to wallet fee estimation)
                              Specify a fee rate in sat/vB instead of relying on the built-in fee estimator.
                              Must be at least 1.000 sat/vB higher than the current transaction fee rate.
-                             WARNING: before version 0.21, fee_rate was in BTC/kvB. As of 0.21, fee_rate is in sat/vB.
+                             WARNING: before version 0.21, fee_rate was in DGB/kvB. As of 0.21, fee_rate is in sat/vB.
 
   &quot;replaceable&quot;: bool,       (boolean, optional, default=true) Whether the new transaction should still be
                              marked bip-125 replaceable. If true, the sequence numbers in the transaction will
@@ -80,5 +80,6 @@ digibyte-cli bumpfee &lt;txid&gt;
 </div>
 
 <script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
 </body>
 </html>

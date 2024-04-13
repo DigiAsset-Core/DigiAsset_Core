@@ -39,7 +39,7 @@ http://opensource.org/licenses/MIT. -->
 <tbody valign="top">
 <tr><td>n</td>
 <td>numeric</td>
-<td>The total amount in BTC received at this address.</td>
+<td>The total amount in DGB received at this address.</td>
 </tr>
 </tbody>
 </table>
@@ -48,23 +48,24 @@ http://opensource.org/licenses/MIT. -->
 <h1>Examples</h1>
 <p>The amount from transactions with at least 1 confirmation:</p>
 <pre class="literal-block">
-digibyte-cli getreceivedbyaddress &quot;bc1q09vm5lfy0j5reeulh4x5752q25uqqvz34hufdl&quot;
+digibyte-cli getreceivedbyaddress &quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC
 </pre>
 <p>The amount including unconfirmed transactions, zero confirmations:</p>
 <pre class="literal-block">
-digibyte-cli getreceivedbyaddress &quot;bc1q09vm5lfy0j5reeulh4x5752q25uqqvz34hufdl&quot; 0
+digibyte-cli getreceivedbyaddress &quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC 0
 </pre>
 <p>The amount with at least 6 confirmations:</p>
 <pre class="literal-block">
-digibyte-cli getreceivedbyaddress &quot;bc1q09vm5lfy0j5reeulh4x5752q25uqqvz34hufdl&quot; 6
+digibyte-cli getreceivedbyaddress &quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC 6
 </pre>
 <p>As a JSON-RPC call:</p>
 <pre class="literal-block">
-curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;getreceivedbyaddress&quot;, &quot;params&quot;: [&quot;bc1q09vm5lfy0j5reeulh4x5752q25uqqvz34hufdl&quot;, 6]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;getreceivedbyaddress&quot;, &quot;params&quot;: [&quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC 6]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
 </pre>
 </div>
 </div>
 
 <script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
 </body>
 </html>

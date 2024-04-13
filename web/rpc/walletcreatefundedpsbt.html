@@ -40,7 +40,7 @@ accepted as second parameter.</dd>
 <pre class="literal-block">
 [
   {                              (json object)
-    &quot;address&quot;: amount,           (numeric or string, required) A key-value pair. The key (string) is the bitcoin address, the value (float or string) is the amount in BTC
+    &quot;address&quot;: amount,           (numeric or string, required) A key-value pair. The key (string) is the bitcoin address, the value (float or string) is the amount in DGB
   },
   {                              (json object)
     &quot;data&quot;: &quot;hex&quot;,               (string, required) A key-value pair. The key must be &quot;data&quot;, the value is hex-encoded data
@@ -76,7 +76,7 @@ accepted as second parameter.</dd>
   &quot;includeWatching&quot;: bool,       (boolean, optional, default=true for watch-only wallets, otherwise false) Also select inputs which are watch only
   &quot;lockUnspents&quot;: bool,          (boolean, optional, default=false) Lock selected unspent outputs
   &quot;fee_rate&quot;: amount,            (numeric or string, optional, default=not set, fall back to wallet fee estimation) Specify a fee rate in sat/vB.
-  &quot;feeRate&quot;: amount,             (numeric or string, optional, default=not set, fall back to wallet fee estimation) Specify a fee rate in BTC/kvB.
+  &quot;feeRate&quot;: amount,             (numeric or string, optional, default=not set, fall back to wallet fee estimation) Specify a fee rate in DGB/kvB.
   &quot;subtractFeeFromOutputs&quot;: [    (json array, optional, default=empty array) The outputs to subtract the fee from.
                                  The fee will be equally deducted from the amount of each specified output.
                                  Those recipients will receive less bitcoins than you enter in their corresponding amount field.
@@ -96,7 +96,7 @@ accepted as second parameter.</dd>
 <pre class="literal-block">
 {                     (json object)
   &quot;psbt&quot; : &quot;str&quot;,     (string) The resulting raw transaction (base64-encoded string)
-  &quot;fee&quot; : n,          (numeric) Fee in BTC the resulting transaction pays
+  &quot;fee&quot; : n,          (numeric) Fee in DGB the resulting transaction pays
   &quot;changepos&quot; : n     (numeric) The position of the added change output, or -1
 }
 </pre>
@@ -111,5 +111,6 @@ digibyte-cli walletcreatefundedpsbt &quot;[{\&quot;txid\&quot;:\&quot;myid\&quot
 </div>
 
 <script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
 </body>
 </html>

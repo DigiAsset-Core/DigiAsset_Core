@@ -41,9 +41,7 @@ button {
 
 /* RESPONSIVENESS */
 
-/* CONTAINERS */
-.document,
-.document-fluid {
+.document {
     width: 100%;
     padding: 0 0.75rem;
     margin-right: auto;
@@ -81,18 +79,23 @@ button {
 }
 
 @media only screen and (min-resolution: 300dpi),
-only screen and (min-width: 3840px) and (min-height: 2160px) {
-
+    only screen and (min-width: 3840px) and (min-height: 2160px) {
     /* Styles for high-resolution 4K screens */
     .document {
         max-width: 1800px;
     }
 }
 
-/* STYLING */
+/* GENERAL */
 
 html {
     font-size: 14px;
+}
+
+body {
+    font-size: 1.1rem;
+    font-family: "Gill Sans", "Gill Sans MT", Calibri, "Trebuchet MS", sans-serif;
+    padding-bottom: 10rem;
 }
 
 p,
@@ -107,14 +110,34 @@ h6 {
     margin: 1rem 0 !important;
 }
 
+/* POSITIONING */
+.fixed-top,
+.fixed-bottom {
+  position: fixed;
+  right: 0;
+  left: 0;
+  z-index: 2000;
+}
+
+.fixed-top {
+  top: 0;
+}
+
+.fixed-bottom {
+  bottom: 0;
+}
+
+/* CODE BLOCKS */
+
 pre.literal-block {
+    font-family: "Courier New", Courier, monospace;
     position: relative;
     background-color: #3f3f3f;
     color: white;
     padding: 2rem 1rem 1rem 1rem;
     border-radius: 5px;
 
-    overflow-x: auto;  /* Enables horizontal scrolling */
+    overflow-x: auto; /* Enables horizontal scrolling */
 }
 
 .code-header {
@@ -127,20 +150,28 @@ pre.literal-block {
 }
 
 .copy-button {
-    height:1.5rem;
+    height: 1.5rem;
     padding: 0 0.5rem;
     color: #cacaca;
     position: absolute;
     top: 0;
+    /* Avoid accidentally marking text of copy button */
+    -webkit-user-select: none; /* Safari */
+    -moz-user-select: none; /* Firefox */
+    -ms-user-select: none; /* Internet Explorer/Edge */
+    user-select: none; /* Non-prefixed version, currently supported by Chrome, Opera, and Edge */
 }
 
 tt.literal {
+    font-family: "Courier New", Courier, monospace;
     display: inline-block;
     background-color: #3f3f3f;
     color: white;
     padding: 0.3rem;
     border-radius: 5px;
 }
+
+/* INDEX NAVIGATION */
 
 .rpc_nav {
     list-style: none;
@@ -153,4 +184,48 @@ tt.literal {
 
 .rpc_nav li a:hover {
     color: #002352;
+}
+
+/* DOCUMENT */
+
+.title {
+    text-align: center;
+}
+
+/* TABLES */
+
+table {
+    border-collapse: collapse;
+    border-spacing: 0;
+
+    max-width: 100%;
+    width: 100%;
+    height: auto;
+}
+
+.section::before {
+    content: "";
+    display: block;
+    width: 80%;
+    height: 1px;
+    margin: 2rem 0;
+    background-color: #dbdbdb;
+}
+
+th {
+    padding: .2rem 0;
+    background-color: #cacaca;
+}
+
+td {
+    padding: .1rem 1rem;
+}
+
+footer {
+    background-color: white;
+    height: 4rem;
+}
+
+footer .copyright {
+    text-align: center;
 }

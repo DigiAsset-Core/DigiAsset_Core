@@ -21,7 +21,7 @@ http://opensource.org/licenses/MIT. -->
 <div class="section" id="argument-2-amount">
 <h1>Argument #2 - amount</h1>
 <p><strong>Type:</strong> numeric or string, required</p>
-<p>The amount in BTC to send. eg 0.1</p>
+<p>The amount in DGB to send. eg 0.1</p>
 </div>
 <div class="section" id="argument-3-comment">
 <h1>Argument #3 - comment</h1>
@@ -109,32 +109,33 @@ transaction, just kept in your wallet.</dd>
 </div>
 <div class="section" id="examples">
 <h1>Examples</h1>
-<p>Send 0.1 BTC:</p>
+<p>Send 0.1 DGB:</p>
 <pre class="literal-block">
-digibyte-cli sendtoaddress &quot;bc1q09vm5lfy0j5reeulh4x5752q25uqqvz34hufdl&quot; 0.1
+digibyte-cli sendtoaddress &quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC 0.1
 </pre>
-<p>Send 0.1 BTC with a confirmation target of 6 blocks in economical fee estimate mode using positional arguments:</p>
+<p>Send 0.1 DGB with a confirmation target of 6 blocks in economical fee estimate mode using positional arguments:</p>
 <pre class="literal-block">
-digibyte-cli sendtoaddress &quot;bc1q09vm5lfy0j5reeulh4x5752q25uqqvz34hufdl&quot; 0.1 &quot;donation&quot; &quot;sean's outpost&quot; false true 6 economical
+digibyte-cli sendtoaddress &quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC 0.1 &quot;donation&quot; &quot;sean's outpost&quot; false true 6 economical
 </pre>
-<p>Send 0.1 BTC with a fee rate of 1.1 sat/vB, subtract fee from amount, BIP125-replaceable, using positional arguments:</p>
+<p>Send 0.1 DGB with a fee rate of 1.1 sat/vB, subtract fee from amount, BIP125-replaceable, using positional arguments:</p>
 <pre class="literal-block">
-digibyte-cli sendtoaddress &quot;bc1q09vm5lfy0j5reeulh4x5752q25uqqvz34hufdl&quot; 0.1 &quot;drinks&quot; &quot;room77&quot; true true null &quot;unset&quot; null 1.1
+digibyte-cli sendtoaddress &quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC 0.1 &quot;drinks&quot; &quot;room77&quot; true true null &quot;unset&quot; null 1.1
 </pre>
-<p>Send 0.2 BTC with a confirmation target of 6 blocks in economical fee estimate mode using named arguments:</p>
+<p>Send 0.2 DGB with a confirmation target of 6 blocks in economical fee estimate mode using named arguments:</p>
 <pre class="literal-block">
-digibyte-cli -named sendtoaddress address=&quot;bc1q09vm5lfy0j5reeulh4x5752q25uqqvz34hufdl&quot; amount=0.2 conf_target=6 estimate_mode=&quot;economical&quot;
+digibyte-cli -named sendtoaddress address=&quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC amount=0.2 conf_target=6 estimate_mode=&quot;economical&quot;
 </pre>
-<p>Send 0.5 BTC with a fee rate of 25 sat/vB using named arguments:</p>
+<p>Send 0.5 DGB with a fee rate of 25 sat/vB using named arguments:</p>
 <pre class="literal-block">
-digibyte-cli -named sendtoaddress address=&quot;bc1q09vm5lfy0j5reeulh4x5752q25uqqvz34hufdl&quot; amount=0.5 fee_rate=25
+digibyte-cli -named sendtoaddress address=&quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC amount=0.5 fee_rate=25
 </pre>
 <pre class="literal-block">
-digibyte-cli -named sendtoaddress address=&quot;bc1q09vm5lfy0j5reeulh4x5752q25uqqvz34hufdl&quot; amount=0.5 fee_rate=25 subtractfeefromamount=false replaceable=true avoid_reuse=true comment=&quot;2 pizzas&quot; comment_to=&quot;jeremy&quot; verbose=true
+digibyte-cli -named sendtoaddress address=&quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC amount=0.5 fee_rate=25 subtractfeefromamount=false replaceable=true avoid_reuse=true comment=&quot;2 pizzas&quot; comment_to=&quot;jeremy&quot; verbose=true
 </pre>
 </div>
 </div>
 
 <script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
 </body>
 </html>

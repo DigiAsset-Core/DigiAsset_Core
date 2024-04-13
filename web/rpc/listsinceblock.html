@@ -51,10 +51,10 @@ http://opensource.org/licenses/MIT. -->
                                            &quot;generate&quot;              Coinbase transactions received with more than 100 confirmations.
                                            &quot;immature&quot;              Coinbase transactions received with 100 or fewer confirmations.
                                            &quot;orphan&quot;                Orphaned coinbase transactions received.
-      &quot;amount&quot; : n,                        (numeric) The amount in BTC. This is negative for the 'send' category, and is positive
+      &quot;amount&quot; : n,                        (numeric) The amount in DGB. This is negative for the 'send' category, and is positive
                                            for all other categories
       &quot;vout&quot; : n,                          (numeric) the vout value
-      &quot;fee&quot; : n,                           (numeric) The amount of the fee in BTC. This is negative and only available for the
+      &quot;fee&quot; : n,                           (numeric) The amount of the fee in DGB. This is negative and only available for the
                                            'send' category of transactions.
       &quot;confirmations&quot; : n,                 (numeric) The number of confirmations for the transaction. Negative confirmations means the
                                            transaction conflicted that many blocks ago.
@@ -104,5 +104,6 @@ curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &qu
 </div>
 
 <script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
 </body>
 </html>

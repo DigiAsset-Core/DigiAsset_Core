@@ -23,7 +23,7 @@ http://opensource.org/licenses/MIT. -->
 {                                       (json object)
   &quot;vsize&quot; : n,                          (numeric) virtual transaction size as defined in BIP 141. This is different from actual serialized size for witness transactions as witness data is discounted.
   &quot;weight&quot; : n,                         (numeric) transaction weight as defined in BIP 141.
-  &quot;fee&quot; : n,                            (numeric) transaction fee in BTC (DEPRECATED)
+  &quot;fee&quot; : n,                            (numeric) transaction fee in DGB (DEPRECATED)
   &quot;modifiedfee&quot; : n,                    (numeric) transaction fee with fee deltas used for mining priority (DEPRECATED)
   &quot;time&quot; : xxx,                         (numeric) local time transaction entered pool in seconds since 1 Jan 1970 GMT
   &quot;height&quot; : n,                         (numeric) block height when transaction entered pool
@@ -35,10 +35,10 @@ http://opensource.org/licenses/MIT. -->
   &quot;ancestorfees&quot; : n,                   (numeric) modified fees (see above) of in-mempool ancestors (including this one) (DEPRECATED)
   &quot;wtxid&quot; : &quot;hex&quot;,                      (string) hash of serialized transaction, including witness data
   &quot;fees&quot; : {                            (json object)
-    &quot;base&quot; : n,                         (numeric) transaction fee in BTC
-    &quot;modified&quot; : n,                     (numeric) transaction fee with fee deltas used for mining priority in BTC
-    &quot;ancestor&quot; : n,                     (numeric) modified fees (see above) of in-mempool ancestors (including this one) in BTC
-    &quot;descendant&quot; : n                    (numeric) modified fees (see above) of in-mempool descendants (including this one) in BTC
+    &quot;base&quot; : n,                         (numeric) transaction fee in DGB
+    &quot;modified&quot; : n,                     (numeric) transaction fee with fee deltas used for mining priority in DGB
+    &quot;ancestor&quot; : n,                     (numeric) modified fees (see above) of in-mempool ancestors (including this one) in DGB
+    &quot;descendant&quot; : n                    (numeric) modified fees (see above) of in-mempool descendants (including this one) in DGB
   },
   &quot;depends&quot; : [                         (json array) unconfirmed transactions used as inputs for this transaction
     &quot;hex&quot;,                              (string) parent transaction id
@@ -65,5 +65,6 @@ curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &qu
 </div>
 
 <script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
 </body>
 </html>

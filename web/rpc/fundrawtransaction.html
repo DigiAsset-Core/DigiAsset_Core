@@ -54,7 +54,7 @@ Allows this transaction to be replaced by a transaction with higher fees
                                  e.g. with 'importpubkey' or 'importmulti' with the 'pubkeys' or 'desc' field.
   &quot;lockUnspents&quot;: bool,          (boolean, optional, default=false) Lock selected unspent outputs
   &quot;fee_rate&quot;: amount,            (numeric or string, optional, default=not set, fall back to wallet fee estimation) Specify a fee rate in sat/vB.
-  &quot;feeRate&quot;: amount,             (numeric or string, optional, default=not set, fall back to wallet fee estimation) Specify a fee rate in BTC/kvB.
+  &quot;feeRate&quot;: amount,             (numeric or string, optional, default=not set, fall back to wallet fee estimation) Specify a fee rate in DGB/kvB.
   &quot;subtractFeeFromOutputs&quot;: [    (json array, optional, default=empty array) The integers.
                                  The fee will be equally deducted from the amount of each specified output.
                                  Those recipients will receive less bitcoins than you enter in their corresponding amount field.
@@ -81,7 +81,7 @@ This boolean should reflect whether the transaction has inputs
 <pre class="literal-block">
 {                     (json object)
   &quot;hex&quot; : &quot;hex&quot;,      (string) The resulting raw transaction (hex-encoded string)
-  &quot;fee&quot; : n,          (numeric) Fee in BTC the resulting transaction pays
+  &quot;fee&quot; : n,          (numeric) Fee in DGB the resulting transaction pays
   &quot;changepos&quot; : n     (numeric) The position of the added change output, or -1
 }
 </pre>
@@ -108,5 +108,6 @@ digibyte-cli sendrawtransaction &quot;signedtransactionhex&quot;
 </div>
 
 <script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
 </body>
 </html>

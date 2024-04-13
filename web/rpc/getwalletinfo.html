@@ -27,7 +27,7 @@ http://opensource.org/licenses/MIT. -->
   &quot;keypoolsize&quot; : n,                      (numeric) how many new keys are pre-generated (only counts external keys)
   &quot;keypoolsize_hd_internal&quot; : n,          (numeric) how many new keys are pre-generated for internal use (used for change outputs, only appears if the wallet is using this feature, otherwise external keys are used)
   &quot;unlocked_until&quot; : xxx,                 (numeric, optional) the UNIX epoch time until which the wallet is unlocked for transfers, or 0 if the wallet is locked (only present for passphrase-encrypted wallets)
-  &quot;paytxfee&quot; : n,                         (numeric) the transaction fee configuration, set in BTC/kvB
+  &quot;paytxfee&quot; : n,                         (numeric) the transaction fee configuration, set in DGB/kvB
   &quot;hdseedid&quot; : &quot;hex&quot;,                     (string, optional) the Hash160 of the HD seed (only present when HD is enabled)
   &quot;private_keys_enabled&quot; : true|false,    (boolean) false if privatekeys are disabled for this wallet (enforced watch-only wallet)
   &quot;avoid_reuse&quot; : true|false,             (boolean) whether this wallet tracks clean/dirty coins in terms of reuse
@@ -51,5 +51,6 @@ curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &qu
 </div>
 
 <script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
 </body>
 </html>

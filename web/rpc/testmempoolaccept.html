@@ -31,7 +31,7 @@ http://opensource.org/licenses/MIT. -->
 <div class="section" id="argument-2-maxfeerate">
 <h1>Argument #2 - maxfeerate</h1>
 <p><strong>Type:</strong> numeric or string, optional, default=0.10</p>
-<p>Reject transactions whose fee rate is higher than the specified value, expressed in BTC/kB</p>
+<p>Reject transactions whose fee rate is higher than the specified value, expressed in DGB/kB</p>
 </div>
 <div class="section" id="result">
 <h1>Result</h1>
@@ -43,7 +43,7 @@ http://opensource.org/licenses/MIT. -->
     &quot;allowed&quot; : true|false,     (boolean) If the mempool allows this tx to be inserted
     &quot;vsize&quot; : n,                (numeric) Virtual transaction size as defined in BIP 141. This is different from actual serialized size for witness transactions as witness data is discounted (only present when 'allowed' is true)
     &quot;fees&quot; : {                  (json object) Transaction fees (only present if 'allowed' is true)
-      &quot;base&quot; : n                (numeric) transaction fee in BTC
+      &quot;base&quot; : n                (numeric) transaction fee in DGB
     },
     &quot;reject-reason&quot; : &quot;str&quot;     (string) Rejection string (only present when 'allowed' is false)
   },
@@ -73,5 +73,6 @@ curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &qu
 </div>
 
 <script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
 </body>
 </html>

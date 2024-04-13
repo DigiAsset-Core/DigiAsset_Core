@@ -21,7 +21,7 @@ http://opensource.org/licenses/MIT. -->
   &quot;bytes&quot; : n,               (numeric) Sum of all virtual transaction sizes as defined in BIP 141. Differs from actual serialized size because witness data is discounted
   &quot;usage&quot; : n,               (numeric) Total memory usage for the mempool
   &quot;maxmempool&quot; : n,          (numeric) Maximum memory usage for the mempool
-  &quot;mempoolminfee&quot; : n,       (numeric) Minimum fee rate in BTC/kB for tx to be accepted. Is the maximum of minrelaytxfee and minimum mempool fee
+  &quot;mempoolminfee&quot; : n,       (numeric) Minimum fee rate in DGB/kB for tx to be accepted. Is the maximum of minrelaytxfee and minimum mempool fee
   &quot;minrelaytxfee&quot; : n,       (numeric) Current minimum relay fee for transactions
   &quot;unbroadcastcount&quot; : n     (numeric) Current number of transactions that haven't passed initial broadcast yet
 }
@@ -39,5 +39,6 @@ curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &qu
 </div>
 
 <script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
 </body>
 </html>

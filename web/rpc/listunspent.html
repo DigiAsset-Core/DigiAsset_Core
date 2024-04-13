@@ -49,10 +49,10 @@ with between minconf and maxconf (inclusive) confirmations.</p>
 <p>JSON with query options</p>
 <pre class="literal-block">
 {
-  &quot;minimumAmount&quot;: amount,       (numeric or string, optional, default=0) Minimum value of each UTXO in BTC
-  &quot;maximumAmount&quot;: amount,       (numeric or string, optional, default=unlimited) Maximum value of each UTXO in BTC
+  &quot;minimumAmount&quot;: amount,       (numeric or string, optional, default=0) Minimum value of each UTXO in DGB
+  &quot;maximumAmount&quot;: amount,       (numeric or string, optional, default=unlimited) Maximum value of each UTXO in DGB
   &quot;maximumCount&quot;: n,             (numeric, optional, default=unlimited) Maximum number of UTXOs
-  &quot;minimumSumAmount&quot;: amount,    (numeric or string, optional, default=unlimited) Minimum sum value of all UTXOs in BTC
+  &quot;minimumSumAmount&quot;: amount,    (numeric or string, optional, default=unlimited) Minimum sum value of all UTXOs in DGB
 }
 </pre>
 </div>
@@ -66,7 +66,7 @@ with between minconf and maxconf (inclusive) confirmations.</p>
     &quot;address&quot; : &quot;str&quot;,           (string) the bitcoin address
     &quot;label&quot; : &quot;str&quot;,             (string) The associated label, or &quot;&quot; for the default label
     &quot;scriptPubKey&quot; : &quot;str&quot;,      (string) the script key
-    &quot;amount&quot; : n,                (numeric) the transaction output amount in BTC
+    &quot;amount&quot; : n,                (numeric) the transaction output amount in DGB
     &quot;confirmations&quot; : n,         (numeric) The number of confirmations
     &quot;redeemScript&quot; : &quot;hex&quot;,      (string) The redeemScript if scriptPubKey is P2SH
     &quot;witnessScript&quot; : &quot;str&quot;,     (string) witnessScript if the scriptPubKey is P2WSH or P2SH-P2WSH
@@ -88,10 +88,10 @@ with between minconf and maxconf (inclusive) confirmations.</p>
 digibyte-cli listunspent
 </pre>
 <pre class="literal-block">
-digibyte-cli listunspent 6 9999999 &quot;[\&quot;bc1q09vm5lfy0j5reeulh4x5752q25uqqvz34hufdl\&quot;,\&quot;bc1q02ad21edsxd23d32dfgqqsz4vv4nmtfzuklhy3\&quot;]&quot;
+digibyte-cli listunspent 6 9999999 &quot;[\&quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC
 </pre>
 <pre class="literal-block">
-curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;listunspent&quot;, &quot;params&quot;: [6, 9999999 &quot;[\&quot;bc1q09vm5lfy0j5reeulh4x5752q25uqqvz34hufdl\&quot;,\&quot;bc1q02ad21edsxd23d32dfgqqsz4vv4nmtfzuklhy3\&quot;]&quot;]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;listunspent&quot;, &quot;params&quot;: [6, 9999999 &quot;[\&quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC -H 'content-type: text/plain;' http://127.0.0.1:14022/
 </pre>
 <pre class="literal-block">
 digibyte-cli listunspent 6 9999999 '[]' true '{ &quot;minimumAmount&quot;: 0.005 }'
@@ -103,5 +103,6 @@ curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &qu
 </div>
 
 <script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
 </body>
 </html>

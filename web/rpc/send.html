@@ -24,7 +24,7 @@ For convenience, a dictionary, which holds the key-value pairs directly, is also
 <pre class="literal-block">
 [
   {                                 (json object)
-    &quot;address&quot;: amount,              (numeric or string, required) A key-value pair. The key (string) is the bitcoin address, the value (float or string) is the amount in BTC
+    &quot;address&quot;: amount,              (numeric or string, required) A key-value pair. The key (string) is the bitcoin address, the value (float or string) is the amount in DGB
   },
   {                                 (json object)
     &quot;data&quot;: &quot;hex&quot;,                  (string, required) A key-value pair. The key must be &quot;data&quot;, the value is hex-encoded data
@@ -108,29 +108,30 @@ Allows this transaction to be replaced by a transaction with higher fees
 </div>
 <div class="section" id="examples">
 <h1>Examples</h1>
-<p>Send 0.1 BTC with a confirmation target of 6 blocks in economical fee estimate mode:</p>
+<p>Send 0.1 DGB with a confirmation target of 6 blocks in economical fee estimate mode:</p>
 <pre class="literal-block">
-digibyte-cli send '{&quot;bc1q09vm5lfy0j5reeulh4x5752q25uqqvz34hufdl&quot;: 0.1}' 6 economical
+digibyte-cli send '{&quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC 0.1}' 6 economical
 </pre>
-<p>Send 0.2 BTC with a fee rate of 1.1 sat/vB using positional arguments:</p>
+<p>Send 0.2 DGB with a fee rate of 1.1 sat/vB using positional arguments:</p>
 <pre class="literal-block">
-digibyte-cli send '{&quot;bc1q09vm5lfy0j5reeulh4x5752q25uqqvz34hufdl&quot;: 0.2}' null &quot;unset&quot; 1.1
+digibyte-cli send '{&quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC 0.2}' null &quot;unset&quot; 1.1
 </pre>
-<p>Send 0.2 BTC with a fee rate of 1 sat/vB using the options argument:</p>
+<p>Send 0.2 DGB with a fee rate of 1 sat/vB using the options argument:</p>
 <pre class="literal-block">
-digibyte-cli send '{&quot;bc1q09vm5lfy0j5reeulh4x5752q25uqqvz34hufdl&quot;: 0.2}' null &quot;unset&quot; null '{&quot;fee_rate&quot;: 1}'
+digibyte-cli send '{&quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC 0.2}' null &quot;unset&quot; null '{&quot;fee_rate&quot;: 1}'
 </pre>
-<p>Send 0.3 BTC with a fee rate of 25 sat/vB using named arguments:</p>
+<p>Send 0.3 DGB with a fee rate of 25 sat/vB using named arguments:</p>
 <pre class="literal-block">
-digibyte-cli -named send outputs='{&quot;bc1q09vm5lfy0j5reeulh4x5752q25uqqvz34hufdl&quot;: 0.3}' fee_rate=25
+digibyte-cli -named send outputs='{&quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC 0.3}' fee_rate=25
 </pre>
 <p>Create a transaction that should confirm the next block, with a specific input, and return result without adding to wallet or broadcasting to the network:</p>
 <pre class="literal-block">
-digibyte-cli send '{&quot;bc1q09vm5lfy0j5reeulh4x5752q25uqqvz34hufdl&quot;: 0.1}' 1 economical '{&quot;add_to_wallet&quot;: false, &quot;inputs&quot;: [{&quot;txid&quot;:&quot;a08e6907dbbd3d809776dbfc5d82e371b764ed838b5655e72f463568df1aadf0&quot;, &quot;vout&quot;:1}]}'
+digibyte-cli send '{&quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC 0.1}' 1 economical '{&quot;add_to_wallet&quot;: false, &quot;inputs&quot;: [{&quot;txid&quot;:&quot;a08e6907dbbd3d809776dbfc5d82e371b764ed838b5655e72f463568df1aadf0&quot;, &quot;vout&quot;:1}]}'
 </pre>
 </div>
 </div>
 
 <script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
 </body>
 </html>
