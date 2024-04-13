@@ -1,0 +1,58 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="addressstats">
+<h1 class="title">addressstats</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">addressstats ( start end timeframe )</tt></p>
+<p>Returns stats about addresses over time.
+Warning: The last result is likely not a full time period.</p>
+<div class="section" id="positional-argument-0-start-time">
+<h1>Positional Argument #0 - start time</h1>
+<p><strong>Type:</strong> integer, optional, default=beginning(0)</p>
+</div>
+<div class="section" id="positional-argument-1-end-time">
+<h1>Positional Argument #1 - end time</h1>
+<p><strong>Type:</strong> integer, optional, default=end(max value)</p>
+</div>
+<div class="section" id="positional-argument-2-time-frame">
+<h1>Positional Argument #2 - time frame</h1>
+<p><strong>Type:</strong> integer, optional, default=day(86400)</p>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+{                          (json object)
+  &quot;time&quot;: xxx,              (integer) The end time of the time frame
+  &quot;new&quot;: n,                 (integer) Number of new addresses created
+  &quot;used&quot;: n,                (integer) Number of addresses used
+  &quot;withAssets&quot;: n,          (integer) Number of addresses with assets
+  &quot;over0&quot;: n,               (integer) Number of addresses with balance over 0
+  &quot;over1&quot;: n,               (integer) Number of addresses with balance over 1
+  &quot;over1k&quot;: n,              (integer) Number of addresses with balance over 1k
+  &quot;over1m&quot;: n,              (integer) Number of addresses with balance over 1m
+  &quot;quantumInsecure&quot;: n,     (integer) Number of quantum insecure addresses
+  &quot;total&quot;: n               (integer) Total number of addresses
+}
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digiassetcore addressstats 21000 42000 43200
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;addressstats&quot;, &quot;params&quot;: [21000, 42000, 43200]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+</body>
+</html>

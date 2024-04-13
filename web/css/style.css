@@ -1,0 +1,156 @@
+/* NORMALIZE */
+*,
+*::after,
+*::before {
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+}
+
+a {
+    text-decoration: none;
+}
+
+a,
+button {
+    color: inherit;
+}
+
+button {
+    background: none;
+    cursor: pointer;
+}
+
+label {
+    cursor: pointer;
+}
+
+input {
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+ul {
+    list-style: none;
+}
+
+input,
+button {
+    border: none;
+}
+
+/* RESPONSIVENESS */
+
+/* CONTAINERS */
+.document,
+.document-fluid {
+    width: 100%;
+    padding: 0 0.75rem;
+    margin-right: auto;
+    margin-left: auto;
+}
+
+@media (min-width: 576px) {
+    .document {
+        max-width: 540px;
+    }
+}
+
+@media (min-width: 768px) {
+    .document {
+        max-width: 720px;
+    }
+}
+
+@media (min-width: 992px) {
+    .document {
+        max-width: 960px;
+    }
+}
+
+@media (min-width: 1200px) {
+    .document {
+        max-width: 1140px;
+    }
+}
+
+@media (min-width: 1400px) {
+    .document {
+        max-width: 1320px;
+    }
+}
+
+@media only screen and (min-resolution: 300dpi),
+only screen and (min-width: 3840px) and (min-height: 2160px) {
+
+    /* Styles for high-resolution 4K screens */
+    .document {
+        max-width: 1800px;
+    }
+}
+
+/* STYLING */
+
+html {
+    font-size: 14px;
+}
+
+p,
+pre,
+span,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    margin: 1rem 0 !important;
+}
+
+pre.literal-block {
+    position: relative;
+    background-color: #3f3f3f;
+    color: white;
+    padding: 2rem 1rem 1rem 1rem;
+    border-radius: 5px;
+
+    overflow-x: auto;  /* Enables horizontal scrolling */
+}
+
+.code-header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 1.5rem;
+    background-color: #313131;
+}
+
+.copy-button {
+    height:1.5rem;
+    padding: 0 0.5rem;
+    color: #cacaca;
+    position: absolute;
+    top: 0;
+}
+
+tt.literal {
+    display: inline-block;
+    background-color: #3f3f3f;
+    color: white;
+    padding: 0.3rem;
+    border-radius: 5px;
+}
+
+.rpc_nav {
+    list-style: none;
+}
+
+.rpc_nav li a {
+    color: #06c;
+    font-size: 1.2rem;
+}
+
+.rpc_nav li a:hover {
+    color: #002352;
+}

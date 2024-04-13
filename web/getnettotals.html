@@ -1,0 +1,47 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="getnettotals">
+<h1 class="title">getnettotals</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">getnettotals</tt></p>
+<p>Returns information about network traffic, including bytes in, bytes out,
+and current time.</p>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+{                                              (json object)
+  &quot;totalbytesrecv&quot; : n,                        (numeric) Total bytes received
+  &quot;totalbytessent&quot; : n,                        (numeric) Total bytes sent
+  &quot;timemillis&quot; : xxx,                          (numeric) Current UNIX epoch time in milliseconds
+  &quot;uploadtarget&quot; : {                           (json object)
+    &quot;timeframe&quot; : n,                           (numeric) Length of the measuring timeframe in seconds
+    &quot;target&quot; : n,                              (numeric) Target in bytes
+    &quot;target_reached&quot; : true|false,             (boolean) True if target is reached
+    &quot;serve_historical_blocks&quot; : true|false,    (boolean) True if serving historical blocks
+    &quot;bytes_left_in_cycle&quot; : n,                 (numeric) Bytes left in current time cycle
+    &quot;time_left_in_cycle&quot; : n                   (numeric) Seconds left in current time cycle
+  }
+}
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digibyte-cli getnettotals
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;getnettotals&quot;, &quot;params&quot;: []}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+</body>
+</html>

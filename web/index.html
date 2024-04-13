@@ -1,1 +1,912 @@
-Test Main Page.  Paths starting with /src/....  will read from src folder.
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link rel="stylesheet" type="text/css" href="/css/style.css" />
+    </head>
+    <body>
+        <div class="document" id="rpc-api-reference">
+            <h1 class="title">RPC API Reference</h1>
+            <!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+            <div class="section" id="blockchain-rpcs">
+                <h1>Blockchain RPCs</h1>
+                <div class="rpc_nav docutils container">
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./getbestblockhash.html"
+                            >getbestblockhash</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./getblock.html"
+                            >getblock</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./getblockchaininfo.html"
+                            >getblockchaininfo</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./getblockcount.html"
+                            >getblockcount</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./getblockfilter.html"
+                            >getblockfilter</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./getblockhash.html"
+                            >getblockhash</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./getblockheader.html"
+                            >getblockheader</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./getblockstats.html"
+                            >getblockstats</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./getchaintips.html"
+                            >getchaintips</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./getchaintxstats.html"
+                            >getchaintxstats</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./getdifficulty.html"
+                            >getdifficulty</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./getmempoolancestors.html"
+                            >getmempoolancestors</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./getmempooldescendants.html"
+                            >getmempooldescendants</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./getmempoolentry.html"
+                            >getmempoolentry</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./getmempoolinfo.html"
+                            >getmempoolinfo</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./getrawmempool.html"
+                            >getrawmempool</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./gettxout.html"
+                            >gettxout</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./gettxoutproof.html"
+                            >gettxoutproof</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./gettxoutsetinfo.html"
+                            >gettxoutsetinfo</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./preciousblock.html"
+                            >preciousblock</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./pruneblockchain.html"
+                            >pruneblockchain</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./savemempool.html"
+                            >savemempool</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./scantxoutset.html"
+                            >scantxoutset</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./verifychain.html"
+                            >verifychain</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./verifytxoutproof.html"
+                            >verifytxoutproof</a
+                        >
+                    </li>
+                </div>
+            </div>
+            <div class="section" id="control-rpcs">
+                <h1>Control RPCs</h1>
+                <div class="rpc_nav docutils container">
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./getmemoryinfo.html"
+                            >getmemoryinfo</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./getrpcinfo.html"
+                            >getrpcinfo</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./help.html"
+                            >help</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./logging.html"
+                            >logging</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./stop.html"
+                            >stop</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./uptime.html"
+                            >uptime</a
+                        >
+                    </li>
+                </div>
+            </div>
+            <div class="section" id="generating-rpcs">
+                <h1>Generating RPCs</h1>
+                <div class="rpc_nav docutils container">
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./generateblock.html"
+                            >generateblock</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./generatetoaddress.html"
+                            >generatetoaddress</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./generatetodescriptor.html"
+                            >generatetodescriptor</a
+                        >
+                    </li>
+                </div>
+            </div>
+            <div class="section" id="mining-rpcs">
+                <h1>Mining RPCs</h1>
+                <div class="rpc_nav docutils container">
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./getblocktemplate.html"
+                            >getblocktemplate</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./getmininginfo.html"
+                            >getmininginfo</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./getnetworkhashps.html"
+                            >getnetworkhashps</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./prioritisetransaction.html"
+                            >prioritisetransaction</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./submitblock.html"
+                            >submitblock</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./submitheader.html"
+                            >submitheader</a
+                        >
+                    </li>
+                </div>
+            </div>
+            <div class="section" id="network-rpcs">
+                <h1>Network RPCs</h1>
+                <div class="rpc_nav docutils container">
+                    <li class="rpc_item">
+                        <a class="reference external" href="./addnode.html"
+                            >addnode</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./clearbanned.html"
+                            >clearbanned</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./disconnectnode.html"
+                            >disconnectnode</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./getaddednodeinfo.html"
+                            >getaddednodeinfo</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./getconnectioncount.html"
+                            >getconnectioncount</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./getnettotals.html"
+                            >getnettotals</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./getnetworkinfo.html"
+                            >getnetworkinfo</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./getnodeaddresses.html"
+                            >getnodeaddresses</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./getpeerinfo.html"
+                            >getpeerinfo</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./listbanned.html"
+                            >listbanned</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./ping.html"
+                            >ping</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./setban.html"
+                            >setban</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./setnetworkactive.html"
+                            >setnetworkactive</a
+                        >
+                    </li>
+                </div>
+            </div>
+            <div class="section" id="rawtransactions-rpcs">
+                <h1>Rawtransactions RPCs</h1>
+                <div class="rpc_nav docutils container">
+                    <li class="rpc_item">
+                        <a class="reference external" href="./analyzepsbt.html"
+                            >analyzepsbt</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./combinepsbt.html"
+                            >combinepsbt</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./combinerawtransaction.html"
+                            >combinerawtransaction</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./converttopsbt.html"
+                            >converttopsbt</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./createpsbt.html"
+                            >createpsbt</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./createrawtransaction.html"
+                            >createrawtransaction</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./decodepsbt.html"
+                            >decodepsbt</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./decoderawtransaction.html"
+                            >decoderawtransaction</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./decodescript.html"
+                            >decodescript</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./finalizepsbt.html"
+                            >finalizepsbt</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./fundrawtransaction.html"
+                            >fundrawtransaction</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./getrawtransaction.html"
+                            >getrawtransaction</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./joinpsbts.html"
+                            >joinpsbts</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./sendrawtransaction.html"
+                            >sendrawtransaction</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./signrawtransactionwithkey.html"
+                            >signrawtransactionwithkey</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./testmempoolaccept.html"
+                            >testmempoolaccept</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./utxoupdatepsbt.html"
+                            >utxoupdatepsbt</a
+                        >
+                    </li>
+                </div>
+            </div>
+            <div class="section" id="util-rpcs">
+                <h1>Util RPCs</h1>
+                <div class="rpc_nav docutils container">
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./createmultisig.html"
+                            >createmultisig</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./deriveaddresses.html"
+                            >deriveaddresses</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./estimatesmartfee.html"
+                            >estimatesmartfee</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./getdescriptorinfo.html"
+                            >getdescriptorinfo</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./getindexinfo.html"
+                            >getindexinfo</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./signmessagewithprivkey.html"
+                            >signmessagewithprivkey</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./validateaddress.html"
+                            >validateaddress</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./verifymessage.html"
+                            >verifymessage</a
+                        >
+                    </li>
+                </div>
+            </div>
+            <div class="section" id="wallet-rpcs">
+                <h1>Wallet RPCs</h1>
+                <p>
+                    <strong>Note:</strong> the wallet RPCs are only available if
+                    DigiByte Core was built with wallet support, which is the
+                    default.
+                </p>
+                <div class="rpc_nav docutils container">
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./abandontransaction.html"
+                            >abandontransaction</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./abortrescan.html"
+                            >abortrescan</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./addmultisigaddress.html"
+                            >addmultisigaddress</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./backupwallet.html"
+                            >backupwallet</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./bumpfee.html"
+                            >bumpfee</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./createwallet.html"
+                            >createwallet</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./dumpprivkey.html"
+                            >dumpprivkey</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./dumpwallet.html"
+                            >dumpwallet</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./encryptwallet.html"
+                            >encryptwallet</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./getaddressesbylabel.html"
+                            >getaddressesbylabel</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./getaddressinfo.html"
+                            >getaddressinfo</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./getbalance.html"
+                            >getbalance</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./getbalances.html"
+                            >getbalances</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./getnewaddress.html"
+                            >getnewaddress</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./getrawchangeaddress.html"
+                            >getrawchangeaddress</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./getreceivedbyaddress.html"
+                            >getreceivedbyaddress</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./getreceivedbylabel.html"
+                            >getreceivedbylabel</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./gettransaction.html"
+                            >gettransaction</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./getunconfirmedbalance.html"
+                            >getunconfirmedbalance</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./getwalletinfo.html"
+                            >getwalletinfo</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./importaddress.html"
+                            >importaddress</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./importdescriptors.html"
+                            >importdescriptors</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./importmulti.html"
+                            >importmulti</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./importprivkey.html"
+                            >importprivkey</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./importprunedfunds.html"
+                            >importprunedfunds</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./importpubkey.html"
+                            >importpubkey</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./importwallet.html"
+                            >importwallet</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./keypoolrefill.html"
+                            >keypoolrefill</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./listaddressgroupings.html"
+                            >listaddressgroupings</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./listlabels.html"
+                            >listlabels</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./listlockunspent.html"
+                            >listlockunspent</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./listreceivedbyaddress.html"
+                            >listreceivedbyaddress</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./listreceivedbylabel.html"
+                            >listreceivedbylabel</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./listsinceblock.html"
+                            >listsinceblock</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./listtransactions.html"
+                            >listtransactions</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./listunspent.html"
+                            >listunspent</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./listwalletdir.html"
+                            >listwalletdir</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./listwallets.html"
+                            >listwallets</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./loadwallet.html"
+                            >loadwallet</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./lockunspent.html"
+                            >lockunspent</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./psbtbumpfee.html"
+                            >psbtbumpfee</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./removeprunedfunds.html"
+                            >removeprunedfunds</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./rescanblockchain.html"
+                            >rescanblockchain</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./send.html"
+                            >send</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./sendmany.html"
+                            >sendmany</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./sendtoaddress.html"
+                            >sendtoaddress</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./sethdseed.html"
+                            >sethdseed</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./setlabel.html"
+                            >setlabel</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./settxfee.html"
+                            >settxfee</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./setwalletflag.html"
+                            >setwalletflag</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./signmessage.html"
+                            >signmessage</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./signrawtransactionwithwallet.html"
+                            >signrawtransactionwithwallet</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./unloadwallet.html"
+                            >unloadwallet</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./upgradewallet.html"
+                            >upgradewallet</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./walletcreatefundedpsbt.html"
+                            >walletcreatefundedpsbt</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a class="reference external" href="./walletlock.html"
+                            >walletlock</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./walletpassphrase.html"
+                            >walletpassphrase</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./walletpassphrasechange.html"
+                            >walletpassphrasechange</a
+                        >
+                    </li>
+                    <li class="rpc_item">
+                        <a
+                            class="reference external"
+                            href="./walletprocesspsbt.html"
+                            >walletprocesspsbt</a
+                        >
+                    </li>
+                </div>
+            </div>
+        </div>
+
+        <script src="/js/main.js"></script>
+    </body>
+</html>

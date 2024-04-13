@@ -1,0 +1,51 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="finalizepsbt">
+<h1 class="title">finalizepsbt</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">finalizepsbt &quot;psbt&quot; ( extract )</tt></p>
+<p>Finalize the inputs of a PSBT. If the transaction is fully signed, it will produce a
+network serialized transaction which can be broadcast with sendrawtransaction. Otherwise a PSBT will be
+created which has the final_scriptSig and final_scriptWitness fields filled for inputs that are complete.</p>
+<p>Implements the Finalizer and Extractor roles.</p>
+<div class="section" id="argument-1-psbt">
+<h1>Argument #1 - psbt</h1>
+<p><strong>Type:</strong> string, required</p>
+<p>A base64 string of a PSBT</p>
+</div>
+<div class="section" id="argument-2-extract">
+<h1>Argument #2 - extract</h1>
+<p><strong>Type:</strong> boolean, optional, default=true</p>
+<dl class="docutils">
+<dt>If true and the transaction is complete,</dt>
+<dd>extract and return the complete transaction in normal network serialization instead of the PSBT.</dd>
+</dl>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+{                             (json object)
+  &quot;psbt&quot; : &quot;str&quot;,             (string) The base64-encoded partially signed transaction if not extracted
+  &quot;hex&quot; : &quot;hex&quot;,              (string) The hex-encoded network transaction if extracted
+  &quot;complete&quot; : true|false     (boolean) If the transaction has a complete set of signatures
+}
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digibyte-cli finalizepsbt &quot;psbt&quot;
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+</body>
+</html>

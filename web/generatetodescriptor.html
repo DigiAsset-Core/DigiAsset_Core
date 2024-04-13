@@ -1,0 +1,50 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="generatetodescriptor">
+<h1 class="title">generatetodescriptor</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">generatetodescriptor num_blocks &quot;descriptor&quot; ( maxtries )</tt></p>
+<p>Mine blocks immediately to a specified descriptor (before the RPC call returns)</p>
+<div class="section" id="argument-1-num-blocks">
+<h1>Argument #1 - num_blocks</h1>
+<p><strong>Type:</strong> numeric, required</p>
+<p>How many blocks are generated immediately.</p>
+</div>
+<div class="section" id="argument-2-descriptor">
+<h1>Argument #2 - descriptor</h1>
+<p><strong>Type:</strong> string, required</p>
+<p>The descriptor to send the newly generated bitcoin to.</p>
+</div>
+<div class="section" id="argument-3-maxtries">
+<h1>Argument #3 - maxtries</h1>
+<p><strong>Type:</strong> numeric, optional, default=1000000</p>
+<p>How many iterations to try.</p>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+[           (json array) hashes of blocks generated
+  &quot;hex&quot;,    (string) blockhash
+  ...
+]
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<p>Generate 11 blocks to mydesc:</p>
+<pre class="literal-block">
+digibyte-cli generatetodescriptor 11 &quot;mydesc&quot;
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+</body>
+</html>

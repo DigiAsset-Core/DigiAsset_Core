@@ -1,0 +1,48 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="setwalletflag">
+<h1 class="title">setwalletflag</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">setwalletflag &quot;flag&quot; ( value )</tt></p>
+<p>Change the state of the given wallet flag for a wallet.</p>
+<div class="section" id="argument-1-flag">
+<h1>Argument #1 - flag</h1>
+<p><strong>Type:</strong> string, required</p>
+<p>The name of the flag to change. Current available flags: avoid_reuse</p>
+</div>
+<div class="section" id="argument-2-value">
+<h1>Argument #2 - value</h1>
+<p><strong>Type:</strong> boolean, optional, default=true</p>
+<p>The new state.</p>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+{                               (json object)
+  &quot;flag_name&quot; : &quot;str&quot;,          (string) The name of the flag that was modified
+  &quot;flag_state&quot; : true|false,    (boolean) The new state of the flag
+  &quot;warnings&quot; : &quot;str&quot;            (string) Any warnings associated with the change
+}
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digibyte-cli setwalletflag avoid_reuse
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;setwalletflag&quot;, &quot;params&quot;: [&quot;avoid_reuse&quot;]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+</body>
+</html>

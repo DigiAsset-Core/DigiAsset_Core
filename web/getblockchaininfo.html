@@ -1,0 +1,72 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="getblockchaininfo">
+<h1 class="title">getblockchaininfo</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">getblockchaininfo</tt></p>
+<p>Returns an object containing various state info regarding blockchain processing.</p>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+{                                         (json object)
+  &quot;chain&quot; : &quot;str&quot;,                        (string) current network name (main, test, regtest)
+  &quot;blocks&quot; : n,                           (numeric) the height of the most-work fully-validated chain. The genesis block has height 0
+  &quot;headers&quot; : n,                          (numeric) the current number of headers we have validated
+  &quot;bestblockhash&quot; : &quot;str&quot;,                (string) the hash of the currently best block
+  &quot;difficulty&quot; : n,                       (numeric) the current difficulty
+  &quot;mediantime&quot; : n,                       (numeric) median time for the current best block
+  &quot;verificationprogress&quot; : n,             (numeric) estimate of verification progress [0..1]
+  &quot;initialblockdownload&quot; : true|false,    (boolean) (debug information) estimate of whether this node is in Initial Block Download mode
+  &quot;chainwork&quot; : &quot;hex&quot;,                    (string) total amount of work in active chain, in hexadecimal
+  &quot;size_on_disk&quot; : n,                     (numeric) the estimated size of the block and undo files on disk
+  &quot;pruned&quot; : true|false,                  (boolean) if the blocks are subject to pruning
+  &quot;pruneheight&quot; : n,                      (numeric) lowest-height complete block stored (only present if pruning is enabled)
+  &quot;automatic_pruning&quot; : true|false,       (boolean) whether automatic pruning is enabled (only present if pruning is enabled)
+  &quot;prune_target_size&quot; : n,                (numeric) the target size used by pruning (only present if automatic pruning is enabled)
+  &quot;softforks&quot; : {                         (json object) status of softforks
+    &quot;xxxx&quot; : {                            (json object) name of the softfork
+      &quot;type&quot; : &quot;str&quot;,                     (string) one of &quot;buried&quot;, &quot;bip9&quot;
+      &quot;bip9&quot; : {                          (json object) status of bip9 softforks (only for &quot;bip9&quot; type)
+        &quot;status&quot; : &quot;str&quot;,                 (string) one of &quot;defined&quot;, &quot;started&quot;, &quot;locked_in&quot;, &quot;active&quot;, &quot;failed&quot;
+        &quot;bit&quot; : n,                        (numeric) the bit (0-28) in the block version field used to signal this softfork (only for &quot;started&quot; status)
+        &quot;start_time&quot; : xxx,               (numeric) the minimum median time past of a block at which the bit gains its meaning
+        &quot;timeout&quot; : xxx,                  (numeric) the median time past of a block at which the deployment is considered failed if not yet locked in
+        &quot;since&quot; : n,                      (numeric) height of the first block to which the status applies
+        &quot;statistics&quot; : {                  (json object) numeric statistics about BIP9 signalling for a softfork (only for &quot;started&quot; status)
+          &quot;period&quot; : n,                   (numeric) the length in blocks of the BIP9 signalling period
+          &quot;threshold&quot; : n,                (numeric) the number of blocks with the version bit set required to activate the feature
+          &quot;elapsed&quot; : n,                  (numeric) the number of blocks elapsed since the beginning of the current period
+          &quot;count&quot; : n,                    (numeric) the number of blocks with the version bit set in the current period
+          &quot;possible&quot; : true|false         (boolean) returns false if there are not enough blocks left in this period to pass activation threshold
+        }
+      },
+      &quot;height&quot; : n,                       (numeric) height of the first block which the rules are or will be enforced (only for &quot;buried&quot; type, or &quot;bip9&quot; type with &quot;active&quot; status)
+      &quot;active&quot; : true|false               (boolean) true if the rules are enforced for the mempool and the next block
+    },
+    ...
+  },
+  &quot;warnings&quot; : &quot;str&quot;                      (string) any network and blockchain warnings
+}
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digibyte-cli getblockchaininfo
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;getblockchaininfo&quot;, &quot;params&quot;: []}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,67 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="importaddress">
+<h1 class="title">importaddress</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">importaddress &quot;address&quot; ( &quot;label&quot; rescan p2sh )</tt></p>
+<p>Adds an address or script (in hex) that can be watched as if it were in your wallet but cannot be used to spend. Requires a new wallet backup.</p>
+<p>Note: This call can take over an hour to complete if rescan is true, during that time, other rpc calls
+may report that the imported address exists but related transactions are still missing, leading to temporarily incorrect/bogus balances and unspent outputs until rescan completes.</p>
+<p>If you have the full public key, you should call importpubkey instead of this.</p>
+<p>Hint: use importmulti to import more than one address.</p>
+<p>Note: If you import a non-standard raw script in hex form, outputs sending to it will be treated
+as change, and not show up in many RPCs.</p>
+<p>Note: Use &quot;getwalletinfo&quot; to query the scanning progress.</p>
+<div class="section" id="argument-1-address">
+<h1>Argument #1 - address</h1>
+<p><strong>Type:</strong> string, required</p>
+<p>The Bitcoin address (or hex-encoded script)</p>
+</div>
+<div class="section" id="argument-2-label">
+<h1>Argument #2 - label</h1>
+<p><strong>Type:</strong> string, optional, default=&quot;&quot;</p>
+<p>An optional label</p>
+</div>
+<div class="section" id="argument-3-rescan">
+<h1>Argument #3 - rescan</h1>
+<p><strong>Type:</strong> boolean, optional, default=true</p>
+<p>Rescan the wallet for transactions</p>
+</div>
+<div class="section" id="argument-4-p2sh">
+<h1>Argument #4 - p2sh</h1>
+<p><strong>Type:</strong> boolean, optional, default=false</p>
+<p>Add the P2SH version of the script as well</p>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+null    (json null)
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<p>Import an address with rescan:</p>
+<pre class="literal-block">
+digibyte-cli importaddress &quot;myaddress&quot;
+</pre>
+<p>Import using a label without rescan:</p>
+<pre class="literal-block">
+digibyte-cli importaddress &quot;myaddress&quot; &quot;testing&quot; false
+</pre>
+<p>As a JSON-RPC call:</p>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;importaddress&quot;, &quot;params&quot;: [&quot;myaddress&quot;, &quot;testing&quot;, false]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+</body>
+</html>

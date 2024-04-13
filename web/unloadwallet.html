@@ -1,0 +1,47 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="unloadwallet">
+<h1 class="title">unloadwallet</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">unloadwallet ( &quot;wallet_name&quot; load_on_startup )</tt></p>
+<p>Unloads the wallet referenced by the request endpoint otherwise unloads the wallet specified in the argument.</p>
+<p>Specifying the wallet name on a wallet endpoint is invalid.</p>
+<div class="section" id="argument-1-wallet-name">
+<h1>Argument #1 - wallet_name</h1>
+<p><strong>Type:</strong> string, optional, default=the wallet name from the RPC endpoint</p>
+<p>The name of the wallet to unload. Must be provided in the RPC endpoint or this parameter (but not both).</p>
+</div>
+<div class="section" id="argument-2-load-on-startup">
+<h1>Argument #2 - load_on_startup</h1>
+<p><strong>Type:</strong> boolean, optional, default=null</p>
+<p>Save wallet name to persistent settings and load on startup. True to add wallet to startup list, false to remove, null to leave unchanged.</p>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+{                       (json object)
+  &quot;warning&quot; : &quot;str&quot;     (string) Warning message if wallet was not unloaded cleanly.
+}
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digibyte-cli unloadwallet wallet_name
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;unloadwallet&quot;, &quot;params&quot;: [wallet_name]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+</body>
+</html>

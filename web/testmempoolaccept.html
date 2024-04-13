@@ -1,0 +1,77 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="testmempoolaccept">
+<h1 class="title">testmempoolaccept</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">testmempoolaccept <span class="pre">[&quot;rawtx&quot;,...]</span> ( maxfeerate )</tt></p>
+<p>Returns result of mempool acceptance tests indicating if raw transaction (serialized, hex-encoded) would be accepted by mempool.</p>
+<p>This checks if the transaction violates the consensus or policy rules.</p>
+<p>See sendrawtransaction call.</p>
+<div class="section" id="argument-1-rawtxs">
+<h1>Argument #1 - rawtxs</h1>
+<p><strong>Type:</strong> json array, required</p>
+<dl class="docutils">
+<dt>An array of hex strings of raw transactions.</dt>
+<dd>Length must be one for now.</dd>
+</dl>
+<pre class="literal-block">
+[
+  &quot;rawtx&quot;,    (string)
+  ...
+]
+</pre>
+</div>
+<div class="section" id="argument-2-maxfeerate">
+<h1>Argument #2 - maxfeerate</h1>
+<p><strong>Type:</strong> numeric or string, optional, default=0.10</p>
+<p>Reject transactions whose fee rate is higher than the specified value, expressed in BTC/kB</p>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+[                               (json array) The result of the mempool acceptance test for each raw transaction in the input array.
+                                Length is exactly one for now.
+  {                             (json object)
+    &quot;txid&quot; : &quot;hex&quot;,             (string) The transaction hash in hex
+    &quot;allowed&quot; : true|false,     (boolean) If the mempool allows this tx to be inserted
+    &quot;vsize&quot; : n,                (numeric) Virtual transaction size as defined in BIP 141. This is different from actual serialized size for witness transactions as witness data is discounted (only present when 'allowed' is true)
+    &quot;fees&quot; : {                  (json object) Transaction fees (only present if 'allowed' is true)
+      &quot;base&quot; : n                (numeric) transaction fee in BTC
+    },
+    &quot;reject-reason&quot; : &quot;str&quot;     (string) Rejection string (only present when 'allowed' is false)
+  },
+  ...
+]
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<p>Create a transaction:</p>
+<pre class="literal-block">
+digibyte-cli createrawtransaction &quot;[{\&quot;txid\&quot; : \&quot;mytxid\&quot;,\&quot;vout\&quot;:0}]&quot; &quot;{\&quot;myaddress\&quot;:0.01}&quot;
+</pre>
+<p>Sign the transaction, and get back the hex:</p>
+<pre class="literal-block">
+digibyte-cli signrawtransactionwithwallet &quot;myhex&quot;
+</pre>
+<p>Test acceptance of the transaction (signed hex):</p>
+<pre class="literal-block">
+digibyte-cli testmempoolaccept '[&quot;signedhex&quot;]'
+</pre>
+<p>As a JSON-RPC call:</p>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;testmempoolaccept&quot;, &quot;params&quot;: [[&quot;signedhex&quot;]]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+</body>
+</html>

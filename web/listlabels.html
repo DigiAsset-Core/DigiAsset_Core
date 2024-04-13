@@ -1,0 +1,52 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="listlabels">
+<h1 class="title">listlabels</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">listlabels ( &quot;purpose&quot; )</tt></p>
+<p>Returns the list of all labels, or labels that are assigned to addresses with a specific purpose.</p>
+<div class="section" id="argument-1-purpose">
+<h1>Argument #1 - purpose</h1>
+<p><strong>Type:</strong> string, optional</p>
+<p>Address purpose to list labels for ('send','receive'). An empty string is the same as not providing this argument.</p>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+[           (json array)
+  &quot;str&quot;,    (string) Label name
+  ...
+]
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<p>List all labels:</p>
+<pre class="literal-block">
+digibyte-cli listlabels
+</pre>
+<p>List labels that have receiving addresses:</p>
+<pre class="literal-block">
+digibyte-cli listlabels receive
+</pre>
+<p>List labels that have sending addresses:</p>
+<pre class="literal-block">
+digibyte-cli listlabels send
+</pre>
+<p>As a JSON-RPC call:</p>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;listlabels&quot;, &quot;params&quot;: [receive]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+</body>
+</html>

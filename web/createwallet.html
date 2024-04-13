@@ -1,0 +1,72 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="createwallet">
+<h1 class="title">createwallet</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">createwallet &quot;wallet_name&quot; ( disable_private_keys blank &quot;passphrase&quot; avoid_reuse descriptors load_on_startup )</tt></p>
+<p>Creates and loads a new wallet.</p>
+<div class="section" id="argument-1-wallet-name">
+<h1>Argument #1 - wallet_name</h1>
+<p><strong>Type:</strong> string, required</p>
+<p>The name for the new wallet. If this is a path, the wallet will be created at the path location.</p>
+</div>
+<div class="section" id="argument-2-disable-private-keys">
+<h1>Argument #2 - disable_private_keys</h1>
+<p><strong>Type:</strong> boolean, optional, default=false</p>
+<p>Disable the possibility of private keys (only watchonlys are possible in this mode).</p>
+</div>
+<div class="section" id="argument-3-blank">
+<h1>Argument #3 - blank</h1>
+<p><strong>Type:</strong> boolean, optional, default=false</p>
+<p>Create a blank wallet. A blank wallet has no keys or HD seed. One can be set using sethdseed.</p>
+</div>
+<div class="section" id="argument-4-passphrase">
+<h1>Argument #4 - passphrase</h1>
+<p><strong>Type:</strong> string</p>
+<p>Encrypt the wallet with this passphrase.</p>
+</div>
+<div class="section" id="argument-5-avoid-reuse">
+<h1>Argument #5 - avoid_reuse</h1>
+<p><strong>Type:</strong> boolean, optional, default=false</p>
+<p>Keep track of coin reuse, and treat dirty and clean coins differently with privacy considerations in mind.</p>
+</div>
+<div class="section" id="argument-6-descriptors">
+<h1>Argument #6 - descriptors</h1>
+<p><strong>Type:</strong> boolean, optional, default=false</p>
+<p>Create a native descriptor wallet. The wallet will use descriptors internally to handle address creation</p>
+</div>
+<div class="section" id="argument-7-load-on-startup">
+<h1>Argument #7 - load_on_startup</h1>
+<p><strong>Type:</strong> boolean, optional, default=null</p>
+<p>Save wallet name to persistent settings and load on startup. True to add wallet to startup list, false to remove, null to leave unchanged.</p>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+{                       (json object)
+  &quot;name&quot; : &quot;str&quot;,       (string) The wallet name if created successfully. If the wallet was created using a full path, the wallet_name will be the full path.
+  &quot;warning&quot; : &quot;str&quot;     (string) Warning message if wallet was not loaded cleanly.
+}
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digibyte-cli createwallet &quot;testwallet&quot;
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;createwallet&quot;, &quot;params&quot;: [&quot;testwallet&quot;]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+</body>
+</html>

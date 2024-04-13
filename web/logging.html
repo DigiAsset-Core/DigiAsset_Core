@@ -1,0 +1,71 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="logging">
+<h1 class="title">logging</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">logging ( <span class="pre">[&quot;include_category&quot;,...]</span> <span class="pre">[&quot;exclude_category&quot;,...]</span> )</tt></p>
+<p>Gets and sets the logging configuration.</p>
+<p>When called without an argument, returns the list of categories with status that are currently being debug logged or not.</p>
+<p>When called with arguments, adds or removes categories from debug logging and return the lists above.</p>
+<p>The arguments are evaluated in order &quot;include&quot;, &quot;exclude&quot;.</p>
+<p>If an item is both included and excluded, it will thus end up being excluded.</p>
+<p>The valid logging categories are: net, tor, mempool, http, bench, zmq, walletdb, rpc, estimatefee, addrman, selectcoins, reindex, cmpctblock, rand, prune, proxy, mempoolrej, libevent, coindb, qt, leveldb, validation
+In addition, the following are available as category names with special meanings:</p>
+<blockquote>
+<ul class="simple">
+<li>&quot;all&quot;,  &quot;1&quot; : represent all logging categories.</li>
+<li>&quot;none&quot;, &quot;0&quot; : even if other logging categories are specified, ignore all of them.</li>
+</ul>
+</blockquote>
+<div class="section" id="argument-1-include">
+<h1>Argument #1 - include</h1>
+<p><strong>Type:</strong> json array, optional</p>
+<p>The categories to add to debug logging</p>
+<pre class="literal-block">
+[
+  &quot;include_category&quot;,    (string) the valid logging category
+  ...
+]
+</pre>
+</div>
+<div class="section" id="argument-2-exclude">
+<h1>Argument #2 - exclude</h1>
+<p><strong>Type:</strong> json array, optional</p>
+<p>The categories to remove from debug logging</p>
+<pre class="literal-block">
+[
+  &quot;exclude_category&quot;,    (string) the valid logging category
+  ...
+]
+</pre>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+{                             (json object) keys are the logging categories, and values indicates its status
+  &quot;category&quot; : true|false,    (boolean) if being debug logged or not. false:inactive, true:active
+  ...
+}
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digibyte-cli logging &quot;[\&quot;all\&quot;]&quot; &quot;[\&quot;http\&quot;]&quot;
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;logging&quot;, &quot;params&quot;: [[&quot;all&quot;], [&quot;libevent&quot;]]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+</body>
+</html>

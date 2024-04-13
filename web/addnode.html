@@ -1,0 +1,47 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="addnode">
+<h1 class="title">addnode</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">addnode &quot;node&quot; &quot;command&quot;</tt></p>
+<p>Attempts to add or remove a node from the addnode list.</p>
+<p>Or try a connection to a node once.</p>
+<p>Nodes added using addnode (or -connect) are protected from DoS disconnection and are not required to be
+full nodes/support SegWit as other outbound peers are (though such peers will not be synced from).</p>
+<div class="section" id="argument-1-node">
+<h1>Argument #1 - node</h1>
+<p><strong>Type:</strong> string, required</p>
+<p>The node (see getpeerinfo for nodes)</p>
+</div>
+<div class="section" id="argument-2-command">
+<h1>Argument #2 - command</h1>
+<p><strong>Type:</strong> string, required</p>
+<p>'add' to add a node to the list, 'remove' to remove a node from the list, 'onetry' to try a connection to the node once</p>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+null    (json null)
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digibyte-cli addnode &quot;192.168.0.6:8333&quot; &quot;onetry&quot;
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;addnode&quot;, &quot;params&quot;: [&quot;192.168.0.6:8333&quot;, &quot;onetry&quot;]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+</body>
+</html>

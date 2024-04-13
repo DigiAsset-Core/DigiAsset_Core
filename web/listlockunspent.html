@@ -1,0 +1,55 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="listlockunspent">
+<h1 class="title">listlockunspent</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">listlockunspent</tt></p>
+<p>Returns list of temporarily unspendable outputs.</p>
+<p>See the lockunspent call to lock and unlock transactions for spending.</p>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+[                      (json array)
+  {                    (json object)
+    &quot;txid&quot; : &quot;hex&quot;,    (string) The transaction id locked
+    &quot;vout&quot; : n         (numeric) The vout value
+  },
+  ...
+]
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<p>List the unspent transactions:</p>
+<pre class="literal-block">
+digibyte-cli listunspent
+</pre>
+<p>Lock an unspent transaction:</p>
+<pre class="literal-block">
+digibyte-cli lockunspent false &quot;[{\&quot;txid\&quot;:\&quot;a08e6907dbbd3d809776dbfc5d82e371b764ed838b5655e72f463568df1aadf0\&quot;,\&quot;vout\&quot;:1}]&quot;
+</pre>
+<p>List the locked transactions:</p>
+<pre class="literal-block">
+digibyte-cli listlockunspent
+</pre>
+<p>Unlock the transaction again:</p>
+<pre class="literal-block">
+digibyte-cli lockunspent true &quot;[{\&quot;txid\&quot;:\&quot;a08e6907dbbd3d809776dbfc5d82e371b764ed838b5655e72f463568df1aadf0\&quot;,\&quot;vout\&quot;:1}]&quot;
+</pre>
+<p>As a JSON-RPC call:</p>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;listlockunspent&quot;, &quot;params&quot;: []}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+</body>
+</html>

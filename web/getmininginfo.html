@@ -1,0 +1,43 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="getmininginfo">
+<h1 class="title">getmininginfo</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">getmininginfo</tt></p>
+<p>Returns a json object containing mining-related information.</p>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+{                              (json object)
+  &quot;blocks&quot; : n,                (numeric) The current block
+  &quot;currentblockweight&quot; : n,    (numeric, optional) The block weight of the last assembled block (only present if a block was ever assembled)
+  &quot;currentblocktx&quot; : n,        (numeric, optional) The number of block transactions of the last assembled block (only present if a block was ever assembled)
+  &quot;difficulty&quot; : n,            (numeric) The current difficulty
+  &quot;networkhashps&quot; : n,         (numeric) The network hashes per second
+  &quot;pooledtx&quot; : n,              (numeric) The size of the mempool
+  &quot;chain&quot; : &quot;str&quot;,             (string) current network name (main, test, regtest)
+  &quot;warnings&quot; : &quot;str&quot;           (string) any network and blockchain warnings
+}
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digibyte-cli getmininginfo
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;getmininginfo&quot;, &quot;params&quot;: []}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,35 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="importprunedfunds">
+<h1 class="title">importprunedfunds</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">importprunedfunds &quot;rawtransaction&quot; &quot;txoutproof&quot;</tt></p>
+<p>Imports funds without rescan. Corresponding address or script must previously be included in wallet. Aimed towards pruned wallets. The end-user is responsible to import additional transactions that subsequently spend the imported outputs or rescan after the point in the blockchain the transaction is included.</p>
+<div class="section" id="argument-1-rawtransaction">
+<h1>Argument #1 - rawtransaction</h1>
+<p><strong>Type:</strong> string, required</p>
+<p>A raw transaction in hex funding an already-existing address in wallet</p>
+</div>
+<div class="section" id="argument-2-txoutproof">
+<h1>Argument #2 - txoutproof</h1>
+<p><strong>Type:</strong> string, required</p>
+<p>The hex output from gettxoutproof that contains the transaction</p>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+null    (json null)
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,140 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="sendtoaddress">
+<h1 class="title">sendtoaddress</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">sendtoaddress &quot;address&quot; amount ( &quot;comment&quot; &quot;comment_to&quot; subtractfeefromamount replaceable conf_target &quot;estimate_mode&quot; avoid_reuse fee_rate verbose )</tt></p>
+<p>Send an amount to a given address.</p>
+<p>Requires wallet passphrase to be set with walletpassphrase call if wallet is encrypted.</p>
+<div class="section" id="argument-1-address">
+<h1>Argument #1 - address</h1>
+<p><strong>Type:</strong> string, required</p>
+<p>The bitcoin address to send to.</p>
+</div>
+<div class="section" id="argument-2-amount">
+<h1>Argument #2 - amount</h1>
+<p><strong>Type:</strong> numeric or string, required</p>
+<p>The amount in BTC to send. eg 0.1</p>
+</div>
+<div class="section" id="argument-3-comment">
+<h1>Argument #3 - comment</h1>
+<p><strong>Type:</strong> string, optional</p>
+<dl class="docutils">
+<dt>A comment used to store what the transaction is for.</dt>
+<dd>This is not part of the transaction, just kept in your wallet.</dd>
+</dl>
+</div>
+<div class="section" id="argument-4-comment-to">
+<h1>Argument #4 - comment_to</h1>
+<p><strong>Type:</strong> string, optional</p>
+<dl class="docutils">
+<dt>A comment to store the name of the person or organization</dt>
+<dd>to which you're sending the transaction. This is not part of the
+transaction, just kept in your wallet.</dd>
+</dl>
+</div>
+<div class="section" id="argument-5-subtractfeefromamount">
+<h1>Argument #5 - subtractfeefromamount</h1>
+<p><strong>Type:</strong> boolean, optional, default=false</p>
+<dl class="docutils">
+<dt>The fee will be deducted from the amount being sent.</dt>
+<dd>The recipient will receive less bitcoins than you enter in the amount field.</dd>
+</dl>
+</div>
+<div class="section" id="argument-6-replaceable">
+<h1>Argument #6 - replaceable</h1>
+<p><strong>Type:</strong> boolean, optional, default=wallet default</p>
+<p>Allow this transaction to be replaced by a transaction with higher fees via BIP 125</p>
+</div>
+<div class="section" id="argument-7-conf-target">
+<h1>Argument #7 - conf_target</h1>
+<p><strong>Type:</strong> numeric, optional, default=wallet -txconfirmtarget</p>
+<p>Confirmation target in blocks</p>
+</div>
+<div class="section" id="argument-8-estimate-mode">
+<h1>Argument #8 - estimate_mode</h1>
+<p><strong>Type:</strong> string, optional, default=unset</p>
+<dl class="docutils">
+<dt>The fee estimate mode, must be one of (case insensitive):</dt>
+<dd>&quot;unset&quot;
+&quot;economical&quot;
+&quot;conservative&quot;</dd>
+</dl>
+</div>
+<div class="section" id="argument-9-avoid-reuse">
+<h1>Argument #9 - avoid_reuse</h1>
+<p><strong>Type:</strong> boolean, optional, default=true</p>
+<dl class="docutils">
+<dt>(only available if avoid_reuse wallet flag is set) Avoid spending from dirty addresses; addresses are considered</dt>
+<dd>dirty if they have previously been used in a transaction.</dd>
+</dl>
+</div>
+<div class="section" id="result-if-verbose-is-not-set-or-set-to-false">
+<h1>Result (if verbose is not set or set to false)</h1>
+<table border="1" class="docutils">
+<colgroup>
+<col width="33%" />
+<col width="33%" />
+<col width="33%" />
+</colgroup>
+<thead valign="bottom">
+<tr><th class="head">Name</th>
+<th class="head">Type</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr><td>hex</td>
+<td>string</td>
+<td>The transaction id.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="result-if-verbose-is-set-to-true">
+<h1>Result (if verbose is set to true)</h1>
+<pre class="literal-block">
+{                          (json object)
+  &quot;txid&quot; : &quot;hex&quot;,          (string) The transaction id.
+  &quot;fee reason&quot; : &quot;str&quot;     (string) The transaction fee reason.
+}
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<p>Send 0.1 BTC:</p>
+<pre class="literal-block">
+digibyte-cli sendtoaddress &quot;bc1q09vm5lfy0j5reeulh4x5752q25uqqvz34hufdl&quot; 0.1
+</pre>
+<p>Send 0.1 BTC with a confirmation target of 6 blocks in economical fee estimate mode using positional arguments:</p>
+<pre class="literal-block">
+digibyte-cli sendtoaddress &quot;bc1q09vm5lfy0j5reeulh4x5752q25uqqvz34hufdl&quot; 0.1 &quot;donation&quot; &quot;sean's outpost&quot; false true 6 economical
+</pre>
+<p>Send 0.1 BTC with a fee rate of 1.1 sat/vB, subtract fee from amount, BIP125-replaceable, using positional arguments:</p>
+<pre class="literal-block">
+digibyte-cli sendtoaddress &quot;bc1q09vm5lfy0j5reeulh4x5752q25uqqvz34hufdl&quot; 0.1 &quot;drinks&quot; &quot;room77&quot; true true null &quot;unset&quot; null 1.1
+</pre>
+<p>Send 0.2 BTC with a confirmation target of 6 blocks in economical fee estimate mode using named arguments:</p>
+<pre class="literal-block">
+digibyte-cli -named sendtoaddress address=&quot;bc1q09vm5lfy0j5reeulh4x5752q25uqqvz34hufdl&quot; amount=0.2 conf_target=6 estimate_mode=&quot;economical&quot;
+</pre>
+<p>Send 0.5 BTC with a fee rate of 25 sat/vB using named arguments:</p>
+<pre class="literal-block">
+digibyte-cli -named sendtoaddress address=&quot;bc1q09vm5lfy0j5reeulh4x5752q25uqqvz34hufdl&quot; amount=0.5 fee_rate=25
+</pre>
+<pre class="literal-block">
+digibyte-cli -named sendtoaddress address=&quot;bc1q09vm5lfy0j5reeulh4x5752q25uqqvz34hufdl&quot; amount=0.5 fee_rate=25 subtractfeefromamount=false replaceable=true avoid_reuse=true comment=&quot;2 pizzas&quot; comment_to=&quot;jeremy&quot; verbose=true
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+</body>
+</html>

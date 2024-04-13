@@ -1,0 +1,43 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="getmempoolinfo">
+<h1 class="title">getmempoolinfo</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">getmempoolinfo</tt></p>
+<p>Returns details on the active state of the TX memory pool.</p>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+{                            (json object)
+  &quot;loaded&quot; : true|false,     (boolean) True if the mempool is fully loaded
+  &quot;size&quot; : n,                (numeric) Current tx count
+  &quot;bytes&quot; : n,               (numeric) Sum of all virtual transaction sizes as defined in BIP 141. Differs from actual serialized size because witness data is discounted
+  &quot;usage&quot; : n,               (numeric) Total memory usage for the mempool
+  &quot;maxmempool&quot; : n,          (numeric) Maximum memory usage for the mempool
+  &quot;mempoolminfee&quot; : n,       (numeric) Minimum fee rate in BTC/kB for tx to be accepted. Is the maximum of minrelaytxfee and minimum mempool fee
+  &quot;minrelaytxfee&quot; : n,       (numeric) Current minimum relay fee for transactions
+  &quot;unbroadcastcount&quot; : n     (numeric) Current number of transactions that haven't passed initial broadcast yet
+}
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digibyte-cli getmempoolinfo
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;getmempoolinfo&quot;, &quot;params&quot;: []}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+</body>
+</html>

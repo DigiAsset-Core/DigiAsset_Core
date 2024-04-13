@@ -1,0 +1,67 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="importprivkey">
+<h1 class="title">importprivkey</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">importprivkey &quot;privkey&quot; ( &quot;label&quot; rescan )</tt></p>
+<p>Adds a private key (as returned by dumpprivkey) to your wallet. Requires a new wallet backup.</p>
+<p>Hint: use importmulti to import more than one private key.</p>
+<p>Note: This call can take over an hour to complete if rescan is true, during that time, other rpc calls
+may report that the imported key exists but related transactions are still missing, leading to temporarily incorrect/bogus balances and unspent outputs until rescan completes.</p>
+<p>Note: Use &quot;getwalletinfo&quot; to query the scanning progress.</p>
+<div class="section" id="argument-1-privkey">
+<h1>Argument #1 - privkey</h1>
+<p><strong>Type:</strong> string, required</p>
+<p>The private key (see dumpprivkey)</p>
+</div>
+<div class="section" id="argument-2-label">
+<h1>Argument #2 - label</h1>
+<p><strong>Type:</strong> string, optional, default=current label if address exists, otherwise &quot;&quot;</p>
+<p>An optional label</p>
+</div>
+<div class="section" id="argument-3-rescan">
+<h1>Argument #3 - rescan</h1>
+<p><strong>Type:</strong> boolean, optional, default=true</p>
+<p>Rescan the wallet for transactions</p>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+null    (json null)
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<p>Dump a private key:</p>
+<pre class="literal-block">
+digibyte-cli dumpprivkey &quot;myaddress&quot;
+</pre>
+<p>Import the private key with rescan:</p>
+<pre class="literal-block">
+digibyte-cli importprivkey &quot;mykey&quot;
+</pre>
+<p>Import using a label and without rescan:</p>
+<pre class="literal-block">
+digibyte-cli importprivkey &quot;mykey&quot; &quot;testing&quot; false
+</pre>
+<p>Import using default blank label and without rescan:</p>
+<pre class="literal-block">
+digibyte-cli importprivkey &quot;mykey&quot; &quot;&quot; false
+</pre>
+<p>As a JSON-RPC call:</p>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;importprivkey&quot;, &quot;params&quot;: [&quot;mykey&quot;, &quot;testing&quot;, false]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+</body>
+</html>

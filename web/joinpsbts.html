@@ -1,0 +1,59 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="joinpsbts">
+<h1 class="title">joinpsbts</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">joinpsbts <span class="pre">[&quot;psbt&quot;,...]</span></tt></p>
+<p>Joins multiple distinct PSBTs with different inputs and outputs into one PSBT with inputs and outputs from all of the PSBTs
+No input in any of the PSBTs can be in more than one of the PSBTs.</p>
+<div class="section" id="argument-1-txs">
+<h1>Argument #1 - txs</h1>
+<p><strong>Type:</strong> json array, required</p>
+<p>The base64 strings of partially signed transactions</p>
+<pre class="literal-block">
+[
+  &quot;psbt&quot;,    (string, required) A base64 string of a PSBT
+  ...
+]
+</pre>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<table border="1" class="docutils">
+<colgroup>
+<col width="33%" />
+<col width="33%" />
+<col width="33%" />
+</colgroup>
+<thead valign="bottom">
+<tr><th class="head">Name</th>
+<th class="head">Type</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr><td>str</td>
+<td>string</td>
+<td>The base64-encoded partially signed transaction</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digibyte-cli joinpsbts &quot;psbt&quot;
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+</body>
+</html>

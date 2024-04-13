@@ -1,0 +1,73 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="prioritisetransaction">
+<h1 class="title">prioritisetransaction</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">prioritisetransaction &quot;txid&quot; ( dummy ) fee_delta</tt></p>
+<p>Accepts the transaction into mined blocks at a higher (or lower) priority</p>
+<div class="section" id="argument-1-txid">
+<h1>Argument #1 - txid</h1>
+<p><strong>Type:</strong> string, required</p>
+<p>The transaction id.</p>
+</div>
+<div class="section" id="argument-2-dummy">
+<h1>Argument #2 - dummy</h1>
+<p><strong>Type:</strong> numeric, optional</p>
+<dl class="docutils">
+<dt>API-Compatibility for previous API. Must be zero or null.</dt>
+<dd>DEPRECATED. For forward compatibility use named arguments and omit this parameter.</dd>
+</dl>
+</div>
+<div class="section" id="argument-3-fee-delta">
+<h1>Argument #3 - fee_delta</h1>
+<p><strong>Type:</strong> numeric, required</p>
+<dl class="docutils">
+<dt>The fee value (in satoshis) to add (or subtract, if negative).</dt>
+<dd>Note, that this value is not a fee rate. It is a value to modify absolute fee of the TX.
+The fee is not actually paid, only the algorithm for selecting transactions into a block
+considers the transaction as it would have paid a higher (or lower) fee.</dd>
+</dl>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<table border="1" class="docutils">
+<colgroup>
+<col width="33%" />
+<col width="33%" />
+<col width="33%" />
+</colgroup>
+<thead valign="bottom">
+<tr><th class="head">Name</th>
+<th class="head">Type</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr><td>true|false</td>
+<td>boolean</td>
+<td>Returns true</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digibyte-cli prioritisetransaction &quot;txid&quot; 0.0 10000
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;prioritisetransaction&quot;, &quot;params&quot;: [&quot;txid&quot;, 0.0, 10000]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+</body>
+</html>

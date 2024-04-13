@@ -1,0 +1,47 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="getblockfilter">
+<h1 class="title">getblockfilter</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">getblockfilter &quot;blockhash&quot; ( &quot;filtertype&quot; )</tt></p>
+<p>Retrieve a BIP 157 content filter for a particular block.</p>
+<div class="section" id="argument-1-blockhash">
+<h1>Argument #1 - blockhash</h1>
+<p><strong>Type:</strong> string, required</p>
+<p>The hash of the block</p>
+</div>
+<div class="section" id="argument-2-filtertype">
+<h1>Argument #2 - filtertype</h1>
+<p><strong>Type:</strong> string, optional, default=basic</p>
+<p>The type name of the filter</p>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+{                      (json object)
+  &quot;filter&quot; : &quot;hex&quot;,    (string) the hex-encoded filter data
+  &quot;header&quot; : &quot;hex&quot;     (string) the hex-encoded filter header
+}
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digibyte-cli getblockfilter &quot;00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09&quot; &quot;basic&quot;
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;getblockfilter&quot;, &quot;params&quot;: [&quot;00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09&quot;, &quot;basic&quot;]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+</body>
+</html>

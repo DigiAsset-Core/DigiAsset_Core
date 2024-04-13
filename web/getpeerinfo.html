@@ -1,0 +1,110 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="getpeerinfo">
+<h1 class="title">getpeerinfo</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">getpeerinfo</tt></p>
+<p>Returns data about each connected network node as a json array of objects.</p>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+[                                  (json array)
+  {                                (json object)
+    &quot;id&quot; : n,                      (numeric) Peer index
+    &quot;addr&quot; : &quot;str&quot;,                (string) (host:port) The IP address and port of the peer
+    &quot;addrbind&quot; : &quot;str&quot;,            (string) (ip:port) Bind address of the connection to the peer
+    &quot;addrlocal&quot; : &quot;str&quot;,           (string) (ip:port) Local address as reported by the peer
+    &quot;network&quot; : &quot;str&quot;,             (string) Network (ipv4, ipv6, or onion) the peer connected through
+    &quot;mapped_as&quot; : n,               (numeric) The AS in the BGP route to the peer used for diversifying
+                                   peer selection (only available if the asmap config flag is set)
+    &quot;services&quot; : &quot;hex&quot;,            (string) The services offered
+    &quot;servicesnames&quot; : [            (json array) the services offered, in human-readable form
+      &quot;str&quot;,                       (string) the service name if it is recognised
+      ...
+    ],
+    &quot;relaytxes&quot; : true|false,      (boolean) Whether peer has asked us to relay transactions to it
+    &quot;lastsend&quot; : xxx,              (numeric) The UNIX epoch time of the last send
+    &quot;lastrecv&quot; : xxx,              (numeric) The UNIX epoch time of the last receive
+    &quot;last_transaction&quot; : xxx,      (numeric) The UNIX epoch time of the last valid transaction received from this peer
+    &quot;last_block&quot; : xxx,            (numeric) The UNIX epoch time of the last block received from this peer
+    &quot;bytessent&quot; : n,               (numeric) The total bytes sent
+    &quot;bytesrecv&quot; : n,               (numeric) The total bytes received
+    &quot;conntime&quot; : xxx,              (numeric) The UNIX epoch time of the connection
+    &quot;timeoffset&quot; : n,              (numeric) The time offset in seconds
+    &quot;pingtime&quot; : n,                (numeric) ping time (if available)
+    &quot;minping&quot; : n,                 (numeric) minimum observed ping time (if any at all)
+    &quot;pingwait&quot; : n,                (numeric) ping wait (if non-zero)
+    &quot;version&quot; : n,                 (numeric) The peer version, such as 70001
+    &quot;subver&quot; : &quot;str&quot;,              (string) The string version
+    &quot;inbound&quot; : true|false,        (boolean) Inbound (true) or Outbound (false)
+    &quot;addnode&quot; : true|false,        (boolean) Whether connection was due to addnode/-connect or if it was an automatic/inbound connection
+                                   (DEPRECATED, returned only if the config option -deprecatedrpc=getpeerinfo_addnode is passed)
+    &quot;connection_type&quot; : &quot;str&quot;,     (string) Type of connection:
+                                   outbound-full-relay (default automatic connections),
+                                   block-relay-only (does not relay transactions or addresses),
+                                   inbound (initiated by the peer),
+                                   manual (added via addnode RPC or -addnode/-connect configuration options),
+                                   addr-fetch (short-lived automatic connection for soliciting addresses),
+                                   feeler (short-lived automatic connection for testing addresses).
+                                   Please note this output is unlikely to be stable in upcoming releases as we iterate to
+                                   best capture connection behaviors.
+    &quot;startingheight&quot; : n,          (numeric) The starting height (block) of the peer
+    &quot;banscore&quot; : n,                (numeric) The ban score (DEPRECATED, returned only if config option -deprecatedrpc=banscore is passed)
+    &quot;synced_headers&quot; : n,          (numeric) The last header we have in common with this peer
+    &quot;synced_blocks&quot; : n,           (numeric) The last block we have in common with this peer
+    &quot;inflight&quot; : [                 (json array)
+      n,                           (numeric) The heights of blocks we're currently asking from this peer
+      ...
+    ],
+    &quot;whitelisted&quot; : true|false,    (boolean, optional) Whether the peer is whitelisted with default permissions
+                                   (DEPRECATED, returned only if config option -deprecatedrpc=whitelisted is passed)
+    &quot;permissions&quot; : [              (json array) Any special permissions that have been granted to this peer
+      &quot;str&quot;,                       (string) bloomfilter (allow requesting BIP37 filtered blocks and transactions),
+                                   noban (do not ban for misbehavior; implies download),
+                                   forcerelay (relay transactions that are already in the mempool; implies relay),
+                                   relay (relay even in -blocksonly mode, and unlimited transaction announcements),
+                                   mempool (allow requesting BIP35 mempool contents),
+                                   download (allow getheaders during IBD, no disconnect after maxuploadtarget limit),
+                                   addr (responses to GETADDR avoid hitting the cache and contain random records with the most up-to-date info).
+
+      ...
+    ],
+    &quot;minfeefilter&quot; : n,            (numeric) The minimum fee rate for transactions this peer accepts
+    &quot;bytessent_per_msg&quot; : {        (json object)
+      &quot;msg&quot; : n,                   (numeric) The total bytes sent aggregated by message type
+                                   When a message type is not listed in this json object, the bytes sent are 0.
+                                   Only known message types can appear as keys in the object.
+      ...
+    },
+    &quot;bytesrecv_per_msg&quot; : {        (json object)
+      &quot;msg&quot; : n                    (numeric) The total bytes received aggregated by message type
+                                   When a message type is not listed in this json object, the bytes received are 0.
+                                   Only known message types can appear as keys in the object and all bytes received
+                                   of unknown message types are listed under '*other*'.
+    }
+  },
+  ...
+]
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digibyte-cli getpeerinfo
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;getpeerinfo&quot;, &quot;params&quot;: []}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+</body>
+</html>

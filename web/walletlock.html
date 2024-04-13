@@ -1,0 +1,46 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="walletlock">
+<h1 class="title">walletlock</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">walletlock</tt></p>
+<p>Removes the wallet encryption key from memory, locking the wallet.</p>
+<p>After calling this method, you will need to call walletpassphrase again
+before being able to call any methods which require the wallet to be unlocked.</p>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+null    (json null)
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<p>Set the passphrase for 2 minutes to perform a transaction:</p>
+<pre class="literal-block">
+digibyte-cli walletpassphrase &quot;my pass phrase&quot; 120
+</pre>
+<p>Perform a send (requires passphrase set):</p>
+<pre class="literal-block">
+digibyte-cli sendtoaddress &quot;bc1q09vm5lfy0j5reeulh4x5752q25uqqvz34hufdl&quot; 1.0
+</pre>
+<p>Clear the passphrase since we are done before 2 minutes is up:</p>
+<pre class="literal-block">
+digibyte-cli walletlock
+</pre>
+<p>As a JSON-RPC call:</p>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;walletlock&quot;, &quot;params&quot;: []}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+</body>
+</html>

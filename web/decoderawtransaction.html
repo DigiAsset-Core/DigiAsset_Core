@@ -1,0 +1,92 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="decoderawtransaction">
+<h1 class="title">decoderawtransaction</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">decoderawtransaction &quot;hexstring&quot; ( iswitness )</tt></p>
+<p>Return a JSON object representing the serialized, hex-encoded transaction.</p>
+<div class="section" id="argument-1-hexstring">
+<h1>Argument #1 - hexstring</h1>
+<p><strong>Type:</strong> string, required</p>
+<p>The transaction hex string</p>
+</div>
+<div class="section" id="argument-2-iswitness">
+<h1>Argument #2 - iswitness</h1>
+<p><strong>Type:</strong> boolean, optional, default=depends on heuristic tests</p>
+<dl class="docutils">
+<dt>Whether the transaction hex is a serialized witness transaction.</dt>
+<dd>If iswitness is not present, heuristic tests will be used in decoding.
+If true, only witness deserialization will be tried.
+If false, only non-witness deserialization will be tried.
+This boolean should reflect whether the transaction has inputs
+(e.g. fully valid, or on-chain transactions), if known by the caller.</dd>
+</dl>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+{                           (json object)
+  &quot;txid&quot; : &quot;hex&quot;,           (string) The transaction id
+  &quot;hash&quot; : &quot;hex&quot;,           (string) The transaction hash (differs from txid for witness transactions)
+  &quot;size&quot; : n,               (numeric) The transaction size
+  &quot;vsize&quot; : n,              (numeric) The virtual transaction size (differs from size for witness transactions)
+  &quot;weight&quot; : n,             (numeric) The transaction's weight (between vsize*4 - 3 and vsize*4)
+  &quot;version&quot; : n,            (numeric) The version
+  &quot;locktime&quot; : xxx,         (numeric) The lock time
+  &quot;vin&quot; : [                 (json array)
+    {                       (json object)
+      &quot;txid&quot; : &quot;hex&quot;,       (string) The transaction id
+      &quot;vout&quot; : n,           (numeric) The output number
+      &quot;scriptSig&quot; : {       (json object) The script
+        &quot;asm&quot; : &quot;str&quot;,      (string) asm
+        &quot;hex&quot; : &quot;hex&quot;       (string) hex
+      },
+      &quot;txinwitness&quot; : [     (json array)
+        &quot;hex&quot;,              (string) hex-encoded witness data (if any)
+        ...
+      ],
+      &quot;sequence&quot; : n        (numeric) The script sequence number
+    },
+    ...
+  ],
+  &quot;vout&quot; : [                (json array)
+    {                       (json object)
+      &quot;value&quot; : n,          (numeric) The value in BTC
+      &quot;n&quot; : n,              (numeric) index
+      &quot;scriptPubKey&quot; : {    (json object)
+        &quot;asm&quot; : &quot;str&quot;,      (string) the asm
+        &quot;hex&quot; : &quot;hex&quot;,      (string) the hex
+        &quot;reqSigs&quot; : n,      (numeric) The required sigs
+        &quot;type&quot; : &quot;str&quot;,     (string) The type, eg 'pubkeyhash'
+        &quot;addresses&quot; : [     (json array)
+          &quot;str&quot;,            (string) bitcoin address
+          ...
+        ]
+      }
+    },
+    ...
+  ]
+}
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digibyte-cli decoderawtransaction &quot;hexstring&quot;
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;decoderawtransaction&quot;, &quot;params&quot;: [&quot;hexstring&quot;]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+</body>
+</html>

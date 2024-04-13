@@ -1,0 +1,64 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="walletprocesspsbt">
+<h1 class="title">walletprocesspsbt</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">walletprocesspsbt &quot;psbt&quot; ( sign &quot;sighashtype&quot; bip32derivs )</tt></p>
+<p>Update a PSBT with input information from our wallet and then sign inputs
+that we can sign for.</p>
+<p>Requires wallet passphrase to be set with walletpassphrase call if wallet is encrypted.</p>
+<div class="section" id="argument-1-psbt">
+<h1>Argument #1 - psbt</h1>
+<p><strong>Type:</strong> string, required</p>
+<p>The transaction base64 string</p>
+</div>
+<div class="section" id="argument-2-sign">
+<h1>Argument #2 - sign</h1>
+<p><strong>Type:</strong> boolean, optional, default=true</p>
+<p>Also sign the transaction when updating</p>
+</div>
+<div class="section" id="argument-3-sighashtype">
+<h1>Argument #3 - sighashtype</h1>
+<p><strong>Type:</strong> string, optional, default=ALL</p>
+<dl class="docutils">
+<dt>The signature hash type to sign with if not specified by the PSBT. Must be one of</dt>
+<dd>&quot;ALL&quot;
+&quot;NONE&quot;
+&quot;SINGLE&quot;
+&quot;ALL|ANYONECANPAY&quot;
+&quot;NONE|ANYONECANPAY&quot;
+&quot;SINGLE|ANYONECANPAY&quot;</dd>
+</dl>
+</div>
+<div class="section" id="argument-4-bip32derivs">
+<h1>Argument #4 - bip32derivs</h1>
+<p><strong>Type:</strong> boolean, optional, default=true</p>
+<p>Include BIP 32 derivation paths for public keys if we know them</p>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+{                             (json object)
+  &quot;psbt&quot; : &quot;str&quot;,             (string) The base64-encoded partially signed transaction
+  &quot;complete&quot; : true|false     (boolean) If the transaction has a complete set of signatures
+}
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digibyte-cli walletprocesspsbt &quot;psbt&quot;
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+</body>
+</html>

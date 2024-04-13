@@ -1,0 +1,70 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="getnetworkinfo">
+<h1 class="title">getnetworkinfo</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">getnetworkinfo</tt></p>
+<p>Returns an object containing various state info regarding P2P networking.</p>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+{                                                    (json object)
+  &quot;version&quot; : n,                                     (numeric) the server version
+  &quot;subversion&quot; : &quot;str&quot;,                              (string) the server subversion string
+  &quot;protocolversion&quot; : n,                             (numeric) the protocol version
+  &quot;localservices&quot; : &quot;hex&quot;,                           (string) the services we offer to the network
+  &quot;localservicesnames&quot; : [                           (json array) the services we offer to the network, in human-readable form
+    &quot;str&quot;,                                           (string) the service name
+    ...
+  ],
+  &quot;localrelay&quot; : true|false,                         (boolean) true if transaction relay is requested from peers
+  &quot;timeoffset&quot; : n,                                  (numeric) the time offset
+  &quot;connections&quot; : n,                                 (numeric) the total number of connections
+  &quot;connections_in&quot; : n,                              (numeric) the number of inbound connections
+  &quot;connections_out&quot; : n,                             (numeric) the number of outbound connections
+  &quot;networkactive&quot; : true|false,                      (boolean) whether p2p networking is enabled
+  &quot;networks&quot; : [                                     (json array) information per network
+    {                                                (json object)
+      &quot;name&quot; : &quot;str&quot;,                                (string) network (ipv4, ipv6 or onion)
+      &quot;limited&quot; : true|false,                        (boolean) is the network limited using -onlynet?
+      &quot;reachable&quot; : true|false,                      (boolean) is the network reachable?
+      &quot;proxy&quot; : &quot;str&quot;,                               (string) (&quot;host:port&quot;) the proxy that is used for this network, or empty if none
+      &quot;proxy_randomize_credentials&quot; : true|false     (boolean) Whether randomized credentials are used
+    },
+    ...
+  ],
+  &quot;relayfee&quot; : n,                                    (numeric) minimum relay fee for transactions in BTC/kB
+  &quot;incrementalfee&quot; : n,                              (numeric) minimum fee increment for mempool limiting or BIP 125 replacement in BTC/kB
+  &quot;localaddresses&quot; : [                               (json array) list of local addresses
+    {                                                (json object)
+      &quot;address&quot; : &quot;str&quot;,                             (string) network address
+      &quot;port&quot; : n,                                    (numeric) network port
+      &quot;score&quot; : n                                    (numeric) relative score
+    },
+    ...
+  ],
+  &quot;warnings&quot; : &quot;str&quot;                                 (string) any network and blockchain warnings
+}
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digibyte-cli getnetworkinfo
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;getnetworkinfo&quot;, &quot;params&quot;: []}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+</body>
+</html>

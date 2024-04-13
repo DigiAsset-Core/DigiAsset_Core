@@ -1,0 +1,44 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="dumpwallet">
+<h1 class="title">dumpwallet</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">dumpwallet &quot;filename&quot;</tt></p>
+<p>Dumps all wallet keys in a human-readable format to a server-side file. This does not allow overwriting existing files.</p>
+<p>Imported scripts are included in the dumpfile, but corresponding BIP173 addresses, etc. may not be added automatically by importwallet.</p>
+<p>Note that if your wallet contains keys which are not derived from your HD seed (e.g. imported keys), these are not covered by
+only backing up the seed itself, and must be backed up too (e.g. ensure you back up the whole dumpfile).</p>
+<div class="section" id="argument-1-filename">
+<h1>Argument #1 - filename</h1>
+<p><strong>Type:</strong> string, required</p>
+<p>The filename with path (absolute path recommended)</p>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+{                        (json object)
+  &quot;filename&quot; : &quot;str&quot;     (string) The filename with full absolute path
+}
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digibyte-cli dumpwallet &quot;test&quot;
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;dumpwallet&quot;, &quot;params&quot;: [&quot;test&quot;]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+</body>
+</html>

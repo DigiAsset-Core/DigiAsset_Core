@@ -1,0 +1,54 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="generateblock">
+<h1 class="title">generateblock</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">generateblock &quot;output&quot; <span class="pre">[&quot;rawtx/txid&quot;,...]</span></tt></p>
+<p>Mine a block with a set of ordered transactions immediately to a specified address or descriptor (before the RPC call returns)</p>
+<div class="section" id="argument-1-output">
+<h1>Argument #1 - output</h1>
+<p><strong>Type:</strong> string, required</p>
+<p>The address or descriptor to send the newly generated bitcoin to.</p>
+</div>
+<div class="section" id="argument-2-transactions">
+<h1>Argument #2 - transactions</h1>
+<p><strong>Type:</strong> json array, required</p>
+<dl class="docutils">
+<dt>An array of hex strings which are either txids or raw transactions.</dt>
+<dd>Txids must reference transactions currently in the mempool.
+All transactions must be valid and in valid order, otherwise the block will be rejected.</dd>
+</dl>
+<pre class="literal-block">
+[
+  &quot;rawtx/txid&quot;,    (string)
+  ...
+]
+</pre>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+{                    (json object)
+  &quot;hash&quot; : &quot;hex&quot;     (string) hash of generated block
+}
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<p>Generate a block to myaddress, with txs rawtx and mempool_txid:</p>
+<pre class="literal-block">
+digibyte-cli generateblock &quot;myaddress&quot; '[&quot;rawtx&quot;, &quot;mempool_txid&quot;]'
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+</body>
+</html>

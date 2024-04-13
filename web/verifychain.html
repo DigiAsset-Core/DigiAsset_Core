@@ -1,0 +1,71 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="verifychain">
+<h1 class="title">verifychain</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">verifychain ( checklevel nblocks )</tt></p>
+<p>Verifies blockchain database.</p>
+<div class="section" id="argument-1-checklevel">
+<h1>Argument #1 - checklevel</h1>
+<p><strong>Type:</strong> numeric, optional, default=3, range=0-4</p>
+<dl class="docutils">
+<dt>How thorough the block verification is:</dt>
+<dd><ul class="first last simple">
+<li>level 0 reads the blocks from disk</li>
+<li>level 1 verifies block validity</li>
+<li>level 2 verifies undo data</li>
+<li>level 3 checks disconnection of tip blocks</li>
+<li>level 4 tries to reconnect the blocks</li>
+<li>each level includes the checks of the previous levels</li>
+</ul>
+</dd>
+</dl>
+</div>
+<div class="section" id="argument-2-nblocks">
+<h1>Argument #2 - nblocks</h1>
+<p><strong>Type:</strong> numeric, optional, default=6, 0=all</p>
+<p>The number of blocks to check.</p>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<table border="1" class="docutils">
+<colgroup>
+<col width="33%" />
+<col width="33%" />
+<col width="33%" />
+</colgroup>
+<thead valign="bottom">
+<tr><th class="head">Name</th>
+<th class="head">Type</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr><td>true|false</td>
+<td>boolean</td>
+<td>Verified or not</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digibyte-cli verifychain
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;verifychain&quot;, &quot;params&quot;: []}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+</body>
+</html>

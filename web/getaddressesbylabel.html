@@ -1,0 +1,44 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="getaddressesbylabel">
+<h1 class="title">getaddressesbylabel</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">getaddressesbylabel &quot;label&quot;</tt></p>
+<p>Returns the list of addresses assigned the specified label.</p>
+<div class="section" id="argument-1-label">
+<h1>Argument #1 - label</h1>
+<p><strong>Type:</strong> string, required</p>
+<p>The label.</p>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+{                         (json object) json object with addresses as keys
+  &quot;address&quot; : {           (json object) json object with information about address
+    &quot;purpose&quot; : &quot;str&quot;     (string) Purpose of address (&quot;send&quot; for sending address, &quot;receive&quot; for receiving address)
+  },
+  ...
+}
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digibyte-cli getaddressesbylabel &quot;tabby&quot;
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;getaddressesbylabel&quot;, &quot;params&quot;: [&quot;tabby&quot;]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+</body>
+</html>

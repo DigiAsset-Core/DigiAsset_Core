@@ -1,0 +1,54 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="deriveaddresses">
+<h1 class="title">deriveaddresses</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">deriveaddresses &quot;descriptor&quot; ( range )</tt></p>
+<p>Derives one or more addresses corresponding to an output descriptor.</p>
+<p>Examples of output descriptors are:</p>
+<blockquote>
+pkh(&lt;pubkey&gt;)                        P2PKH outputs for the given pubkey
+wpkh(&lt;pubkey&gt;)                       Native segwit P2PKH outputs for the given pubkey
+sh(multi(&lt;n&gt;,&lt;pubkey&gt;,&lt;pubkey&gt;,...)) P2SH-multisig outputs for the given threshold and pubkeys
+raw(&lt;hex script&gt;)                    Outputs whose scriptPubKey equals the specified hex scripts</blockquote>
+<p>In the above, &lt;pubkey&gt; either refers to a fixed public key in hexadecimal notation, or to an xpub/xprv optionally followed by one
+or more path elements separated by &quot;/&quot;, where &quot;h&quot; represents a hardened child key.</p>
+<p>For more information on output descriptors, see the documentation in the doc/descriptors.md file.</p>
+<div class="section" id="argument-1-descriptor">
+<h1>Argument #1 - descriptor</h1>
+<p><strong>Type:</strong> string, required</p>
+<p>The descriptor.</p>
+</div>
+<div class="section" id="argument-2-range">
+<h1>Argument #2 - range</h1>
+<p><strong>Type:</strong> numeric or array, optional</p>
+<p>If a ranged descriptor is used, this specifies the end or the range (in [begin,end] notation) to derive.</p>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+[           (json array)
+  &quot;str&quot;,    (string) the derived addresses
+  ...
+]
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<p>First three native segwit receive addresses:</p>
+<pre class="literal-block">
+digibyte-cli deriveaddresses &quot;wpkh([d34db33f/84h/0h/0h]xpub6DJ2dNUysrn5Vt36jH2KLBT2i1auw1tTSSomg8PhqNiUtx8QX2SvC9nrHu81fT41fvDUnhMjEzQgXnQjKEu3oaqMSzhSrHMxyyoEAmUHQbY/0/*)#cjjspncu&quot; &quot;[0,2]&quot;
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+</body>
+</html>
