@@ -1,0 +1,55 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/web/css/style.css">
+</head>
+<body>
+<div class="document" id="listlastblocks">
+<h1 class="title">listlastblocks</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<tt class="docutils literal">listlastblocks</tt>
+<p>Returns a list of the most recently processed blocks in the DigiByte blockchain, starting from a specified block or the newest by default. This is useful for tracking block details such as height, hash, time, and the mining algorithm used.</p>
+<div class="section" id="input">
+<h2>Input Parameters</h2>
+<p>
+<ul>
+    <li><tt>limit</tt> (unsigned int): The number of blocks to return.</li>
+    <li><tt>start</tt> (unsigned int, optional, default = newest block): The block height from which to start the list.</li>
+</ul>
+</p>
+</div>
+<div class="section" id="output">
+<h2>Output Format</h2>
+<pre class="literal-block">
+JSON array of objects, each representing a block:
+[
+    {
+        "height": unsigned int,  // Block height
+        "hash": string,          // Block hash
+        "time": unsigned int,    // Block timestamp
+        "algo": string           // Mining algorithm used
+    },
+    ...other blocks...
+]
+</pre>
+</div>
+<div class="section" id="examples">
+<h2>Examples</h2>
+<pre class="literal-block">
+digibyte-cli listlastblocks 5
+</pre>
+<pre class="literal-block">
+digibyte-cli listlastblocks 5 100000
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "listlastblocks", "params": [5, 100000]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/web/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
+</body>
+</html>

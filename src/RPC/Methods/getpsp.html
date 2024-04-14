@@ -1,0 +1,56 @@
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link rel="stylesheet" type="text/css" href="/web/css/style.css" />
+    </head>
+    <body>
+        <div class="document" id="getpsp">
+            <h1 class="title">getpsp</h1>
+            <!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+            <tt class="docutils literal">getpsp</tt>
+            <p>
+                Returns detailed data about a specified Permanent Storage Pool
+                (PSP) based on its index. This is useful for retrieving
+                information about PSPs registered within the DigiByte network.
+            </p>
+            <div class="section" id="input">
+                <h2>Input Parameters</h2>
+                <p>
+                    <tt>index</tt> (unsigned int): The index number of the PSP
+                    to retrieve data from.
+                </p>
+            </div>
+            <div class="section" id="output">
+                <h2>Output Format</h2>
+                <pre class="literal-block">
+JSON object representing the PSP:
+{
+    "name": "PSP Name",
+    "description": "Description of the PSP",
+    "admin": "Administrator's DigiByte address",
+    ...other PSP details...
+}
+</pre
+                >
+            </div>
+            <div class="section" id="examples">
+                <h2>Examples</h2>
+                <pre class="literal-block">
+digibyte-cli getpsp 1
+</pre
+                >
+                <pre class="literal-block">
+curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "getpsp", "params": [1]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre
+                >
+            </div>
+        </div>
+
+        <script src="/web/js/main.js"></script>
+        <footer class="fixed-bottom">
+            <p class="copyright">© Copyright DigiByte Project 2024</p>
+        </footer>
+    </body>
+</html>

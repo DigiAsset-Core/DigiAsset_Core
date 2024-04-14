@@ -1,0 +1,55 @@
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link rel="stylesheet" type="text/css" href="/web/css/style.css" />
+    </head>
+    <body>
+        <div class="document" id="resyncmetadata">
+            <h1 class="title">resyncmetadata</h1>
+            <!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+            <tt class="docutils literal">resyncmetadata</tt>
+            <p>
+                This command initiates a resynchronization of all IPFS metadata
+                associated with subscribed Permanent Storage Pools (PSPs). It
+                pins all metadata to ensure it is available locally, though the
+                download and pinning process may continue to run after the
+                command returns a response.
+            </p>
+            <div class="section" id="input">
+                <h2>Input Parameters</h2>
+                <p>No input parameters required for this command.</p>
+            </div>
+            <div class="section" id="output">
+                <h2>Output Format</h2>
+                <pre class="literal-block">
+Returns a boolean value:
+true - Indicates that the pinning process has been initiated successfully.
+</pre
+                >
+                <p>
+                    Note: A return value of <tt>true</tt> does not guarantee
+                    that all metadata has been successfully downloaded and
+                    pinned, only that the process has begun.
+                </p>
+            </div>
+            <div class="section" id="examples">
+                <h2>Examples</h2>
+                <pre class="literal-block">
+digibyte-cli resyncmetadata
+</pre
+                >
+                <pre class="literal-block">
+curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "resyncmetadata", "params": []}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre
+                >
+            </div>
+        </div>
+
+        <script src="/web/js/main.js"></script>
+        <footer class="fixed-bottom">
+            <p class="copyright">© Copyright DigiByte Project 2024</p>
+        </footer>
+    </body>
+</html>

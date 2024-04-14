@@ -1,0 +1,55 @@
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link rel="stylesheet" type="text/css" href="/web/css/style.css" />
+    </head>
+    <body>
+        <div class="document" id="getoldstreamkey">
+            <h1 class="title">getoldstreamkey</h1>
+            <!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+            <tt class="docutils literal">getoldstreamkey</tt>
+            <p>
+                This command simulates the old DigiAsset Stream and is marked
+                for deprecation. It should not be used for new projects. The
+                function returns data associated with a specified key from the
+                legacy system.
+            </p>
+            <div class="section" id="input">
+                <h2>Input Parameters</h2>
+                <p>
+                    <tt>key</tt> (string or integer): The key for which data is
+                    requested from the old stream.
+                </p>
+            </div>
+            <div class="section" id="output">
+                <h2>Output Format</h2>
+                <pre class="literal-block">
+Depending on the key, the output may vary. Typically, it returns data (string or JSON object) associated with the key.
+</pre
+                >
+            </div>
+            <div class="section" id="examples">
+                <h2>Examples</h2>
+                <pre class="literal-block">
+digibyte-cli getoldstreamkey "someKey123"
+</pre
+                >
+                <pre class="literal-block">
+digibyte-cli getoldstreamkey 456
+</pre
+                >
+                <pre class="literal-block">
+curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "getoldstreamkey", "params": ["someKey123"]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre
+                >
+            </div>
+        </div>
+
+        <script src="/web/js/main.js"></script>
+        <footer class="fixed-bottom">
+            <p class="copyright">© Copyright DigiByte Project 2024</p>
+        </footer>
+    </body>
+</html>

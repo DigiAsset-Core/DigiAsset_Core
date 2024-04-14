@@ -1,0 +1,44 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/web/css/style.css">
+</head>
+<body>
+<div class="document" id="sendtoaddress">
+<h1 class="title">sendtoaddress</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<tt class="docutils literal">sendtoaddress</tt>
+<p>This command sends DigiByte (DGB) or DigiAssets to a specified address or domain. It extends the standard functionality by resolving domain names to DigiByte addresses before processing the transaction, enhancing usability and flexibility.</p>
+<div class="section" id="input">
+<h2>Input Parameters</h2>
+<p>
+<ul>
+    <li><tt>address</tt> (string): The DigiByte address or domain to which the DGB or assets are to be sent.</li>
+    <li><tt>amount</tt> (numeric): The amount in DGB to send.</li>
+    <li>Additional optional parameters for transaction customization, such as <tt>comment</tt>, <tt>comment_to</tt>, <tt>subtractfeefromamount</tt> (boolean), <tt>replaceable</tt> (boolean), <tt>conf_target</tt> (numeric), <tt>estimate_mode</tt> (string), providing flexibility similar to the Bitcoin Core <tt>sendtoaddress</tt> command.</li>
+</ul>
+</p>
+</div>
+<div class="section" id="output">
+<h2>Output Format</h2>
+<pre class="literal-block">
+Returns the transaction ID (txid) of the sent transaction.
+</pre>
+</div>
+<div class="section" id="examples">
+<h2>Examples</h2>
+<pre class="literal-block">
+digibyte-cli sendtoaddress "example.dgb" 1.5
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "sendtoaddress", "params": ["example.dgb", 1.5]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/web/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
+</body>
+</html>

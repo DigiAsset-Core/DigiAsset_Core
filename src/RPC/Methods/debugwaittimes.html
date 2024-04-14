@@ -1,0 +1,52 @@
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link rel="stylesheet" type="text/css" href="/web/css/style.css" />
+    </head>
+    <body>
+        <div class="document" id="debugwaittimes">
+            <h1 class="title">debugwaittimes</h1>
+            <!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+            <tt class="docutils literal">debugwaittimes</tt>
+            <p>
+                Returns a string of wait times to help improve performance. The
+                data is extracted from profiling information related to database
+                and core Digibyte system operations.
+            </p>
+            <div class="section" id="input">
+                <h2>Input Parameters</h2>
+                <p>No input parameters are needed for this method.</p>
+            </div>
+            <div class="section" id="output">
+                <h2>Output Format</h2>
+                <pre class="literal-block">
+JSON array of strings, each representing a profiling log entry:
+[
+    "Time taken for XYZ operation: 5ms",
+    "Execution time for ABC process: 3ms",
+    ...
+]
+</pre
+                >
+            </div>
+            <div class="section" id="examples">
+                <h2>Examples</h2>
+                <pre class="literal-block">
+digibyte-cli debugwaittimes
+</pre
+                >
+                <pre class="literal-block">
+curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "debugwaittimes", "params": []}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre
+                >
+            </div>
+        </div>
+
+        <script src="/web/js/main.js"></script>
+        <footer class="fixed-bottom">
+            <p class="copyright">© Copyright DigiByte Project 2024</p>
+        </footer>
+    </body>
+</html>

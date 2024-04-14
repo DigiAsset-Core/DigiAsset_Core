@@ -1,0 +1,77 @@
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link rel="stylesheet" type="text/css" href="/web/css/style.css" />
+    </head>
+    <body>
+        <div class="document" id="algostats">
+            <h1 class="title">algostats</h1>
+            <!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+            <tt class="docutils literal">algostats</tt>
+            <p>
+                Returns mining statistics over a given time period for different
+                algorithms. Note that the last result may not represent a full
+                time period.
+            </p>
+            <div class="section" id="input">
+                <h2>Input Parameters</h2>
+                <ul>
+                    <li>
+                        <tt>start time</tt> (integer, optional, default = 0):
+                        Start time of the statistics period.
+                    </li>
+                    <li>
+                        <tt>end time</tt> (integer, optional, default = maximum
+                        possible value): End time of the statistics period.
+                    </li>
+                    <li>
+                        <tt>time frame</tt> (integer, optional, default = 86400
+                        seconds): Time frame for the statistics, representing
+                        daily intervals by default.
+                    </li>
+                </ul>
+            </div>
+            <div class="section" id="output">
+                <h2>Output Format</h2>
+                <pre class="literal-block">
+JSON array of objects:
+[
+  {
+    "time": integer,          // The end time of the time frame
+    "algo": [
+      {
+        "min": float,        // Minimum difficulty encountered
+        "max": float,        // Maximum difficulty encountered
+        "avg": float,        // Average difficulty across the period
+        "count": integer     // Number of blocks mined with this algorithm
+      },
+      null,                  // Placeholder for missing algorithms
+      ...
+    ]
+  },
+  ...
+]
+</pre
+                >
+            </div>
+            <div class="section" id="examples">
+                <h2>Examples</h2>
+                <pre class="literal-block">
+digibyte-cli algostats
+</pre
+                >
+                <pre class="literal-block">
+curl --user myusername --data-binary '{"jsonrpc": "1.0", "id": "curltest", "method": "algostats", "params": [0, 1620000000, 86400]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre
+                >
+            </div>
+        </div>
+
+        <script src="/web/js/main.js"></script>
+        <footer class="fixed-bottom">
+            <p class="copyright">© Copyright DigiByte Project 2024</p>
+        </footer>
+    </body>
+</html>

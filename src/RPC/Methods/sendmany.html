@@ -1,0 +1,44 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/web/css/style.css">
+</head>
+<body>
+<div class="document" id="sendmany">
+<h1 class="title">sendmany</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<tt class="docutils literal">sendmany</tt>
+<p>This command sends multiple DigiByte or DigiAssets payments to one or more addresses or domains in a single transaction. It includes support for domain resolution, converting domain names into DigiByte addresses before processing the transaction.</p>
+<div class="section" id="input">
+<h2>Input Parameters</h2>
+<p>
+<ul>
+    <li><tt>fromAccount</tt> (string): The account from which the funds should be taken. Deprecated and ignored if provided.</li>
+    <li><tt>amounts</tt> (object): An object where each key can be a DigiByte address or a domain, and the value is the amount of DGB to send.</li>
+    <li>Optional parameters for transaction crafting, such as <tt>minconf</tt> (minimum confirmations), <tt>comment</tt>, <tt>subtractfeefrom</tt> (array of addresses that will have the fee subtracted from their transaction amount), and other specifics detailed in the Bitcoin Core <tt>sendmany</tt> command documentation.</li>
+</ul>
+</p>
+</div>
+<div class="section" id="output">
+<h2>Output Format</h2>
+<pre class="literal-block">
+Returns the transaction ID (txid) of the sent transaction.
+</pre>
+</div>
+<div class="section" id="examples">
+<h2>Examples</h2>
+<pre class="literal-block">
+digibyte-cli sendmany "" '{"example.dgb": 0.5, "D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC": 1.5}'
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "sendmany", "params": ["", {"example.dgb": 0.5, "D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC": 1.5}]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/web/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
+</body>
+</html>

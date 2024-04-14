@@ -1,0 +1,69 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/web/css/style.css">
+</head>
+<body>
+<div class="document" id="listunspent">
+<h1 class="title">listunspent</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<tt class="docutils literal">listunspent</tt>
+<p>Returns a list of unspent transaction outputs (UTXOs) for the wallet or specified addresses, with various filtering options to control the output.</p>
+<div class="section" id="input">
+<h2>Input Parameters</h2>
+<p>
+<ul>
+    <li><tt>minConfirms</tt> (unsigned int, optional, default=1): The minimum number of confirmations the UTXO must have.</li>
+    <li><tt>maxConfirms</tt> (unsigned int, optional, default=infinity): The maximum number of confirmations the UTXO can have.</li>
+    <li><tt>address list</tt> (array of strings, optional): A list of addresses to filter the UTXOs by. If not provided, UTXOs for all wallet addresses are returned.</li>
+    <li><tt>include unsafe</tt> (bool, always true in current implementation): Includes UTXOs that are not considered safe to spend.</li>
+    <li><tt>query options</tt> (object, optional): Additional options for filtering UTXOs, including:
+        <ul>
+            <li><tt>minimumAmount</tt> (numeric): The minimum amount of DGB each UTXO must contain.</li>
+            <li><tt>maximumAmount</tt> (numeric): The maximum amount of DGB each UTXO can contain.</li>
+            <li><tt>maximumCount</tt> (numeric): The maximum number of UTXOs to return.</li>
+            <li><tt>minimumSumAmount</tt> (numeric): The minimum total amount of DGB for the returned UTXOs.</li>
+            <li><tt>includeAsset</tt> (bool, int, or string): Filter for asset-related UTXOs. Boolean values include or exclude all asset UTXOs, an integer specifies an asset index, and a string specifies an asset ID.</li>
+            <li><tt>detailedAssetData</tt> (bool): Specifies whether to include detailed asset data in the output.</li>
+        </ul>
+    </li>
+</ul>
+</p>
+</div>
+<div class="section" id="output">
+<h2>Output Format</h2>
+<pre class="literal-block">
+JSON array of objects, each representing a UTXO:
+[
+    {
+        "txid": string,            // Transaction ID
+        "vout": integer,           // Output number
+        "address": string,         // Address
+        "account": string,         // Account
+        "scriptPubKey": string,    // Script
+        "amount": numeric,         // Amount of DGB
+        "confirmations": integer,  // Number of confirmations
+        "spendable": bool,         // Whether the UTXO is spendable
+        ...additional fields based on detailedAssetData...
+    },
+    ...other UTXOs...
+]
+</pre>
+</div>
+<div class="section" id="examples">
+<h2>Examples</h2>
+<pre class="literal-block">
+digibyte-cli listunspent 6 1000 ["D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC"]
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "listunspent", "params": [1, 9999999, ["D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC"], true, {"minimumAmount": 0.5, "includeAsset": true}]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/web/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
+</body>
+</html>

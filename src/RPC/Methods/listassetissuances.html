@@ -1,0 +1,52 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/web/css/style.css">
+</head>
+<body>
+<div class="document" id="listassetissuances">
+<h1 class="title">listassetissuances</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<tt class="docutils literal">listassetissuances</tt>
+<p>Returns a list of all asset issuances associated with a specific asset ID, detailing each issuance's basic information.</p>
+<div class="section" id="input">
+<h2>Input Parameters</h2>
+<p>
+<ul>
+    <li><tt>assetId</tt> (string): The asset ID for which issuances are to be listed.</li>
+</ul>
+</p>
+</div>
+<div class="section" id="output">
+<h2>Output Format</h2>
+<pre class="literal-block">
+JSON array of objects, each representing an asset issuance:
+[
+    {
+        "assetIndex": unsigned int,   // Index of the asset
+        "txid": string,               // Transaction ID of the issuance
+        "amount": unsigned int,       // Amount issued
+        "height": int,                // Block height of the issuance
+        "cid": string                 // Content identifier for the asset
+    },
+    ...other issuances...
+]
+</pre>
+</div>
+<div class="section" id="examples">
+<h2>Examples</h2>
+<pre class="literal-block">
+digibyte-cli listassetissuances "assetId12345"
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "listassetissuances", "params": ["assetId12345"]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/web/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
+</body>
+</html>

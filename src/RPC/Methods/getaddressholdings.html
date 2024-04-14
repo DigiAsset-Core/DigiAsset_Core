@@ -1,0 +1,57 @@
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link rel="stylesheet" type="text/css" href="/web/css/style.css" />
+    </head>
+    <body>
+        <div class="document" id="getaddressholdings">
+            <h1 class="title">getaddressholdings</h1>
+            <!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+            <tt class="docutils literal">getaddressholdings</tt>
+            <p>
+                Returns KYC (Know Your Customer) information related to a
+                specific address, detailing the holdings for each asset. This
+                includes DigiByte, represented as asset index 1, if the
+                storenonassetutxo setting is enabled.
+            </p>
+            <div class="section" id="input">
+                <h2>Input Parameters</h2>
+                <p>
+                    <tt>address</tt> (string): The blockchain address for which
+                    holdings information is requested.
+                </p>
+            </div>
+            <div class="section" id="output">
+                <h2>Output Format</h2>
+                <pre class="literal-block">
+JSON object with asset indexes as keys and quantities as values:
+{
+    "1": 100000,   // Example for DigiByte if included
+    "2": 150,
+    "3": 300,
+    ...
+}
+</pre
+                >
+            </div>
+            <div class="section" id="examples">
+                <h2>Examples</h2>
+                <pre class="literal-block">
+digibyte-cli getaddressholdings "D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC"
+</pre
+                >
+                <pre class="literal-block">
+curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "getaddressholdings", "params": ["DGb6Bv..."]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre
+                >
+            </div>
+        </div>
+
+        <script src="/web/js/main.js"></script>
+        <footer class="fixed-bottom">
+            <p class="copyright">© Copyright DigiByte Project 2024</p>
+        </footer>
+    </body>
+</html>
