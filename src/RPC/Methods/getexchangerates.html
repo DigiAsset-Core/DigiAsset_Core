@@ -16,12 +16,12 @@ http://opensource.org/licenses/MIT. -->
                 heights and can be retrieved for current or past blocks as
                 needed.
             </p>
+            <p class="info">Exchange rate history starts at 12642650.</p>
             <div class="section" id="input">
                 <h2>Input Parameters</h2>
-                <p>Optional:</p>
                 <ul>
                     <li>
-                        <tt>block height</tt> (unsigned int): Specify the block
+                        <tt>block height</tt> (unsigned int, optional): Specify the block
                         height to retrieve historical exchange rates. If
                         omitted, current rates are returned.
                     </li>
@@ -47,11 +47,11 @@ JSON array of objects, each containing:
             <div class="section" id="examples">
                 <h2>Examples</h2>
                 <pre class="literal-block">
-digibyte-cli getexchangerates
+digiasset_core-cli getexchangerates
 </pre
                 >
                 <pre class="literal-block">
-digibyte-cli getexchangerates 650000
+digiasset_core-cli getexchangerates 13000000
 </pre
                 >
                 <pre class="literal-block">

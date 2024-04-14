@@ -48,10 +48,10 @@ JSON array of detailed asset information.
 <div class="section" id="examples">
 <h2>Examples</h2>
 <pre class="literal-block">
-digibyte-cli listassets 10 1 true
+digiasset_core-cli listassets 10 1 true
 </pre>
 <pre class="literal-block">
-digibyte-cli listassets 10 1 false '{"psp": true}'
+digiasset_core-cli listassets 10 1 false '{"psp": true}'
 </pre>
 <pre class="literal-block">
 curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "listassets", "params": [10, 1, true, {"psp": true}]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/

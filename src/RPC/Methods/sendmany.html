@@ -30,7 +30,7 @@ Returns the transaction ID (txid) of the sent transaction.
 <div class="section" id="examples">
 <h2>Examples</h2>
 <pre class="literal-block">
-digibyte-cli sendmany "" '{"example.dgb": 0.5, "D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC": 1.5}'
+digiasset_core-cli sendmany "" '{"example.dgb": 0.5, "D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC": 1.5}'
 </pre>
 <pre class="literal-block">
 curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "sendmany", "params": ["", {"example.dgb": 0.5, "D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC": 1.5}]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/

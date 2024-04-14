@@ -25,7 +25,13 @@ http://opensource.org/licenses/MIT. -->
         <ul>
             <li><tt>assetId</tt> (string): The ID of the asset.</li>
             <li><tt>txid</tt> (string, optional): The transaction ID involving the asset.</li>
+                <ul>
+                    <li><b>Required</b> <tt>if</tt> asset(s) has more than 1 index.</li>
+                </ul>
             <li><tt>vout</tt> (integer, optional): The output number in the transaction.</li>
+                <ul>
+                    <li><b>Required</b> <tt>if</tt> asset(s) has more than 1 index.</li>
+                </ul>
             <li><tt>exclude IPFS</tt> (boolean, optional, default = false): Whether to exclude IPFS data.</li>
         </ul>
     </li>
@@ -40,10 +46,10 @@ JSON object that represents the asset in detailed format. Includes information s
 <div class="section" id="examples">
 <h2>Examples</h2>
 <pre class="literal-block">
-digibyte-cli getassetdata 12345 true
+digiasset_core-cli getassetdata 12345 true
 </pre>
 <pre class="literal-block">
-digibyte-cli getassetdata "Labcde12345" "D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC" 0 true
+digiasset_core-cli getassetdata "Labcde12345" "D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC" 0 true
 </pre>
 <pre class="literal-block">
 curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "getassetdata", "params": ["Labcde12345", "D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC", 0, true]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/

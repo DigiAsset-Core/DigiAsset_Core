@@ -10,30 +10,37 @@
 <!-- This file is licensed under the MIT License (MIT) available on
 http://opensource.org/licenses/MIT. -->
 <tt class="docutils literal">getdgbequivalent</tt>
-<p>Returns the equivalent amount in DigiByte satoshis for a given amount of another asset or currency, using a specific exchange rate index.</p>
+<p>This RPC command converts fiat or cryptocurrency values to their equivalent in DGB based on exchange rates published on specified addresses. It supports converting values using the latest exchange rates provided by trusted publishing addresses.</p>
+<p class="info">Will throw error if sync > 120 blocks behind.</p>
 <div class="section" id="input">
 <h2>Input Parameters</h2>
 <p>
 <ul>
-    <li><tt>address</tt> (string): The address associated with the asset or currency.</li>
-    <li><tt>index</tt> (unsigned int, between 0 and 9): Index specifying which exchange rate to use.</li>
-    <li><tt>amount</tt> (unsigned int, 8 decimals): Fixed precision amount of the asset to convert into DigiByte satoshis.</li>
+    <li><tt>address</tt> (string): The address from which the exchange rate is retrieved.</li>
+    <li><tt>index</tt> (unsigned int): Index of the rate at the specified address (0 for fiat conversions, others for specific cryptocurrencies).</li>
+    <li><tt>amount</tt> (unsigned int): The fixed precision amount to convert, with 8 decimals (e.g., to convert 1 USD to DGB, use 100000000 which represents 1.0 in fixed precision).</li>
+</ul>
+<p>Note: Current publishing addresses for exchange rates include:</p>
+<ul>
+    <li><strong>Fiat currency conversions:</strong> dgb1qunxh378eltj2jrwza5sj9grvu5xud43vqvudwh</li>
+    <li><strong>Cryptocurrency conversions:</strong> dgb1qlk3hldeynl3prqw259u8gv0jh7w5nwppxlvt3v</li>
 </ul>
 </p>
 </div>
 <div class="section" id="output">
 <h2>Output Format</h2>
 <pre class="literal-block">
-Unsigned integer representing the number of DigiByte satoshis equivalent to the input amount.
+Returns the equivalent amount in DGB satoshis.
 </pre>
 </div>
 <div class="section" id="examples">
 <h2>Examples</h2>
 <pre class="literal-block">
-digibyte-cli getdgbequivalent "D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC" 1 100000000
+# Convert 1 USD to DGB using the fiat currency conversion address:
+digiasset_core-cli getdgbequivalent "dgb1qunxh378eltj2jrwza5sj9grvu5xud43vqvudwh" 0 100000000
 </pre>
 <pre class="literal-block">
-curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "getdgbequivalent", "params": ["D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC", 1, 100000000]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "getdgbequivalent", "params": ["dgb1qunxh378eltj2jrwza5sj9grvu5xud43vqvudwh", 0, 100000000]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
 </pre>
 </div>
 </div>

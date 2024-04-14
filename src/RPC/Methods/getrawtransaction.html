@@ -10,13 +10,13 @@
 <!-- This file is licensed under the MIT License (MIT) available on
 http://opensource.org/licenses/MIT. -->
 <tt class="docutils literal">getrawtransaction</tt>
-<p>Returns detailed information about a specific transaction in the DigiByte blockchain. The command can return basic data or more verbose information including DigiAssets data, if specified.</p>
+<p>Returns detailed information about a specific transaction in the DigiByte blockchain. The command can return a basic data representation or a more verbose information set including DigiAssets data, depending on the verbose flag.</p>
 <div class="section" id="input">
 <h2>Input Parameters</h2>
 <p>
 <ul>
     <li><tt>txid</tt> (string): The transaction ID to retrieve data for.</li>
-    <li><tt>verbose</tt> (bool, optional, default = false): Specifies whether to include verbose information.</li>
+    <li><tt>verbose</tt> (bool, optional, default = false): If true, includes detailed transaction information including DigiAssets data.</li>
     <li><tt>ignored</tt> (ignored, optional): This parameter is not used and can be any value.</li>
 </ul>
 </p>
@@ -26,22 +26,62 @@ http://opensource.org/licenses/MIT. -->
 <pre class="literal-block">
 If verbose is false or not specified:
 {
-    // Basic transaction data
+    // Returns a hex string representing the raw transaction data
 }
+
 If verbose is true:
 {
-    // Extended transaction data including DigiAssets information
+    "txid": "string",
+    "blockhash": "string",
+    "height": int,
+    "time": int,
+    "vin": [
+        {
+            "txid": "string",
+            "vout": int,
+            "address": "string",
+            "valueS": unsigned int,
+            "assets": [ /* Array of assets involved in the input */ ]
+        },
+        ...
+    ],
+    "vout": [
+        {
+            "n": int,
+            "address": "string",
+            "valueS": unsigned int,
+            "assets": [ /* Array of assets involved in the output */ ]
+        },
+        ...
+    ],
+    "issued": { /* DigiAsset issuance details if applicable */ },
+    "exchange": [
+        {
+            "address": "string",
+            "index": unsigned int,
+            "name": "string",
+            "rate": double
+        },
+        ...
+    ],
+    "kyc": {
+        "address": "string",
+        "country": "string",
+        "name": "string",
+        "hash": "string",
+        "revoked": bool
+    }
 }
 </pre>
-<p>Note: The exact fields returned depend on the verbose flag and the transaction details.</p>
+<p>Note: The exact fields returned depend on the verbose flag and the transaction details. Asset and KYC details are only included if applicable.</p>
 </div>
 <div class="section" id="examples">
 <h2>Examples</h2>
 <pre class="literal-block">
-digibyte-cli getrawtransaction "txid1234"
+digiasset_core-cli getrawtransaction "txid1234"
 </pre>
 <pre class="literal-block">
-digibyte-cli getrawtransaction "txid1234" true
+digiasset_core-cli getrawtransaction "txid1234" true
 </pre>
 <pre class="literal-block">
 curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "getrawtransaction", "params": ["txid1234", true]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
