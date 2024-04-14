@@ -10,22 +10,16 @@
 <!-- This file is licensed under the MIT License (MIT) available on
 http://opensource.org/licenses/MIT. -->
 <tt class="docutils literal">getdgbequivalent</tt>
-<p>This RPC command converts fiat or cryptocurrency values to their equivalent in DGB based on exchange rates published on specified addresses. It supports converting values using the latest exchange rates provided by trusted publishing addresses.</p>
-<p class="info">Will throw error if sync > 120 blocks behind.</p>
+<p>This RPC command converts currency values to their equivalent in DGB based on exchange rates published at specified addresses. Each address can store up to 10 different exchange rates, selectable via an index.</p>
+<p class="info">Will throw an error if sync is more than 120 blocks behind.</p>
 <div class="section" id="input">
 <h2>Input Parameters</h2>
-<p>
 <ul>
-    <li><tt>address</tt> (string): The address from which the exchange rate is retrieved.</li>
-    <li><tt>index</tt> (unsigned int): Index of the rate at the specified address (0 for fiat conversions, others for specific cryptocurrencies).</li>
-    <li><tt>amount</tt> (unsigned int): The fixed precision amount to convert, with 8 decimals (e.g., to convert 1 USD to DGB, use 100000000 which represents 1.0 in fixed precision).</li>
+    <li><tt>address</tt> (string): The address where the exchange rate is published.</li>
+    <li><tt>index</tt> (unsigned int): Index of the rate at the specified address, ranging from 0 to 9.</li>
+    <li><tt>amount</tt> (unsigned int): The fixed precision amount to convert, with 8 decimals (e.g., 100000000 represents 1.0).</li>
 </ul>
-<p>Note: Current publishing addresses for exchange rates include:</p>
-<ul>
-    <li><strong>Fiat currency conversions:</strong> dgb1qunxh378eltj2jrwza5sj9grvu5xud43vqvudwh</li>
-    <li><strong>Cryptocurrency conversions:</strong> dgb1qlk3hldeynl3prqw259u8gv0jh7w5nwppxlvt3v</li>
-</ul>
-</p>
+<p>Note: See the default exchange rates and their indices <a href="https://github.com/DigiAsset-Core/DigiAsset_Core/blob/master/src/DigiAsset.cpp#L85" target="_blank">here</a>.</p>
 </div>
 <div class="section" id="output">
 <h2>Output Format</h2>
@@ -35,8 +29,8 @@ Returns the equivalent amount in DGB satoshis.
 </div>
 <div class="section" id="examples">
 <h2>Examples</h2>
+<p>Example converting using the first exchange rate at a specified address:</p>
 <pre class="literal-block">
-# Convert 1 USD to DGB using the fiat currency conversion address:
 digiasset_core-cli getdgbequivalent "dgb1qunxh378eltj2jrwza5sj9grvu5xud43vqvudwh" 0 100000000
 </pre>
 <pre class="literal-block">
