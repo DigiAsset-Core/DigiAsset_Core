@@ -2544,6 +2544,55 @@ bool Database::canGetAddressStats() {
             (getBeenPrunedUTXOHistory() > -1) ||
             (getBeenPrunedNonAssetUTXOHistory()));
 }
+
+void Database::repairStats(unsigned int timeFrame) {
+    sqlite3_stmt* stmt;
+    string timeStr = to_string(timeFrame);
+
+    if (canGetAddressStats()) {
+
+        //check if need to recover address and algo stats
+        string sql = "SELECT MIN(end_time) FROM StatsAddress_" + timeStr + " WHERE num_quantum_unsafe IS NULL;";
+        int rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
+        if (rc != SQLITE_OK) {
+            //table and value exists so find first height that didn't complete
+            rc = executeSqliteStepWithRetry(stmt);
+            if (rc != SQLITE_ROW) return;   //database has no errors
+            int endTime = sqlite3_column_int(stmt, 0);
+            sqlite3_finalize(stmt);
+
+            //remove incomplete rows
+            // clang-format off
+            sql="DELETE FROM StatsCutOffHeights_" + timeStr + " WHERE end_time >= " + to_string(endTime) + ";"
+                "DELETE FROM StatsAlgo_" + timeStr + " WHERE end_time >= " + to_string(endTime) + ";"
+                "DELETE FROM StatsAddress_" + timeStr + " WHERE end_time >= " + to_string(endTime) + ";";
+            // clang-format on
+            sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
+            executeSqliteStepWithRetry(stmt);
+        }
+        sqlite3_finalize(stmt);
+
+    } else {
+
+        //check if need to recover algostats
+        string sql = "SELECT MAX(end_time) FROM StatsAlgo_" + timeStr + ";";
+        int rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
+        if (rc == SQLITE_OK) {
+            //table and values exist check get last completed row
+            rc = executeSqliteStepWithRetry(stmt);
+            if (rc != SQLITE_ROW) return;   //database has no errors
+            int endTime = sqlite3_column_int(stmt, 0);
+            sqlite3_finalize(stmt);
+
+            //delete any rows that where not completed
+            sql="DELETE FROM StatsCutOffHeights_" + timeStr + " WHERE end_time > " + to_string(endTime) + ";";
+            sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
+            executeSqliteStepWithRetry(stmt);
+        }
+        sqlite3_finalize(stmt);
+    }
+}
+
 void Database::updateStats(unsigned int timeFrame) {
     //return if stats are not possible do to pruning being on(no stats are possible if algo stats are not possible)
     if (!canGetAlgoStats()) return;
@@ -2558,6 +2607,9 @@ void Database::updateStats(unsigned int timeFrame) {
     string sql;
     string timeStr = to_string(timeFrame);
     sqlite3_stmt* stmt;
+
+    //repair database in case there was a partial run
+    repairStats(timeFrame);
 
     //loop through database until up to current date
     unsigned int startTime = 0;

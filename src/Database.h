@@ -488,6 +488,7 @@ public:
 
     //stats table
     //warning a new stats table is created for every timeFrame.  It is not recommended to allow users direct access to this value
+    void repairStats(unsigned int timeFrame = 86400);
     void updateStats(unsigned int timeFrame = 86400);
     bool canGetAlgoStats();
     bool canGetAddressStats();
