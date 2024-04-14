@@ -47,19 +47,19 @@ will require the passphrase to be set prior the making these calls.</p>
 <h1>Examples</h1>
 <p>Encrypt your wallet:</p>
 <pre class="literal-block">
-digibyte-cli encryptwallet &quot;my pass phrase&quot;
+digiasset_core-cli encryptwallet &quot;my pass phrase&quot;
 </pre>
 <p>Now set the passphrase to use the wallet, such as for signing or sending bitcoin:</p>
 <pre class="literal-block">
-digibyte-cli walletpassphrase &quot;my pass phrase&quot;
+digiasset_core-cli walletpassphrase &quot;my pass phrase&quot;
 </pre>
 <p>Now we can do something like sign:</p>
 <pre class="literal-block">
-digibyte-cli signmessage &quot;address&quot; &quot;test message&quot;
+digiasset_core-cli signmessage &quot;address&quot; &quot;test message&quot;
 </pre>
 <p>Now lock the wallet again by removing the passphrase:</p>
 <pre class="literal-block">
-digibyte-cli walletlock
+digiasset_core-cli walletlock
 </pre>
 <p>As a JSON-RPC call:</p>
 <pre class="literal-block">

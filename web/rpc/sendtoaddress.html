@@ -111,26 +111,26 @@ transaction, just kept in your wallet.</dd>
 <h1>Examples</h1>
 <p>Send 0.1 DGB:</p>
 <pre class="literal-block">
-digibyte-cli sendtoaddress &quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC 0.1
+digiasset_core-cli sendtoaddress &quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC 0.1
 </pre>
 <p>Send 0.1 DGB with a confirmation target of 6 blocks in economical fee estimate mode using positional arguments:</p>
 <pre class="literal-block">
-digibyte-cli sendtoaddress &quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC 0.1 &quot;donation&quot; &quot;sean's outpost&quot; false true 6 economical
+digiasset_core-cli sendtoaddress &quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC 0.1 &quot;donation&quot; &quot;sean's outpost&quot; false true 6 economical
 </pre>
 <p>Send 0.1 DGB with a fee rate of 1.1 sat/vB, subtract fee from amount, BIP125-replaceable, using positional arguments:</p>
 <pre class="literal-block">
-digibyte-cli sendtoaddress &quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC 0.1 &quot;drinks&quot; &quot;room77&quot; true true null &quot;unset&quot; null 1.1
+digiasset_core-cli sendtoaddress &quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC 0.1 &quot;drinks&quot; &quot;room77&quot; true true null &quot;unset&quot; null 1.1
 </pre>
 <p>Send 0.2 DGB with a confirmation target of 6 blocks in economical fee estimate mode using named arguments:</p>
 <pre class="literal-block">
-digibyte-cli -named sendtoaddress address=&quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC amount=0.2 conf_target=6 estimate_mode=&quot;economical&quot;
+digiasset_core-cli -named sendtoaddress address=&quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC amount=0.2 conf_target=6 estimate_mode=&quot;economical&quot;
 </pre>
 <p>Send 0.5 DGB with a fee rate of 25 sat/vB using named arguments:</p>
 <pre class="literal-block">
-digibyte-cli -named sendtoaddress address=&quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC amount=0.5 fee_rate=25
+digiasset_core-cli -named sendtoaddress address=&quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC amount=0.5 fee_rate=25
 </pre>
 <pre class="literal-block">
-digibyte-cli -named sendtoaddress address=&quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC amount=0.5 fee_rate=25 subtractfeefromamount=false replaceable=true avoid_reuse=true comment=&quot;2 pizzas&quot; comment_to=&quot;jeremy&quot; verbose=true
+digiasset_core-cli -named sendtoaddress address=&quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC amount=0.5 fee_rate=25 subtractfeefromamount=false replaceable=true avoid_reuse=true comment=&quot;2 pizzas&quot; comment_to=&quot;jeremy&quot; verbose=true
 </pre>
 </div>
 </div>

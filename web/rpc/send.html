@@ -110,23 +110,23 @@ Allows this transaction to be replaced by a transaction with higher fees
 <h1>Examples</h1>
 <p>Send 0.1 DGB with a confirmation target of 6 blocks in economical fee estimate mode:</p>
 <pre class="literal-block">
-digibyte-cli send '{&quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC 0.1}' 6 economical
+digiasset_core-cli send '{&quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC 0.1}' 6 economical
 </pre>
 <p>Send 0.2 DGB with a fee rate of 1.1 sat/vB using positional arguments:</p>
 <pre class="literal-block">
-digibyte-cli send '{&quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC 0.2}' null &quot;unset&quot; 1.1
+digiasset_core-cli send '{&quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC 0.2}' null &quot;unset&quot; 1.1
 </pre>
 <p>Send 0.2 DGB with a fee rate of 1 sat/vB using the options argument:</p>
 <pre class="literal-block">
-digibyte-cli send '{&quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC 0.2}' null &quot;unset&quot; null '{&quot;fee_rate&quot;: 1}'
+digiasset_core-cli send '{&quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC 0.2}' null &quot;unset&quot; null '{&quot;fee_rate&quot;: 1}'
 </pre>
 <p>Send 0.3 DGB with a fee rate of 25 sat/vB using named arguments:</p>
 <pre class="literal-block">
-digibyte-cli -named send outputs='{&quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC 0.3}' fee_rate=25
+digiasset_core-cli -named send outputs='{&quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC 0.3}' fee_rate=25
 </pre>
 <p>Create a transaction that should confirm the next block, with a specific input, and return result without adding to wallet or broadcasting to the network:</p>
 <pre class="literal-block">
-digibyte-cli send '{&quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC 0.1}' 1 economical '{&quot;add_to_wallet&quot;: false, &quot;inputs&quot;: [{&quot;txid&quot;:&quot;a08e6907dbbd3d809776dbfc5d82e371b764ed838b5655e72f463568df1aadf0&quot;, &quot;vout&quot;:1}]}'
+digiasset_core-cli send '{&quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC 0.1}' 1 economical '{&quot;add_to_wallet&quot;: false, &quot;inputs&quot;: [{&quot;txid&quot;:&quot;a08e6907dbbd3d809776dbfc5d82e371b764ed838b5655e72f463568df1aadf0&quot;, &quot;vout&quot;:1}]}'
 </pre>
 </div>
 </div>

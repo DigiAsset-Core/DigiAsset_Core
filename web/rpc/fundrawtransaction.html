@@ -90,19 +90,19 @@ This boolean should reflect whether the transaction has inputs
 <h1>Examples</h1>
 <p>Create a transaction with no inputs:</p>
 <pre class="literal-block">
-digibyte-cli createrawtransaction &quot;[]&quot; &quot;{\&quot;myaddress\&quot;:0.01}&quot;
+digiasset_core-cli createrawtransaction &quot;[]&quot; &quot;{\&quot;myaddress\&quot;:0.01}&quot;
 </pre>
 <p>Add sufficient unsigned inputs to meet the output value:</p>
 <pre class="literal-block">
-digibyte-cli fundrawtransaction &quot;rawtransactionhex&quot;
+digiasset_core-cli fundrawtransaction &quot;rawtransactionhex&quot;
 </pre>
 <p>Sign the transaction:</p>
 <pre class="literal-block">
-digibyte-cli signrawtransactionwithwallet &quot;fundedtransactionhex&quot;
+digiasset_core-cli signrawtransactionwithwallet &quot;fundedtransactionhex&quot;
 </pre>
 <p>Send the transaction:</p>
 <pre class="literal-block">
-digibyte-cli sendrawtransaction &quot;signedtransactionhex&quot;
+digiasset_core-cli sendrawtransaction &quot;signedtransactionhex&quot;
 </pre>
 </div>
 </div>

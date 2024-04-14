@@ -85,16 +85,16 @@ with between minconf and maxconf (inclusive) confirmations.</p>
 <div class="section" id="examples">
 <h1>Examples</h1>
 <pre class="literal-block">
-digibyte-cli listunspent
+digiasset_core-cli listunspent
 </pre>
 <pre class="literal-block">
-digibyte-cli listunspent 6 9999999 &quot;[\&quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC
+digiasset_core-cli listunspent 6 9999999 &quot;[\&quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC
 </pre>
 <pre class="literal-block">
 curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;listunspent&quot;, &quot;params&quot;: [6, 9999999 &quot;[\&quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC -H 'content-type: text/plain;' http://127.0.0.1:14022/
 </pre>
 <pre class="literal-block">
-digibyte-cli listunspent 6 9999999 '[]' true '{ &quot;minimumAmount&quot;: 0.005 }'
+digiasset_core-cli listunspent 6 9999999 '[]' true '{ &quot;minimumAmount&quot;: 0.005 }'
 </pre>
 <pre class="literal-block">
 curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;listunspent&quot;, &quot;params&quot;: [6, 9999999, [] , true, { &quot;minimumAmount&quot;: 0.005 } ]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
