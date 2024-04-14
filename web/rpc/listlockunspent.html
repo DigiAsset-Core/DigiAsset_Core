@@ -29,19 +29,19 @@ http://opensource.org/licenses/MIT. -->
 <h1>Examples</h1>
 <p>List the unspent transactions:</p>
 <pre class="literal-block">
-digiasset_core-cli listunspent
+digibyte-cli listunspent
 </pre>
 <p>Lock an unspent transaction:</p>
 <pre class="literal-block">
-digiasset_core-cli lockunspent false &quot;[{\&quot;txid\&quot;:\&quot;a08e6907dbbd3d809776dbfc5d82e371b764ed838b5655e72f463568df1aadf0\&quot;,\&quot;vout\&quot;:1}]&quot;
+digibyte-cli lockunspent false &quot;[{\&quot;txid\&quot;:\&quot;a08e6907dbbd3d809776dbfc5d82e371b764ed838b5655e72f463568df1aadf0\&quot;,\&quot;vout\&quot;:1}]&quot;
 </pre>
 <p>List the locked transactions:</p>
 <pre class="literal-block">
-digiasset_core-cli listlockunspent
+digibyte-cli listlockunspent
 </pre>
 <p>Unlock the transaction again:</p>
 <pre class="literal-block">
-digiasset_core-cli lockunspent true &quot;[{\&quot;txid\&quot;:\&quot;a08e6907dbbd3d809776dbfc5d82e371b764ed838b5655e72f463568df1aadf0\&quot;,\&quot;vout\&quot;:1}]&quot;
+digibyte-cli lockunspent true &quot;[{\&quot;txid\&quot;:\&quot;a08e6907dbbd3d809776dbfc5d82e371b764ed838b5655e72f463568df1aadf0\&quot;,\&quot;vout\&quot;:1}]&quot;
 </pre>
 <p>As a JSON-RPC call:</p>
 <pre class="literal-block">

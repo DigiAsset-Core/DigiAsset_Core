@@ -55,15 +55,15 @@ http://opensource.org/licenses/MIT. -->
 <h1>Examples</h1>
 <p>Create a transaction:</p>
 <pre class="literal-block">
-digiasset_core-cli createrawtransaction &quot;[{\&quot;txid\&quot; : \&quot;mytxid\&quot;,\&quot;vout\&quot;:0}]&quot; &quot;{\&quot;myaddress\&quot;:0.01}&quot;
+digibyte-cli createrawtransaction &quot;[{\&quot;txid\&quot; : \&quot;mytxid\&quot;,\&quot;vout\&quot;:0}]&quot; &quot;{\&quot;myaddress\&quot;:0.01}&quot;
 </pre>
 <p>Sign the transaction, and get back the hex:</p>
 <pre class="literal-block">
-digiasset_core-cli signrawtransactionwithwallet &quot;myhex&quot;
+digibyte-cli signrawtransactionwithwallet &quot;myhex&quot;
 </pre>
 <p>Test acceptance of the transaction (signed hex):</p>
 <pre class="literal-block">
-digiasset_core-cli testmempoolaccept '[&quot;signedhex&quot;]'
+digibyte-cli testmempoolaccept '[&quot;signedhex&quot;]'
 </pre>
 <p>As a JSON-RPC call:</p>
 <pre class="literal-block">

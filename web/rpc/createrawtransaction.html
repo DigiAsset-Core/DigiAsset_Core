@@ -90,10 +90,10 @@ accepted as second parameter.</dd>
 <div class="section" id="examples">
 <h1>Examples</h1>
 <pre class="literal-block">
-digiasset_core-cli createrawtransaction &quot;[{\&quot;txid\&quot;:\&quot;myid\&quot;,\&quot;vout\&quot;:0}]&quot; &quot;[{\&quot;address\&quot;:0.01}]&quot;
+digibyte-cli createrawtransaction &quot;[{\&quot;txid\&quot;:\&quot;myid\&quot;,\&quot;vout\&quot;:0}]&quot; &quot;[{\&quot;address\&quot;:0.01}]&quot;
 </pre>
 <pre class="literal-block">
-digiasset_core-cli createrawtransaction &quot;[{\&quot;txid\&quot;:\&quot;myid\&quot;,\&quot;vout\&quot;:0}]&quot; &quot;[{\&quot;data\&quot;:\&quot;00010203\&quot;}]&quot;
+digibyte-cli createrawtransaction &quot;[{\&quot;txid\&quot;:\&quot;myid\&quot;,\&quot;vout\&quot;:0}]&quot; &quot;[{\&quot;data\&quot;:\&quot;00010203\&quot;}]&quot;
 </pre>
 <pre class="literal-block">
 curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;createrawtransaction&quot;, &quot;params&quot;: [&quot;[{\&quot;txid\&quot;:\&quot;myid\&quot;,\&quot;vout\&quot;:0}]&quot;, &quot;[{\&quot;address\&quot;:0.01}]&quot;]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/

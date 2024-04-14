@@ -115,19 +115,19 @@ If no addresses are specified here, the sender pays the fee.</dd>
 <h1>Examples</h1>
 <p>Send two amounts to two different addresses::</p>
 <pre class="literal-block">
-digiasset_core-cli sendmany &quot;&quot; &quot;{\&quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC
+digibyte-cli sendmany &quot;&quot; &quot;{\&quot;SXXgn4BX1wTXrCxAtwtiB2r3DPg7nnhjYA\&quot;:0.01,\&quot;SdUzSYHyKdc2kZtM3DBkQeqc5MdeDXLjFi\&quot;:0.02}&quot;
 </pre>
 <p>Send two amounts to two different addresses setting the confirmation and comment::</p>
 <pre class="literal-block">
-digiasset_core-cli sendmany &quot;&quot; &quot;{\&quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC 6 &quot;testing&quot;
+digibyte-cli sendmany &quot;&quot; &quot;{\&quot;SXXgn4BX1wTXrCxAtwtiB2r3DPg7nnhjYA\&quot;:0.01,\&quot;SdUzSYHyKdc2kZtM3DBkQeqc5MdeDXLjFi\&quot;:0.02}&quot; 6 &quot;testing&quot;
 </pre>
 <p>Send two amounts to two different addresses, subtract fee from amount::</p>
 <pre class="literal-block">
-digiasset_core-cli sendmany &quot;&quot; &quot;{\&quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC 1 &quot;&quot; &quot;[\&quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC
+digibyte-cli sendmany &quot;&quot; &quot;{\&quot;SXXgn4BX1wTXrCxAtwtiB2r3DPg7nnhjYA\&quot;:0.01,\&quot;SdUzSYHyKdc2kZtM3DBkQeqc5MdeDXLjFi\&quot;:0.02}&quot; 1 &quot;&quot; &quot;[\&quot;SXXgn4BX1wTXrCxAtwtiB2r3DPg7nnhjYA\&quot;,\&quot;SdUzSYHyKdc2kZtM3DBkQeqc5MdeDXLjFi\&quot;]&quot;
 </pre>
 <p>As a JSON-RPC call:</p>
 <pre class="literal-block">
-curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;sendmany&quot;, &quot;params&quot;: [&quot;&quot;, {&quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC 6, &quot;testing&quot;]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;sendmany&quot;, &quot;params&quot;: [&quot;&quot;, {&quot;SXXgn4BX1wTXrCxAtwtiB2r3DPg7nnhjYA&quot;:0.01,&quot;SdUzSYHyKdc2kZtM3DBkQeqc5MdeDXLjFi&quot;:0.02}, 6, &quot;testing&quot;]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
 </pre>
 </div>
 </div>

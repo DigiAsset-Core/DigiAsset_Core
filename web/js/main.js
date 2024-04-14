@@ -63,6 +63,10 @@ const on = (type, DOM, listener, all = false) => {
 Document.prototype.on = function (type, listener, options) {
     this.addEventListener(type, listener, options);
 };
+// Extending Element.prototype to support 'on' and 'css' methods directly on HTML elements.
+Element.prototype.on = function (type, listener, options) {
+    this.addEventListener(type, listener, options);
+};
 
 /**
  * Appends HTML content to a DOM element or each element in a NodeList at a specified position.
@@ -116,6 +120,12 @@ function css(element, styleNameOrObject, value) {
     }
 }
 
+Element.prototype.css = function (styles) {
+    for (const property in styles) {
+        this.style[property] = styles[property];
+    }
+};
+
 /**
  * Checks if the given object is a DOM element or HTML document.
  *
@@ -147,6 +157,19 @@ const hasClass = (el, cls) => {
     return !!el.className.match(new RegExp('(\\s|^)' + cls + '(\\s|$)'));
 }
 
+const getCcpFilePath = () => {
+    let currentUrl = window.location.href; // Get current url
+    let urlObj = new URL(currentUrl); // Create URL object for handling
+
+    let pathname = urlObj.pathname.startsWith('/') ? urlObj.pathname.substring(1) : urlObj.pathname; // Remove leading slash
+
+    if (pathname.startsWith('src/')) {
+        let cppPathname = pathname.replace('.html', '.cpp');
+
+        return `${urlObj.origin}/${cppPathname}`; // Return corresponding cpp path
+    } else return false; //Returns boolean value false if not in /src
+}
+
 (function () {
     "use strict";
 
@@ -170,7 +193,7 @@ const hasClass = (el, cls) => {
             const updateButtonPosition = () => {
                 let blockRect = block.getBoundingClientRect();
                 let btnWidth = btn.offsetWidth;
-                let rightSpace = 10; // Space from the right end of the header
+                let rightSpace = 20; // Space from the right end of the header
 
                 // Calculate new left position, ensuring button doesn't overshoot the header width
                 let maxLeftPosition = block.scrollWidth - btnWidth - rightSpace;
@@ -211,6 +234,7 @@ const hasClass = (el, cls) => {
         });
     });
 
+    // Update footer copyright year
     document.addEventListener("DOMContentLoaded", () => {
         let copyrightElement = select("footer .copyright");
         if (!copyrightElement) return console.log("No footer copyright found!");
@@ -230,5 +254,222 @@ const hasClass = (el, cls) => {
             copyrightElement.innerHTML += ` - ${currentYearInt}`; // Append current year
         }
     });
+
+    // Add source code to documentation page
+    if (getCcpFilePath()) {
+        let ccpFilePath = getCcpFilePath();
+        console.log(`CPP File path found: ${ccpFilePath}`)
+
+        let card = document.createElement("div");
+        let cardHeader = document.createElement("div");
+        let cardTitle = document.createElement("h2");
+        let rawBtn = document.createElement("button");
+        let rawLink = document.createElement("a");
+        let cardBody = document.createElement("div");
+        let code = document.createElement("pre");
+        let cardFooter = document.createElement("div")
+
+        cardHeader.on('click', () => {
+            let cls = "collapsed";
+            if (!hasClass(cardBody, cls)) cardBody.classList.add(cls)
+            else cardBody.classList.remove(cls);
+        })
+
+        cardHeader.classList.add("ch");
+        card.classList.add("card");
+        cardBody.classList.add("cb");
+        cardBody.classList.add("collapsed");
+        code.classList.add("literal-block");
+        cardFooter.classList.add("cf");
+
+        cardTitle.textContent = "Source Code";
+        rawLink.textContent = "Raw";
+
+        rawBtn.append(rawLink);
+        cardHeader.append(cardTitle);
+        cardFooter.append(rawBtn);
+        card.append(cardHeader);
+
+        rawLink.href = ccpFilePath;
+        rawLink.setAttribute('target', '_blank');
+        css(rawBtn, 'float', 'right');
+        rawLink.css('display', 'block');
+
+        fetch(ccpFilePath)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok ' + response.statusText);
+                }
+                return response.text();
+            })
+            .then(data => { 
+                code.textContent = data;
+            })
+            .catch(error => {
+                console.error('Error fetching file:', error);
+                code.textContent = 'Failed to load content.';
+            });
+
+        cardBody.append(code);
+        card.append(cardBody);
+        card.append(cardFooter);
+
+        select(".document", false).append(card);
+    }
     
+    document.addEventListener("DOMContentLoaded", function () {
+        const links = document.querySelectorAll(".sidebar a");
+        const mainContent = document.querySelector("#main-content");
+        const loader = document.getElementById("loader");
+        const body = document.body;
+
+        // Modify link behavior to scroll instead of navigating
+        links.forEach((link) => {
+            link.addEventListener("click", function (e) {
+                if (e.ctrlKey || e.metaKey || e.button === 1) {
+                    // Allow ctrl/cmd+click or middle mouse to open link in new tab
+                    return; // Do nothing, let the browser handle it
+                }
+                e.preventDefault(); // Prevent default link behavior
+                const sectionId = this.getAttribute("href")
+                    .split("/")
+                    .pop()
+                    .replace(".html", ""); // Extract section ID from href
+                const section = document.getElementById(sectionId);
+                if (section) {
+                    section.scrollIntoView({
+                        behavior: "smooth",
+                        block: "start",
+                    }); // Smoothly scroll to the section
+                }
+            });
+        });
+
+        // Function to hide loader and allow scrolling
+        function hideLoader() {
+            loader.style.display = "none";
+            body.classList.remove("noscroll");
+            mainContent.style.overflow = "auto"; // Ensure main content can scroll
+        }
+
+        // Function to show loader and prevent scrolling
+        function showLoader() {
+            loader.style.display = "block";
+            body.classList.add("noscroll");
+            mainContent.style.overflow = "hidden"; // Prevent scrolling in main content
+        }
+
+        // Initially show the loader
+        showLoader();
+
+        // Fetch and append content from each link
+        let contentPromises = Array.from(links).map((link) => {
+            return fetch(link.href)
+                .then((response) => response.text())
+                .then((html) => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(
+                        html,
+                        "text/html"
+                    );
+                    const docContent = doc.querySelector(".document");
+
+                    if (docContent) {
+                        const section =
+                            document.createElement("section");
+                        section.id = link.href
+                            .split("/")
+                            .pop()
+                            .split(".")[0]; // Assuming URL structure to extract ID
+                        section.innerHTML = docContent.innerHTML;
+                        mainContent.appendChild(section);
+                        observer.observe(section); // Observe the new section
+                    }
+                })
+                .catch((error) =>
+                    console.error("Error loading the content:", error)
+                );
+        });
+
+        // Hide loader when all content is loaded
+        Promise.all(contentPromises).then(() => {
+            hideLoader();
+        });
+
+        // Intersection Observer to update active link on scroll
+        const observer = new IntersectionObserver(
+            (entries) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting) {
+                        links.forEach((a) => {
+                            const parentLi = a.parentElement;
+                            const hrefParts = a.href.split("/");
+                            const lastPart = hrefParts[
+                                hrefParts.length - 1
+                            ].replace(".html", ""); // Assuming the URLs end with '.html'
+
+                            if (lastPart === entry.target.id) {
+                                parentLi.classList.add("active");
+                            } else {
+                                parentLi.classList.remove("active");
+                            }
+                        });
+                    }
+                });
+            },
+            { threshold: 0.5 }
+        );
+
+        // Sidebar toggle management
+        const sidebar = document.getElementById("sidebar");
+        const toggleButton = document.createElement("button");
+        toggleButton.textContent = "☰";
+        toggleButton.classList.add("toggle-sidebar");
+        document.body.appendChild(toggleButton);
+
+        // Function to open the sidebar
+        function openSidebar() {
+            const sidebar = document.getElementById("sidebar");
+            sidebar.classList.add("open");
+        }
+
+        // Function to close the sidebar
+        function closeSidebar() {
+            const sidebar = document.getElementById("sidebar");
+            sidebar.classList.remove("open");
+        }
+
+        function toggleSidebar() {
+            sidebar.classList.toggle("open");
+            body.classList.toggle(
+                "noscroll",
+                sidebar.classList.contains("open")
+            );
+        }
+
+        toggleButton.addEventListener("click", toggleSidebar);
+
+        mainContent.addEventListener("click", function () {
+            if (sidebar.classList.contains("open")) {
+                toggleSidebar(); // Close sidebar if open when clicking main content
+            }
+        });
+
+        // Adjust UI on window resize
+        window.addEventListener("resize", function () {
+            adjustUIForWindowSize();
+        });
+
+        // Function to adjust UI based on window size
+        function adjustUIForWindowSize() {
+            if (window.innerWidth >= 576) {
+                openSidebar(); // Automatically open the sidebar on larger screens
+            } else if (!sidebar.contains(document.activeElement)) {
+                closeSidebar(); // Automatically close the sidebar on smaller screens
+            }
+        }
+
+        // Initial adjustment on load
+        adjustUIForWindowSize();
+    });
 })();

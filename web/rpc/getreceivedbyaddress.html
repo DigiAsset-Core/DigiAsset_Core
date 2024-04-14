@@ -48,19 +48,19 @@ http://opensource.org/licenses/MIT. -->
 <h1>Examples</h1>
 <p>The amount from transactions with at least 1 confirmation:</p>
 <pre class="literal-block">
-digiasset_core-cli getreceivedbyaddress &quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC
+digibyte-cli getreceivedbyaddress &quot;SXXgn4BX1wTXrCxAtwtiB2r3DPg7nnhjYA&quot;
 </pre>
 <p>The amount including unconfirmed transactions, zero confirmations:</p>
 <pre class="literal-block">
-digiasset_core-cli getreceivedbyaddress &quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC 0
+digibyte-cli getreceivedbyaddress &quot;SXXgn4BX1wTXrCxAtwtiB2r3DPg7nnhjYA&quot; 0
 </pre>
 <p>The amount with at least 6 confirmations:</p>
 <pre class="literal-block">
-digiasset_core-cli getreceivedbyaddress &quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC 6
+digibyte-cli getreceivedbyaddress &quot;SXXgn4BX1wTXrCxAtwtiB2r3DPg7nnhjYA&quot; 6
 </pre>
 <p>As a JSON-RPC call:</p>
 <pre class="literal-block">
-curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;getreceivedbyaddress&quot;, &quot;params&quot;: [&quot;D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC 6]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;getreceivedbyaddress&quot;, &quot;params&quot;: [&quot;SXXgn4BX1wTXrCxAtwtiB2r3DPg7nnhjYA&quot;, 6]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
 </pre>
 </div>
 </div>

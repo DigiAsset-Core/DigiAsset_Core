@@ -113,19 +113,19 @@ is in a block in the blockchain.</p>
 <div class="section" id="examples">
 <h1>Examples</h1>
 <pre class="literal-block">
-digiasset_core-cli getrawtransaction &quot;mytxid&quot;
+digibyte-cli getrawtransaction &quot;mytxid&quot;
 </pre>
 <pre class="literal-block">
-digiasset_core-cli getrawtransaction &quot;mytxid&quot; true
+digibyte-cli getrawtransaction &quot;mytxid&quot; true
 </pre>
 <pre class="literal-block">
 curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;getrawtransaction&quot;, &quot;params&quot;: [&quot;mytxid&quot;, true]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
 </pre>
 <pre class="literal-block">
-digiasset_core-cli getrawtransaction &quot;mytxid&quot; false &quot;myblockhash&quot;
+digibyte-cli getrawtransaction &quot;mytxid&quot; false &quot;myblockhash&quot;
 </pre>
 <pre class="literal-block">
-digiasset_core-cli getrawtransaction &quot;mytxid&quot; true &quot;myblockhash&quot;
+digibyte-cli getrawtransaction &quot;mytxid&quot; true &quot;myblockhash&quot;
 </pre>
 </div>
 </div>

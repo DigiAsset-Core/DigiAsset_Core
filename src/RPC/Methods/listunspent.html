@@ -2,7 +2,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" type="text/css" href="/web/css/style.css">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
 </head>
 <body>
 <div class="document" id="listunspent">
@@ -33,37 +33,80 @@ http://opensource.org/licenses/MIT. -->
 </p>
 </div>
 <div class="section" id="output">
-<h2>Output Format</h2>
-<pre class="literal-block">
-JSON array of objects, each representing a UTXO:
+    <h2>Output Format</h2>
+    <p>The command returns a JSON array of objects, each object representing a UTXO. Depending on whether the UTXO includes DigiAssets or not, additional fields related to assets may be included:</p>
+    <h3>Standard UTXOs</h3>
+    <pre class="literal-block">
 [
     {
-        "txid": string,            // Transaction ID
-        "vout": integer,           // Output number
-        "address": string,         // Address
-        "account": string,         // Account
-        "scriptPubKey": string,    // Script
-        "amount": numeric,         // Amount of DGB
-        "confirmations": integer,  // Number of confirmations
-        "spendable": bool,         // Whether the UTXO is spendable
-        ...additional fields based on detailedAssetData...
-    },
-    ...other UTXOs...
+        "txid": "3833df2551d4e93d058a28c2f310be1e3c46c5d99862108387125b2eb280798b",
+        "vout": 1,
+        "address": "DPg5tAN4Lv5uJv3iKyv5pjrQKW2NUmT8ym",
+        "scriptPubKey": "Script here if available",
+        "amount": 92.27843509,
+        "confirmations": 101,
+        "spendable": true,
+        "solvable": true,
+        "safe": true,
+        "digibyte": 9227843509
+    }
 ]
-</pre>
-</div>
-<div class="section" id="examples">
-<h2>Examples</h2>
-<pre class="literal-block">
-digiasset_core-cli listunspent 6 1000 ["D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC"]
-</pre>
-<pre class="literal-block">
-curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "listunspent", "params": [1, 9999999, ["D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC"], true, {"minimumAmount": 0.5, "includeAsset": true}]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
-</pre>
-</div>
+    </pre>
+    <h3>UTXOs with Assets</h3>
+    <pre class="literal-block">
+[
+    {
+        "txid": "c48d7b70456a7137db3e4018f3363de8bb0c13a71ec67c997885a049cd22aee5",
+        "vout": 1,
+        "address": "dgb1qjz5a6ggr9480gz75fh7xx2v00x4dmrnrgu9yeq",
+        "scriptPubKey": "Script here if available",
+        "amount": 6.0000000000000002e-06,
+        "confirmations": 50,
+        "spendable": true,
+        "solvable": true,
+        "safe": true,
+        "digibyte": 600,
+        "assets": [
+            {
+                "assetId": "LaABthaRA9RvcTZPgrvrepP1Q5gxoe8uajptec",
+                "assetIndex": 1401,
+                "cid": "bafkreifzwbp76esd56srq3vjhx4kfkakql3d75dfk4ffknyqgagutlvu3q",
+                "count": 1,
+                "decimals": 0,
+                "height": 14363829
+            }
+        ]
+    }
+]
+    </pre>
+    <p>Note: Asset-related fields will be included if the UTXO contains asset information. Fields like 'scriptPubKey', 'confirmations', 'spendable', 'solvable', and 'safe' are standard for UTXOs but may not be present in all responses depending on the source and privacy settings.</p>
 </div>
 
-<script src="/web/js/main.js"></script>
+
+<div class="section" id="examples">
+    <h2>Examples</h2>
+    <h3>Requesting UTXOs for Wallet Address</h3>
+    <pre class="literal-block">
+    digiasset_core-cli listunspent 6 1000 ["D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC"]
+    </pre>
+    <p>This example retrieves UTXOs for a wallet address with a minimum of 6 confirmations and a maximum of 1000 confirmations.</p>
+    
+    <h3>Requesting UTXOs for External Address with Asset Filtering</h3>
+    <pre class="literal-block">
+    curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "listunspent", "params": [1, 9999999, ["DPg5tAN4Lv5uJv3iKyv5pjrQKW2NUmT8ym"], true, {"minimumAmount": 0.5, "includeAsset": true}]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+    </pre>
+    <p>This example queries UTXOs for an external address, including assets, with a minimum amount of 0.5 DGB per UTXO.</p>
+    
+    <h3>Requesting Detailed UTXOs with Asset Information</h3>
+    <pre class="literal-block">
+    ./digiasset_core-cli listunspent 1 9999999 '["dgb1qjz5a6ggr9480gz75fh7xx2v00x4dmrnrgu9yeq"]'
+    </pre>
+    <p>This example shows how to retrieve detailed information about UTXOs, including any associated assets, from a specified address.</p>
+</div>
+
+</div>
+
+<script src="/js/main.js"></script>
 <footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
 </body>
 </html>
