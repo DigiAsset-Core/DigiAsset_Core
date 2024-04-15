@@ -1451,6 +1451,46 @@ std::vector<AssetHolder> Database::getAssetHolders(uint64_t assetIndex) {
 }
 
 /**
+ * Returns a list of asset holders for a specific assetIndex
+ * @param assetIndex
+ * @return
+ */
+std::vector<AssetHolder> Database::getAssetHolders(string assetId) {
+    //get list of asset Indexes
+    vector<uint64_t> assetIndexes=getAssetIndexes(assetId);
+
+    //handle simple cases
+    if (assetIndexes.empty()) return {};
+    if (assetIndexes.size()==1) return getAssetHolders(assetIndexes[0]);
+
+    //get all holders
+    vector<AssetHolder> allHolders;
+    for (uint64_t assetIndex: assetIndexes) {
+        std::vector<AssetHolder> holders=getAssetHolders(assetIndex);
+        allHolders.insert(allHolders.end(), holders.begin(), holders.end());
+    }
+
+    // Merge holders by address and sum their counts
+    std::sort(allHolders.begin(), allHolders.end(), [](const AssetHolder& a, const AssetHolder& b) {
+        return a.address < b.address; // Sort by address
+    });
+    vector<AssetHolder> mergedHolders;
+    if (!allHolders.empty()) {
+        AssetHolder currentHolder = allHolders[0];
+        for (size_t i = 1; i < allHolders.size(); ++i) {
+            if (allHolders[i].address == currentHolder.address) {
+                currentHolder.count += allHolders[i].count; // Merge counts
+            } else {
+                mergedHolders.push_back(currentHolder);
+                currentHolder = allHolders[i];
+            }
+        }
+        mergedHolders.push_back(currentHolder); // Add the last holder
+    }
+    return mergedHolders;
+}
+
+/**
  * Returns the total number assets that exist of this specific type.
  * The difference between this and the other getTotalAssetCount function is that if the asset has sub types this will only give total of the sub type provided
  * @param assetIndex

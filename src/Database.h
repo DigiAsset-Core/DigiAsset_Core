@@ -431,6 +431,7 @@ public:
     //utxo table asset related
     AssetUTXO getAssetUTXO(const std::string& txid, unsigned int vout, unsigned int height=0);
     std::vector<AssetHolder> getAssetHolders(uint64_t assetIndex);
+    std::vector<AssetHolder> getAssetHolders(std::string assetId);
     uint64_t getTotalAssetCount(uint64_t assetIndex); //returns total count of specific variant
     uint64_t getTotalAssetCount(const std::string& assetId); //returns total count of specific asset(sum of all variants)
     uint64_t getOriginalAssetCount(uint64_t assetIndex);

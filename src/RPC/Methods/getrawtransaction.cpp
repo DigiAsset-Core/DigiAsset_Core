@@ -14,7 +14,7 @@ namespace RPC {
         * params[1] - verbose(optional bool=false)
         * params[2] - ignored
         *
-        * Returns same as before but now extra fields form DigiAsset::toJSON are not present
+        * Returns same as before but now extra fields form DigiAsset::toJSON are now present
         */
         extern const Response getrawtransaction(const Json::Value& params) {
             if (params.size() < 1 || params.size() > 3) {

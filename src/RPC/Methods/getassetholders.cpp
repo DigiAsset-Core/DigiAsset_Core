@@ -11,15 +11,21 @@ namespace RPC {
     namespace Methods {
         /**
         * Returns an object containing all addresses(keys) holding an asset and how many they have(values)
-        *  params[0] - assetIndex(unsigned int)
+        *  params[0] - assetIndex(unsigned int) or assetId(string)
         */
         extern const Response getassetholders(const Json::Value& params) {
             if (params.size() != 1) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
-            if (!params[0].isUInt()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
 
             //look up holders
             Database* db = AppMain::GetInstance()->getDatabase();
-            vector<AssetHolder> holders=db->getAssetHolders(params[0].asUInt());
+            vector<AssetHolder> holders;
+            if (params[0].isUInt()) {
+                holders=db->getAssetHolders(params[0].asUInt());
+            } else if (params[0].isString()) {
+                holders=db->getAssetHolders(params[0].asString());
+            } else {
+                throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+            }
 
             //convert to an object
             Value result=Json::objectValue;
