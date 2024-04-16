@@ -404,7 +404,7 @@ void Database::initializeClassValues() {
     _stmtGetAssetIndex.prepare(_db, "SELECT assetIndex FROM assets WHERE assetId=?");
 
     //statement to get assets ordered by issuance height
-    _stmtGetLastAssetIssued.prepare(_db, "SELECT assetIndex, assetId, cid, heightCreated FROM assets WHERE assetIndex <= ? ORDER BY heightCreated DESC LIMIT ?;");
+    _stmtGetLastAssetIssued.prepare(_db, "SELECT assetIndex, assetId, cid, heightCreated FROM assets WHERE assetIndex <= ? ORDER BY assetIndex DESC LIMIT ?;");
 
     //statement to get assets ordered by issuance height
     _stmtGetAssetIDsOrderedByHeight.prepare(_db, "SELECT assetIndex, assetId, cid, heightCreated FROM assets order by heightCreated asc limit ? offset ?;");
