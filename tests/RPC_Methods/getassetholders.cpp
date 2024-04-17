@@ -107,7 +107,6 @@ TEST_F(RPCMethodsTest, getassetholders) {
         EXPECT_EQ(results["DMr2uDktqy5nCoZMy7nDEPC1BqCS6YkebX"].asUInt64(),10);
         EXPECT_EQ(results["DMs3ZPcY2WEMMDy9fcjJqPhVc38JZzx5Y4"].asUInt64(),8);
         EXPECT_EQ(results["DNxMDSpnxYSei2sV6Wirqe6HGbQqyjQRrV"].asUInt64(),1);
-        utils::printJson(results);
     } catch (...) {
         EXPECT_TRUE(false);
     }

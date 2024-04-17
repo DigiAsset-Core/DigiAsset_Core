@@ -200,8 +200,7 @@ void Database::initializeClassValues() {
     _stmtCheckFlag.prepare(_db, "SELECT value FROM flags WHERE key LIKE ?;");
 
     //statement to set a flag value
-    _stmtSetFlag.prepare(_db, "UPDATE flags SET value=? WHERE key LIKE ?;");
-
+    _stmtSetFlag.prepare(_db, "INSERT INTO flags (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value;");
 
     //statement to get block height
     _stmtGetBlockHeight.prepare(_db, "SELECT height FROM blocks ORDER BY height DESC LIMIT 1;");
@@ -989,12 +988,16 @@ bool Database::getBeenPrunedNonAssetUTXOHistory() {
  *  exceptionFailedUpdate
  */
 void Database::setFlagInt(const std::string& flag, int state) {
-    if (getFlagInt(flag) == state) return; //no need to do anything
+    try {
+        if (getFlagInt(flag) == state) return; //no need to do anything
+    } catch (const exceptionFailedSelect& e) {
+        //not set yet
+    }
 
     //store in database
     LockedStatement setFlag{_stmtSetFlag};
-    setFlag.bindInt(1, state);
-    setFlag.bindText(2, flag);
+    setFlag.bindText(1, flag);
+    setFlag.bindInt(2, state);
     int rc = setFlag.executeStep();
     if (rc != SQLITE_DONE) { //there should always be one
         string tempErrorMessage = sqlite3_errmsg(_db);
@@ -2585,59 +2588,180 @@ bool Database::canGetAddressStats() {
             (getBeenPrunedNonAssetUTXOHistory()));
 }
 
-void Database::repairStats(unsigned int timeFrame) {
-    sqlite3_stmt* stmt;
-    string timeStr = to_string(timeFrame);
-
-    if (canGetAddressStats()) {
-
-        //check if need to recover address and algo stats
-        string sql = "SELECT MIN(end_time) FROM StatsAddress_" + timeStr + " WHERE num_quantum_unsafe IS NULL;";
-        int rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
-        if (rc != SQLITE_OK) {
-            //table and value exists so find first height that didn't complete
-            rc = executeSqliteStepWithRetry(stmt);
-            if (rc != SQLITE_ROW) return;   //database has no errors
-            int endTime = sqlite3_column_int(stmt, 0);
-            sqlite3_finalize(stmt);
-
-            //remove incomplete rows
-            // clang-format off
-            sql="DELETE FROM StatsCutOffHeights_" + timeStr + " WHERE end_time >= " + to_string(endTime) + ";"
-                "DELETE FROM StatsAlgo_" + timeStr + " WHERE end_time >= " + to_string(endTime) + ";"
-                "DELETE FROM StatsAddress_" + timeStr + " WHERE end_time >= " + to_string(endTime) + ";";
-            // clang-format on
-            sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
-            executeSqliteStepWithRetry(stmt);
-        }
-        sqlite3_finalize(stmt);
-
-    } else {
-
-        //check if need to recover algostats
-        string sql = "SELECT MAX(end_time) FROM StatsAlgo_" + timeStr + ";";
-        int rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
-        if (rc == SQLITE_OK) {
-            //table and values exist check get last completed row
-            rc = executeSqliteStepWithRetry(stmt);
-            if (rc != SQLITE_ROW) return;   //database has no errors
-            int endTime = sqlite3_column_int(stmt, 0);
-            sqlite3_finalize(stmt);
-
-            //delete any rows that where not completed
-            sql="DELETE FROM StatsCutOffHeights_" + timeStr + " WHERE end_time > " + to_string(endTime) + ";";
-            sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
-            executeSqliteStepWithRetry(stmt);
-        }
-        sqlite3_finalize(stmt);
-    }
-}
-
+/**
+ * This function loops through chain data stored in database and computes stats on it 1 time frame at a time until it catches up with todays date
+ * If there is not at least 10 block past the next time frame it will not process the stats for this period
+ * @param timeFrame
+ */
 void Database::updateStats(unsigned int timeFrame) {
     //return if stats are not possible do to pruning being on(no stats are possible if algo stats are not possible)
     if (!canGetAlgoStats()) return;
-    const unsigned int maxDaysToProcessAtOnce = DIGIBYTECORE_DATABASE_STATS_UPDATE_DAYS;
 
+    Log* log = Log::GetInstance();
+    const string flag="statsBlockHeightEnd_" + to_string(timeFrame);
+
+    //make sure indexes we need exist
+    addStatsPerformanceIndexes();
+
+    //get start block height
+    unsigned int startHeight=1;
+    try {
+        startHeight=getFlagInt(flag)+1;
+    } catch (const exceptionFailedSelect& e) {
+        //first run so use height=1
+    }
+
+    //get end time of first block
+    unsigned int endTime=getStatsEndTime(timeFrame,startHeight);
+
+    //repair database in case there was a partial run
+    repairStats(timeFrame, endTime);
+
+    //loop through database until up to current date
+    unsigned int endHeight;
+    while ((endHeight = getStatsEndBlockHeight(timeFrame, endTime)) != 0) {
+        //write out what we are doing to debug log
+        log->addMessage("Database::updateStats creating stats for blocks " + to_string(startHeight) + " to " + to_string(endHeight), Log::DEBUG);
+
+        //update algo stats
+        updateAlgoStats(timeFrame, endTime, startHeight, endHeight);
+
+        //update if can do address stats
+        if (canGetAddressStats()) updateAddressStats(timeFrame, endTime, startHeight, endHeight);
+
+        //update where we left off
+        setFlagInt(flag,endHeight);
+        endTime+=timeFrame;
+        startHeight=endHeight+1;
+    }
+    log->addMessage("Database::updateStats complete", Log::DEBUG);
+}
+/**
+ * To speed up stats calculation this adds some indexes to the database if they don't already exist
+ */
+void Database::addStatsPerformanceIndexes() {
+    ChainAnalyzer* analyzer = AppMain::GetInstance()->getChainAnalyzer();
+    addPerformanceIndex("blocks", "height");
+    addPerformanceIndex("blocks", "time");
+    if (canGetAddressStats()) {
+        addPerformanceIndex("utxos", "assetIndex", "heightCreated", "heightDestroyed");
+        addPerformanceIndex("utxos", "address", "amount", "heightCreated", "heightDestroyed");
+        addPerformanceIndex("utxos", "heightCreated", "heightDestroyed");
+    }
+    while (!_performanceIndexes.empty()) {
+        executePerformanceIndex(analyzer->_state);
+        waitForSync(analyzer);
+    }
+}
+
+/**
+ * Figures out when the end time is of the current requested stat window.
+ * @param timeFrame
+ * @param beginHeight
+ * @return
+ */
+unsigned int Database::getStatsEndTime(unsigned int timeFrame, unsigned int beginHeight) {
+    //prep key variables
+    string sql;
+    sqlite3_stmt* stmt;
+    int rc;
+
+    //find what time, time frame ends at
+    sql = "SELECT time FROM blocks WHERE height = " + to_string(beginHeight) + ";";
+    rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
+    if (rc != SQLITE_OK) {
+        sqlite3_finalize(stmt);
+        throw exceptionCreatingStatement();
+    }
+    rc = executeSqliteStepWithRetry(stmt);
+    if (rc != SQLITE_ROW) {
+        sqlite3_finalize(stmt);
+        throw exceptionFailedSelect();
+    }
+    unsigned int startTime=sqlite3_column_int(stmt, 0);
+    sqlite3_finalize(stmt);
+
+    return ((startTime/timeFrame)+1)*timeFrame;
+}
+
+/**
+ * Returns the end height of the current stat window.
+ * Will return 0 if there is not at least 10 blocks past this window.  This is to make sure the window is complete and unlikely to change
+ * @param timeFrame
+ * @param endTime
+ * @return
+ */
+unsigned int Database::getStatsEndBlockHeight(unsigned int timeFrame, unsigned int endTime) {
+    //prep key variables
+    string sql;
+    string timeStr = to_string(timeFrame);
+    sqlite3_stmt* stmt;
+    int rc;
+
+    //find what height time frame ends at
+    // clang-format off
+    sql = "WITH MaxHeight AS ( "
+            "SELECT MAX(height) AS max_height "
+            "FROM blocks "
+            "WHERE time < " + to_string(endTime) + " "
+        ") "
+        "SELECT "
+            "CASE "
+                "WHEN EXISTS (SELECT 1 FROM blocks WHERE height = (SELECT max_height FROM MaxHeight) + 10) "
+                "THEN (SELECT max_height FROM MaxHeight) "
+                "ELSE 0 "
+            "END;";
+    // clang-format on
+
+    rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
+    if (rc != SQLITE_OK) {
+        sqlite3_finalize(stmt);
+        throw exceptionCreatingStatement();
+    }
+    rc = executeSqliteStepWithRetry(stmt);
+    if (rc != SQLITE_ROW) {
+        sqlite3_finalize(stmt);
+        throw exceptionFailedSelect();
+    }
+    unsigned int endHeight=sqlite3_column_int(stmt, 0);
+
+    sqlite3_finalize(stmt);
+
+    return endHeight;
+}
+
+/**
+ * Repairs database in case things stopped part way through update
+ * @param timeFrame
+ * @param endTime
+ */
+void Database::repairStats(unsigned int timeFrame,unsigned int endTime) {
+    sqlite3_stmt* stmt;
+    string timeStr = to_string(timeFrame);
+
+    try {
+        executeSQLStatement(
+                "DELETE FROM StatsAlgo_" + timeStr + " WHERE end_time >= " + to_string(endTime),
+                exceptionFailedToCreateTable());
+
+        if (canGetAddressStats()) {
+            executeSQLStatement(
+                    "DELETE FROM StatsAddress_" + timeStr + " WHERE end_time >= " + to_string(endTime),
+                    exceptionFailedToCreateTable());
+        }
+    } catch (...) {
+
+    }
+}
+
+/**
+ * Generates algo stats table if not already existing and adds the time window to it
+ * @param timeFrame
+ * @param endTime
+ * @param startHeight
+ * @param endHeight
+ */
+void Database::updateAlgoStats(unsigned int timeFrame, unsigned int endTime, unsigned int startHeight, unsigned int endHeight) {
     ChainAnalyzer* analyzer = AppMain::GetInstance()->getChainAnalyzer();
 
     Log* log = Log::GetInstance();
@@ -2648,304 +2772,248 @@ void Database::updateStats(unsigned int timeFrame) {
     string timeStr = to_string(timeFrame);
     sqlite3_stmt* stmt;
 
-    //repair database in case there was a partial run
-    repairStats(timeFrame);
-
-    //loop through database until up to current date
-    unsigned int startTime = 0;
-    unsigned int lastStartTime = 1; //must be low non-zero value.  may as well be 1
-    while (true) {  //break is at end of part 1
-        //find what height we need to start update from
-        log->addMessage("Database::updateStats 1 of 13 find what height we need to start update from", Log::DEBUG);
-        unsigned int beginHeight = 1;
-        sql = "SELECT end_time,begin_height FROM StatsCutOffHeights_" + timeStr + " ORDER BY end_time DESC LIMIT 1;";
-        rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
-        if (rc == SQLITE_OK) {
-            //table exists so get the highest value
-            analyzer->_state=ChainAnalyzer::BUSY;
-            rc = executeSqliteStepWithRetry(stmt);
-            if (rc != SQLITE_ROW) throw exceptionFailedSelect();
-            startTime = sqlite3_column_int(stmt, 0);
-            beginHeight = sqlite3_column_int(stmt, 1);
-        }
-        sqlite3_finalize(stmt);
-        waitForSync(analyzer);
-        if (startTime == lastStartTime) break; //we are fully synced
-        log->addMessage("Database::updateStats syncing stats between block: " + to_string(beginHeight) + " & " + to_string(beginHeight + 5760 * maxDaysToProcessAtOnce), Log::DEBUG);
-
-        //create fresh new cutoff table
-        analyzer->_state=ChainAnalyzer::BUSY;
-        if (startTime > 0) {
-            log->addMessage("Database::updateStats 2 of 13 rollback temp cutoff table", Log::DEBUG);
-            executeSQLStatement(
-                    "DELETE FROM StatsCutOffHeights_" + timeStr,
-                    exceptionFailedDelete());
-        } else {
-            log->addMessage("Database::updateStats 2 of 13 create temp cutoff table", Log::DEBUG);
-            executeSQLStatement(
-                    "CREATE TABLE StatsCutOffHeights_" + timeStr + " (end_time INTEGER NOT NULL,begin_height INTEGER NOT NULL,end_height INTEGER NOT NULL,PRIMARY KEY(end_time));",
-                    exceptionFailedToCreateTable());
-        }
-        waitForSync(analyzer);
-
-        //populate cutoff table
-        log->addMessage("Database::updateStats 3 of 13 populate temp cutoff table", Log::DEBUG);
-        analyzer->_state=ChainAnalyzer::BUSY;
-        // clang-format off
+    //create Stats Algo Table
+    if (startHeight == 1) {
         executeSQLStatement(
-            "INSERT INTO StatsCutOffHeights_" + timeStr + " (end_time, begin_height, end_height) "
-            "SELECT "
-                "end_time, "
-                "MIN(begin_height) AS begin_height, "
-                "MAX(end_height) AS end_height "
-            "FROM ("
-                "SELECT "
-                    "CEIL(time / " + timeStr + ".0) * " + timeStr + " AS end_time, "
-                    "LEAD(height, 1, height) OVER (ORDER BY time ASC) - 2 AS end_height, "
-                    "LAG(height, 1, 1) OVER (ORDER BY time ASC) AS begin_height "
-                "FROM blocks "
-                "WHERE height >= " + to_string(beginHeight) + " AND height <= " + to_string( beginHeight + 5760*maxDaysToProcessAtOnce + 1000) + " "
-            ") AS subquery "
-            "GROUP BY end_time "
-            "HAVING MIN(begin_height) >= " + to_string(beginHeight) + " "
-            "ORDER BY end_time ASC;",
-            exceptionFailedInsert()
-        );
-        // clang-format on
-        waitForSync(analyzer);
-
-        //create Stats Algo Table
-        analyzer->_state=ChainAnalyzer::BUSY;
-        if (startTime == 0) {
-            log->addMessage("Database::updateStats 4 of 13 create temp algo table", Log::DEBUG);
-            executeSQLStatement(
-                    "CREATE TABLE StatsAlgo_" + timeStr + " (end_time INTEGER NOT NULL,algo INTEGER NOT NULL,min_difficulty REAL NOT NULL, max_difficulty REAL NOT NULL, avg_difficulty REAL NOT NULL, num_blocks INTEGER NOT NULL, PRIMARY KEY(end_time, algo));",
-                    exceptionFailedToCreateTable());
-        } else {
-            //table exists delete anything that may have been partial info
-            log->addMessage("Database::updateStats 4 of 13 rollback temp algo table", Log::DEBUG);
-            executeSQLStatement(
-                    "DELETE FROM StatsAlgo_" + timeStr + " WHERE end_time >= " + to_string(startTime),
-                    exceptionFailedToCreateTable());
-        }
-        waitForSync(analyzer);
-
-        //populate stats algo table
-        log->addMessage("Database::updateStats 5 of 13 populate temp algo table", Log::DEBUG);
-        analyzer->_state=ChainAnalyzer::BUSY;
-        // clang-format off
-        executeSQLStatement(
-            "INSERT INTO StatsAlgo_" + timeStr + " (end_time, algo, min_difficulty, max_difficulty, avg_difficulty, num_blocks) "
-            "SELECT "
-                "tch.end_time, "
-                "b.algo, "
-                "MIN(b.difficulty) AS min_difficulty, "
-                "MAX(b.difficulty) AS max_difficulty, "
-                "AVG(b.difficulty) AS avg_difficulty, "
-                "COUNT(*) AS num_blocks "
-            "FROM blocks b "
-            "JOIN StatsCutOffHeights_" + timeStr + " tch ON b.height >= tch.begin_height AND b.height <= tch.end_height "
-            "WHERE tch.end_time >= " + to_string(startTime) + " "
-            "GROUP BY tch.end_time, b.algo "
-            "HAVING COUNT(*) >0 "
-            "ORDER BY tch.end_time ASC, b.algo ASC;",
-            exceptionFailedInsert()
-        );
-        // clang-format on
-        waitForSync(analyzer);
-
-        //update if can do address stats
-        if (canGetAddressStats()) {
-            log->addMessage("Database::updateStats 6 of 13 add indexes if needed", Log::DEBUG);
-            addPerformanceIndex("utxos", "assetIndex", "heightCreated", "heightDestroyed");
-            addPerformanceIndex("utxos", "address", "amount", "heightCreated", "heightDestroyed");
-            addPerformanceIndex("utxos", "heightCreated", "heightDestroyed");
-            addPerformanceIndex("StatsCutOffHeights_" + timeStr, "end_height");
-            addPerformanceIndex("StatsCutOffHeights_" + timeStr, "end_time");
-            while (!_performanceIndexes.empty()) {
-                executePerformanceIndex(analyzer->_state);
-                waitForSync(analyzer);
-            }
-
-            //create address stats
-            analyzer->_state=ChainAnalyzer::BUSY;
-            if (startTime == 0) {
-                log->addMessage("Database::updateStats 7 of 13 create temp address table", Log::DEBUG);
-                executeSQLStatement(
-                        "CREATE TABLE StatsAddress_" + timeStr + " ( end_time INTEGER NOT NULL, total INTEGER, Count_Over_0 INTEGER, Count_Over_1 INTEGER, Count_Over_1k INTEGER, Count_Over_1m INTEGER, num_addresses_with_assets INTEGER, num_addresses_created INTEGER, num_addresses_used INTEGER, num_quantum_unsafe INTEGER, PRIMARY KEY(end_time));",
-                        exceptionFailedToCreateTable());
-            } else {
-                //table exists delete anything that may have been partial info
-                log->addMessage("Database::updateStats 7 of 13 rollback temp address table", Log::DEBUG);
-                executeSQLStatement(
-                        "DELETE FROM StatsAddress_" + timeStr + " WHERE end_time >= " + to_string(startTime),
-                        exceptionFailedToCreateTable());
-            }
-            waitForSync(analyzer);
-
-            //populate stats address table with funded counts
-            log->addMessage("Database::updateStats 8 of 13 populate temp address table with funded count", Log::DEBUG);
-            analyzer->_state=ChainAnalyzer::BUSY;
-            // clang-format off
-            executeSQLStatement(
-                "INSERT INTO StatsAddress_" + timeStr + " (end_time, Count_Over_0, Count_Over_1, Count_Over_1k, Count_Over_1m) "
-                    "SELECT "
-                        "sub.end_time, "
-                        "COUNT(CASE WHEN sub.total_amount > 0 THEN 1 ELSE NULL END) AS Count_Over_0, "
-                        "COUNT(CASE WHEN sub.total_amount > 100000000 THEN 1 ELSE NULL END) AS Count_Over_1, "
-                        "COUNT(CASE WHEN sub.total_amount > 100000000000 THEN 1 ELSE NULL END) AS Count_Over_1k, "
-                        "COUNT(CASE WHEN sub.total_amount > 100000000000000 THEN 1 ELSE NULL END) AS Count_Over_1m "
-                    "FROM ("
-                        "SELECT "
-                            "tch.end_time, "
-                            "u.address, "
-                            "SUM(u.amount) AS total_amount "
-                        "FROM utxos u "
-                        "JOIN StatsCutOffHeights_" + timeStr + " tch ON u.heightCreated <= tch.end_height AND (u.heightDestroyed IS NULL OR u.heightDestroyed > tch.end_height) "
-                        "WHERE u.assetIndex = 1 AND tch.end_time >= " + to_string(startTime) + " "
-                        "GROUP BY tch.end_time, u.address"
-                    ") AS sub "
-                    "GROUP BY sub.end_time;",
-                exceptionFailedInsert()
-            );
-            // clang-format on
-            waitForSync(analyzer);
-
-            //populate stats address table with asset counts
-            log->addMessage("Database::updateStats 9 of 13 populate temp address table with number of addresses with assets", Log::DEBUG);
-            analyzer->_state=ChainAnalyzer::BUSY;
-            // clang-format off
-            executeSQLStatement(
-                "UPDATE StatsAddress_" + timeStr + " "
-                "SET num_addresses_with_assets = ( "
-                    "SELECT COALESCE(COUNT(DISTINCT u.address), 0) "
-                    "FROM utxos u "
-                    "JOIN StatsCutOffHeights_" + timeStr + " tch ON u.heightCreated <= tch.end_height "
-                    "AND (u.heightDestroyed IS NULL OR u.heightDestroyed > tch.end_height) "
-                    "WHERE u.assetIndex > 1 AND tch.end_time >= " + to_string(startTime) + " AND tch.end_time = StatsAddress_" + timeStr + ".end_time "
-                ") "
-                "WHERE EXISTS ("
-                    "SELECT 1 "
-                    "FROM StatsCutOffHeights_" + timeStr + " tch "
-                    "WHERE tch.end_time = StatsAddress_" + timeStr + ".end_time "
-                    "AND tch.end_time >= " + to_string(startTime) + " "
-                ");",
-                exceptionFailedUpdate()
-            );
-            // clang-format on
-            waitForSync(analyzer);
-
-            //populate StatsAddress table with address created counts
-            log->addMessage("Database::updateStats 10 of 13 populate temp address table with number of addresses created", Log::DEBUG);
-            analyzer->_state=ChainAnalyzer::BUSY;
-            // clang-format off
-            executeSQLStatement(
-                "UPDATE StatsAddress_" + timeStr + " "
-                "SET num_addresses_created = ("
-                    "SELECT COALESCE(COUNT(DISTINCT u.address), 0) "
-                    "FROM StatsCutOffHeights_" + timeStr + " tch "
-                    "LEFT JOIN ("
-                        "SELECT address, MIN(heightCreated) AS first_utxo_created "
-                        "FROM utxos "
-                        "GROUP BY address"
-                    ") AS u ON u.first_utxo_created BETWEEN tch.begin_height AND tch.end_height "
-                    "WHERE tch.end_time = StatsAddress_" + timeStr + ".end_time "
-                    "AND tch.end_time >= " + to_string(startTime) + " "
-                ") "
-                "WHERE EXISTS ("
-                    "SELECT 1 "
-                    "FROM StatsCutOffHeights_" + timeStr + " tch "
-                    "WHERE tch.end_time = StatsAddress_" + timeStr + ".end_time "
-                    "AND tch.end_time >= " + to_string(startTime) + " "
-                ");",
-                exceptionFailedUpdate()
-            );
-            // clang-format on
-            waitForSync(analyzer);
-
-            //populate StatsAddress table with number of addresses used
-            log->addMessage("Database::updateStats 11 of 13 populate temp address table with number of addresses used", Log::DEBUG);
-            analyzer->_state=ChainAnalyzer::BUSY;
-            // clang-format off
-            executeSQLStatement(
-                "UPDATE StatsAddress_" + timeStr + " "
-                "SET num_addresses_used = ("
-                    "SELECT COALESCE(COUNT(DISTINCT u.address), 0) "
-                    "FROM StatsCutOffHeights_" + timeStr + " tch "
-                    "LEFT JOIN utxos u ON u.heightDestroyed >= tch.begin_height AND u.heightDestroyed <= tch.end_height "
-                    "WHERE tch.end_time >= " + to_string(startTime) + " AND tch.end_time = StatsAddress_" + timeStr + ".end_time "
-                    "GROUP BY tch.end_time"
-                ") "
-                "WHERE EXISTS ("
-                    "SELECT 1 "
-                    "FROM StatsCutOffHeights_" + timeStr + " tch "
-                    "WHERE tch.end_time = StatsAddress_" + timeStr + ".end_time "
-                    "AND tch.end_time >= " + to_string(startTime) + " "
-                ");",
-                exceptionFailedUpdate()
-            );
-            // clang-format on
-            waitForSync(analyzer);
-
-            //populate StatsAddress table with number of addresses
-            log->addMessage("Database::updateStats 12 of 13 populate temp address table with total number of addresses", Log::DEBUG);
-            analyzer->_state=ChainAnalyzer::BUSY;
-            // clang-format off
-            executeSQLStatement(
-                "UPDATE StatsAddress_" + timeStr + " "
-                "SET total = ("
-                    "SELECT COALESCE(COUNT(DISTINCT u.address), 0) "
-                    "FROM StatsCutOffHeights_" + timeStr + " tch "
-                    "LEFT JOIN utxos u ON u.heightCreated <= tch.end_height "
-                    "WHERE tch.end_time >= " + to_string(startTime) + " AND tch.end_time = StatsAddress_" + timeStr + ".end_time "
-                    "GROUP BY tch.end_time"
-                ") "
-                "WHERE EXISTS ("
-                    "SELECT 1 "
-                    "FROM StatsCutOffHeights_" + timeStr + " tch "
-                    "WHERE tch.end_time = StatsAddress_" + timeStr + ".end_time "
-                    "AND tch.end_time >= " + to_string(startTime) + " "
-                ");",
-                exceptionFailedUpdate()
-            );
-            // clang-format on
-            waitForSync(analyzer);
-
-            //populate StatsAddress table with number of quantum unsafe addresses
-            log->addMessage("Database::updateStats 13 of 13 populate temp address table with number of quantum unsafe addresses", Log::DEBUG);
-            analyzer->_state=ChainAnalyzer::BUSY;
-            // clang-format off
-            executeSQLStatement(
-                "UPDATE StatsAddress_" + timeStr + " SET num_quantum_unsafe = ("
-                    "SELECT COUNT(DISTINCT u.address) "
-                    "FROM utxos u "
-                    "JOIN StatsCutOffHeights_" + timeStr + " tch ON (u.heightCreated <= tch.end_height AND (u.heightDestroyed > tch.end_height OR u.heightDestroyed IS NULL)) "
-                    "WHERE EXISTS ("
-                        "SELECT 1 "
-                        "FROM utxos u2 "
-                        "WHERE u2.address = u.address "
-                        "AND u2.heightDestroyed <= tch.end_height "
-                        "AND u2.heightDestroyed IS NOT NULL "
-                    ") "
-                    "AND tch.end_time = StatsAddress_" + timeStr + ".end_time "
-                    "AND tch.end_time >= " + to_string(startTime) + " "
-                ") "
-                "WHERE EXISTS ("
-                    "SELECT 1 "
-                    "FROM StatsCutOffHeights_" + timeStr + " tch "
-                    "WHERE tch.end_time = StatsAddress_" + timeStr + ".end_time "
-                    "AND tch.end_time >= " + to_string(startTime) + " "
-                ");",
-                exceptionFailedUpdate()
-            );
-            // clang-format on
-            waitForSync(analyzer);
-        }
-
-        //update last start time, so we can check if fully synced
-        lastStartTime = startTime;
+                "CREATE TABLE StatsAlgo_" + timeStr + " (end_time INTEGER NOT NULL,algo INTEGER NOT NULL,min_difficulty REAL NOT NULL, max_difficulty REAL NOT NULL, avg_difficulty REAL NOT NULL, num_blocks INTEGER NOT NULL, PRIMARY KEY(end_time, algo));",
+                exceptionFailedToCreateTable());
     }
-    log->addMessage("Database::updateStats complete", Log::DEBUG);
+
+    //populate stats algo table
+    // clang-format off
+    executeSQLStatement(
+        "INSERT INTO StatsAlgo_" + timeStr + " (end_time, algo, min_difficulty, max_difficulty, avg_difficulty, num_blocks) "
+        "SELECT "
+            "" + to_string(endTime) + ", "
+            "b.algo, "
+            "MIN(b.difficulty) AS min_difficulty, "
+            "MAX(b.difficulty) AS max_difficulty, "
+            "AVG(b.difficulty) AS avg_difficulty, "
+            "COUNT(*) AS num_blocks "
+        "FROM blocks b "
+        "WHERE height BETWEEN " + to_string(startHeight) + " AND " + to_string(endHeight) + " "
+        "GROUP BY b.algo "
+        "HAVING COUNT(*) >0 "
+        "ORDER BY algo ASC;",
+        exceptionFailedInsert()
+    );
+    // clang-format on
+}
+
+void Database::updateAddressStats(unsigned int timeFrame, unsigned int endTime, unsigned int startHeight, unsigned int endHeight) {
+    ChainAnalyzer* analyzer = AppMain::GetInstance()->getChainAnalyzer();
+
+    Log* log = Log::GetInstance();
+    int rc;
+
+    //prep key variables
+    string sql;
+    string timeStr = to_string(timeFrame);
+    sqlite3_stmt* stmt;
+
+    //create address stats table if does not exist
+    if (startHeight == 1) {
+        executeSQLStatement(
+                "CREATE TABLE StatsAddress_" + timeStr + " ( end_time INTEGER NOT NULL, total INTEGER, Count_Over_0 INTEGER, Count_Over_1 INTEGER, Count_Over_1k INTEGER, Count_Over_1m INTEGER, num_addresses_with_assets INTEGER, num_addresses_created INTEGER, num_addresses_used INTEGER, num_quantum_unsafe INTEGER, PRIMARY KEY(end_time));",
+                exceptionFailedToCreateTable());
+    }
+
+    //get funded counts
+    log->addMessage("Database::updateStats calculating number of funded addresses", Log::DEBUG);
+    // clang-format off
+    sql = "SELECT\n"
+            "COUNT(CASE WHEN sub.total_amount > 0 THEN 1 ELSE NULL END) AS Count_Over_0,\n"
+            "COUNT(CASE WHEN sub.total_amount > 100000000 THEN 1 ELSE NULL END) AS Count_Over_1,\n"
+            "COUNT(CASE WHEN sub.total_amount > 100000000000 THEN 1 ELSE NULL END) AS Count_Over_1k,\n"
+            "COUNT(CASE WHEN sub.total_amount > 100000000000000 THEN 1 ELSE NULL END) AS Count_Over_1m\n"
+        "FROM (\n"
+            "SELECT \n"
+            "    u.address,\n"
+            "    SUM(u.amount) AS total_amount\n"
+            "FROM utxos u\n"
+            "WHERE \n"
+            "    u.assetIndex = 1 \n"
+            "    AND u.heightCreated <= " + to_string(startHeight) + "\n"
+            "    AND (u.heightDestroyed IS NULL OR u.heightDestroyed > " + to_string(startHeight) + ")\n"
+            "GROUP BY u.address\n"
+        ") AS sub;";
+    // clang-format on
+    rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
+    if (rc != SQLITE_OK) {
+        sqlite3_finalize(stmt);
+        throw exceptionCreatingStatement();
+    }
+    analyzer->_state=ChainAnalyzer::BUSY;
+    rc = executeSqliteStepWithRetry(stmt);
+    if (rc != SQLITE_ROW) {
+        sqlite3_finalize(stmt);
+        throw exceptionFailedSelect();
+    }
+    unsigned int fundedAddressesOver0=sqlite3_column_int(stmt, 0);
+    unsigned int fundedAddressesOver1=sqlite3_column_int(stmt, 1);
+    unsigned int fundedAddressesOver1k=sqlite3_column_int(stmt, 2);
+    unsigned int fundedAddressesOver1m=sqlite3_column_int(stmt, 3);
+    sqlite3_finalize(stmt);
+
+    //allow chain to catch up if fell behind
+    waitForSync(analyzer);
+
+    //populate stats address table with asset counts
+    log->addMessage("Database::updateStats calculating number of addresses with assets", Log::DEBUG);
+    // clang-format off
+    sql = "SELECT \n"
+            "COALESCE(COUNT(DISTINCT u.address), 0) AS num_addresses_with_assets\n"
+        "FROM utxos u\n"
+        "WHERE \n"
+            "u.heightCreated <= " + to_string(startHeight) + "\n"
+            "AND (u.heightDestroyed IS NULL OR u.heightDestroyed > " + to_string(startHeight) + ")\n"
+            "AND u.assetIndex > 1;";
+    // clang-format on
+    rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
+    if (rc != SQLITE_OK) {
+        sqlite3_finalize(stmt);
+        throw exceptionCreatingStatement();
+    }
+    analyzer->_state=ChainAnalyzer::BUSY;
+    rc = executeSqliteStepWithRetry(stmt);
+    if (rc != SQLITE_ROW) {
+        sqlite3_finalize(stmt);
+        throw exceptionFailedSelect();
+    }
+    unsigned int addressesWithAssets=sqlite3_column_int(stmt, 0);
+    sqlite3_finalize(stmt);
+
+    //allow chain to catch up if fell behind
+    waitForSync(analyzer);
+
+    //populate StatsAddress table with address created counts
+    log->addMessage("Database::updateStats calculate number of addresses created", Log::DEBUG);
+    // clang-format off
+    sql = "SELECT \n"
+            "COALESCE(COUNT(DISTINCT address), 0) AS num_addresses_created\n"
+        "FROM (\n"
+            "SELECT address, MIN(heightCreated) AS first_utxo_created\n"
+            "FROM utxos\n"
+            "GROUP BY address\n"
+        ") AS u\n"
+        "WHERE u.first_utxo_created BETWEEN " + to_string(startHeight) + " AND " + to_string(endHeight) + ";";
+    // clang-format on
+    rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
+    if (rc != SQLITE_OK) {
+        sqlite3_finalize(stmt);
+        throw exceptionCreatingStatement();
+    }
+    analyzer->_state=ChainAnalyzer::BUSY;
+    rc = executeSqliteStepWithRetry(stmt);
+    if (rc != SQLITE_ROW) {
+        sqlite3_finalize(stmt);
+        throw exceptionFailedSelect();
+    }
+    unsigned int addressesCreated=sqlite3_column_int(stmt, 0);
+    sqlite3_finalize(stmt);
+
+    //allow chain to catch up if fell behind
+    waitForSync(analyzer);
+
+    //populate StatsAddress table with number of addresses used
+    log->addMessage("Database::updateStats calculate number of addresses used", Log::DEBUG);
+    // clang-format off
+    sql="SELECT \n"
+            "COALESCE(COUNT(DISTINCT u.address), 0) AS num_addresses_used\n"
+        "FROM utxos u\n"
+        "WHERE u.heightDestroyed BETWEEN " + to_string(startHeight) + " AND " + to_string(endHeight) + ";";
+    // clang-format on
+    rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
+    if (rc != SQLITE_OK) {
+        sqlite3_finalize(stmt);
+        throw exceptionCreatingStatement();
+    }
+    analyzer->_state=ChainAnalyzer::BUSY;
+    rc = executeSqliteStepWithRetry(stmt);
+    if (rc != SQLITE_ROW) {
+        sqlite3_finalize(stmt);
+        throw exceptionFailedSelect();
+    }
+    unsigned int addressesUsed=sqlite3_column_int(stmt, 0);
+    sqlite3_finalize(stmt);
+
+    //allow chain to catch up if fell behind
+    waitForSync(analyzer);
+
+    //populate StatsAddress table with number of addresses
+    log->addMessage("Database::updateStats calculate total number of addresses", Log::DEBUG);
+    // clang-format off
+    sql = "SELECT \n"
+            "COALESCE(COUNT(DISTINCT u.address), 0)\n"
+        "FROM utxos u\n"
+        "WHERE u.heightCreated <= " + to_string(endHeight) + ";";
+    // clang-format on
+    rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
+    if (rc != SQLITE_OK) {
+        sqlite3_finalize(stmt);
+        throw exceptionCreatingStatement();
+    }
+    analyzer->_state=ChainAnalyzer::BUSY;
+    rc = executeSqliteStepWithRetry(stmt);
+    if (rc != SQLITE_ROW) {
+        sqlite3_finalize(stmt);
+        throw exceptionFailedSelect();
+    }
+    unsigned int addressesTotal=sqlite3_column_int(stmt, 0);
+    sqlite3_finalize(stmt);
+
+    //allow chain to catch up if fell behind
+    waitForSync(analyzer);
+
+    //populate StatsAddress table with number of quantum unsafe addresses
+    log->addMessage("Database::updateStats calculate number of quantum unsafe addresses", Log::DEBUG);
+    analyzer->_state=ChainAnalyzer::BUSY;
+    // clang-format off
+    sql = "SELECT \n"
+            "COUNT(DISTINCT u.address) AS num_quantum_unsafe\n"
+        "FROM utxos u\n"
+        "WHERE \n"
+            "(u.heightCreated <= " + to_string(endHeight) + " AND (u.heightDestroyed > " + to_string(endHeight) + " OR u.heightDestroyed IS NULL))\n"
+            "AND EXISTS (\n"
+                "SELECT 1 \n"
+                "FROM utxos u2 \n"
+                "WHERE u2.address = u.address \n"
+                "AND u2.heightDestroyed <= " + to_string(endHeight) + " \n"
+                "AND u2.heightDestroyed IS NOT NULL\n"
+            ");";
+    // clang-format on
+    rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
+    if (rc != SQLITE_OK) {
+        sqlite3_finalize(stmt);
+        throw exceptionCreatingStatement();
+    }
+    analyzer->_state=ChainAnalyzer::BUSY;
+    rc = executeSqliteStepWithRetry(stmt);
+    if (rc != SQLITE_ROW) {
+        sqlite3_finalize(stmt);
+        throw exceptionFailedSelect();
+    }
+    unsigned int quantumUnsafeAddresses=sqlite3_column_int(stmt, 0);
+    sqlite3_finalize(stmt);
+
+    //allow chain to catch up if fell behind
+    waitForSync(analyzer);
+
+    //insert row based on calculated values
+    executeSQLStatement(
+            "INSERT INTO StatsAddress_" + timeStr + " (end_time, total, Count_Over_0, Count_Over_1, Count_Over_1k, Count_Over_1m, num_addresses_with_assets, num_addresses_created, num_addresses_used, num_quantum_unsafe) "
+                                                  "VALUES (" + to_string(endTime) + ", "
+          + to_string(addressesTotal) + ", "
+          + to_string(fundedAddressesOver0) + ", "
+          + to_string(fundedAddressesOver1) + ", "
+          + to_string(fundedAddressesOver1k) + ", "
+          + to_string(fundedAddressesOver1m) + ", "
+          + to_string(addressesWithAssets) + ", "
+          + to_string(addressesCreated) + ", "
+          + to_string(addressesUsed) + ", "
+          + to_string(quantumUnsafeAddresses) + ");",
+            exceptionFailedInsert()
+    );
 }
 
 std::vector<AlgoStats> Database::getAlgoStats(unsigned int start, unsigned int end, unsigned int timeFrame) {
