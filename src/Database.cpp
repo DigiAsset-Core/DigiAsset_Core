@@ -337,6 +337,55 @@ void Database::initializeClassValues() {
     //statement to get valid utxos for a given address
     _stmtGetValidUTXO.prepare(_db, "SELECT `txid`,`vout`,`aout`,`assetIndex`,`amount` FROM utxos WHERE heightDestroyed IS NULL AND address=? AND heightCreated>=? AND heightCreated<=? ORDER BY txid ASC, vout ASC, aout ASC;");
 
+    //get all address changes within a time period
+    _stmtGetAddressChangesDuringPeriod.prepare(_db,
+                                               "SELECT "
+                                               "    address, "
+                                               "    SUM(CASE "
+                                               "            WHEN "
+                                               "                assetIndex = 1 AND "
+                                               "                heightCreated >= ? AND heightCreated <= ? "
+                                               "            THEN amount "
+                                               "            ELSE 0 "
+                                               "        END) - "
+                                               "    SUM(CASE "
+                                               "            WHEN "
+                                               "                assetIndex = 1 AND "
+                                               "                heightDestroyed IS NOT NULL AND heightDestroyed >= ? AND heightDestroyed <= ? "
+                                               "            THEN amount "
+                                               "            ELSE 0 "
+                                               "        END) AS sumDigiByte, "
+
+                                               "    SUM(CASE "
+                                               "            WHEN "
+                                               "                assetIndex > 1 AND "
+                                               "                heightCreated >= ? AND heightCreated <= ? "
+                                               "            THEN amount "
+                                               "            ELSE 0 "
+                                               "        END) - "
+                                               "    SUM(CASE "
+                                               "            WHEN "
+                                               "                assetIndex > 1 AND "
+                                               "                heightDestroyed IS NOT NULL AND heightDestroyed >= ? AND heightDestroyed <= ? "
+                                               "            THEN amount "
+                                               "            ELSE 0 "
+                                               "        END) AS sumAssets, "
+
+                                               "    MAX(CASE "
+                                               "            WHEN heightDestroyed IS NOT NULL AND heightDestroyed >= ? AND heightDestroyed <= ? "
+                                               "            THEN 1 "
+                                               "            ELSE 0 "
+                                               "        END) as spent "
+                                               "FROM utxos "
+                                               "WHERE "
+                                               "    (heightCreated >= ? AND heightCreated <= ?) OR "
+                                               "    (heightDestroyed IS NOT NULL AND heightDestroyed >= ? AND heightDestroyed <= ?) "
+                                               "GROUP BY "
+                                               "   address;");
+
+
+
+
     //statement to get a list of the last n blocks
     _stmtGetLastBlocks.prepare(_db, "SELECT height, hash, time, algo FROM blocks WHERE height<=? ORDER BY height DESC LIMIT ?");
 
@@ -1460,16 +1509,16 @@ std::vector<AssetHolder> Database::getAssetHolders(uint64_t assetIndex) {
  */
 std::vector<AssetHolder> Database::getAssetHolders(string assetId) {
     //get list of asset Indexes
-    vector<uint64_t> assetIndexes=getAssetIndexes(assetId);
+    vector<uint64_t> assetIndexes = getAssetIndexes(assetId);
 
     //handle simple cases
     if (assetIndexes.empty()) return {};
-    if (assetIndexes.size()==1) return getAssetHolders(assetIndexes[0]);
+    if (assetIndexes.size() == 1) return getAssetHolders(assetIndexes[0]);
 
     //get all holders
     vector<AssetHolder> allHolders;
     for (uint64_t assetIndex: assetIndexes) {
-        std::vector<AssetHolder> holders=getAssetHolders(assetIndex);
+        std::vector<AssetHolder> holders = getAssetHolders(assetIndex);
         allHolders.insert(allHolders.end(), holders.begin(), holders.end());
     }
 
@@ -2594,28 +2643,31 @@ bool Database::canGetAddressStats() {
  * @param timeFrame
  */
 void Database::updateStats(unsigned int timeFrame) {
+    //make sure can't be run twice at the same time
+    std::lock_guard<std::mutex> lock(_mutexGetNextIPFSJob);
+
     //return if stats are not possible do to pruning being on(no stats are possible if algo stats are not possible)
     if (!canGetAlgoStats()) return;
 
     Log* log = Log::GetInstance();
-    const string flag="statsBlockHeightEnd_" + to_string(timeFrame);
+    const string flag = "statsBlockHeightEnd_" + to_string(timeFrame);
 
     //make sure indexes we need exist
     addStatsPerformanceIndexes();
 
     //get start block height
-    unsigned int startHeight=1;
+    unsigned int startHeight = 1;
     try {
-        startHeight=getFlagInt(flag)+1;
+        startHeight = getFlagInt(flag) + 1;
     } catch (const exceptionFailedSelect& e) {
         //first run so use height=1
     }
 
     //get end time of first block
-    unsigned int endTime=getStatsEndTime(timeFrame,startHeight);
+    unsigned int endTime = getStatsEndTime(timeFrame, startHeight);
 
     //repair database in case there was a partial run
-    repairStats(timeFrame, endTime);
+    //repairStats(timeFrame, endTime);
 
     //loop through database until up to current date
     unsigned int endHeight;
@@ -2630,9 +2682,9 @@ void Database::updateStats(unsigned int timeFrame) {
         if (canGetAddressStats()) updateAddressStats(timeFrame, endTime, startHeight, endHeight);
 
         //update where we left off
-        setFlagInt(flag,endHeight);
-        endTime+=timeFrame;
-        startHeight=endHeight+1;
+        setFlagInt(flag, endHeight);
+        endTime += timeFrame;
+        startHeight = endHeight + 1;
     }
     log->addMessage("Database::updateStats complete", Log::DEBUG);
 }
@@ -2678,10 +2730,10 @@ unsigned int Database::getStatsEndTime(unsigned int timeFrame, unsigned int begi
         sqlite3_finalize(stmt);
         throw exceptionFailedSelect();
     }
-    unsigned int startTime=sqlite3_column_int(stmt, 0);
+    unsigned int startTime = sqlite3_column_int(stmt, 0);
     sqlite3_finalize(stmt);
 
-    return ((startTime/timeFrame)+1)*timeFrame;
+    return ((startTime / timeFrame) + 1) * timeFrame;
 }
 
 /**
@@ -2723,35 +2775,11 @@ unsigned int Database::getStatsEndBlockHeight(unsigned int timeFrame, unsigned i
         sqlite3_finalize(stmt);
         throw exceptionFailedSelect();
     }
-    unsigned int endHeight=sqlite3_column_int(stmt, 0);
+    unsigned int endHeight = sqlite3_column_int(stmt, 0);
 
     sqlite3_finalize(stmt);
 
     return endHeight;
-}
-
-/**
- * Repairs database in case things stopped part way through update
- * @param timeFrame
- * @param endTime
- */
-void Database::repairStats(unsigned int timeFrame,unsigned int endTime) {
-    sqlite3_stmt* stmt;
-    string timeStr = to_string(timeFrame);
-
-    try {
-        executeSQLStatement(
-                "DELETE FROM StatsAlgo_" + timeStr + " WHERE end_time >= " + to_string(endTime),
-                exceptionFailedToCreateTable());
-
-        if (canGetAddressStats()) {
-            executeSQLStatement(
-                    "DELETE FROM StatsAddress_" + timeStr + " WHERE end_time >= " + to_string(endTime),
-                    exceptionFailedToCreateTable());
-        }
-    } catch (...) {
-
-    }
 }
 
 /**
@@ -2762,8 +2790,6 @@ void Database::repairStats(unsigned int timeFrame,unsigned int endTime) {
  * @param endHeight
  */
 void Database::updateAlgoStats(unsigned int timeFrame, unsigned int endTime, unsigned int startHeight, unsigned int endHeight) {
-    ChainAnalyzer* analyzer = AppMain::GetInstance()->getChainAnalyzer();
-
     Log* log = Log::GetInstance();
     int rc;
 
@@ -2801,7 +2827,14 @@ void Database::updateAlgoStats(unsigned int timeFrame, unsigned int endTime, uns
 }
 
 void Database::updateAddressStats(unsigned int timeFrame, unsigned int endTime, unsigned int startHeight, unsigned int endHeight) {
-    ChainAnalyzer* analyzer = AppMain::GetInstance()->getChainAnalyzer();
+    struct Change {
+        string address;
+        int64_t digibyteChange;
+        int64_t assetChange;
+        bool spent;
+
+        Change(const string& addr, uint64_t dChange, uint64_t aChange, bool s) : address(addr), digibyteChange(dChange), assetChange(aChange), spent(s) {}
+    };
 
     Log* log = Log::GetInstance();
     int rc;
@@ -2811,209 +2844,206 @@ void Database::updateAddressStats(unsigned int timeFrame, unsigned int endTime, 
     string timeStr = to_string(timeFrame);
     sqlite3_stmt* stmt;
 
-    //create address stats table if does not exist
+    //create address stats table if it does not exist
     if (startHeight == 1) {
         executeSQLStatement(
                 "CREATE TABLE StatsAddress_" + timeStr + " ( end_time INTEGER NOT NULL, total INTEGER, Count_Over_0 INTEGER, Count_Over_1 INTEGER, Count_Over_1k INTEGER, Count_Over_1m INTEGER, num_addresses_with_assets INTEGER, num_addresses_created INTEGER, num_addresses_used INTEGER, num_quantum_unsafe INTEGER, PRIMARY KEY(end_time));",
                 exceptionFailedToCreateTable());
+        executeSQLStatement(
+                "CREATE TABLE StatsAddressSum_" + timeStr + " ( address TEXT NOT NULL, digibyte INTEGER NOT NULL, assets INTEGER NOT NULL, spent BOOL NOT NULL, PRIMARY KEY (address) );",
+                exceptionFailedToCreateTable());
     }
 
-    //get funded counts
-    log->addMessage("Database::updateStats calculating number of funded addresses", Log::DEBUG);
-    // clang-format off
-    sql = "SELECT\n"
-            "COUNT(CASE WHEN sub.total_amount > 0 THEN 1 ELSE NULL END) AS Count_Over_0,\n"
-            "COUNT(CASE WHEN sub.total_amount > 100000000 THEN 1 ELSE NULL END) AS Count_Over_1,\n"
-            "COUNT(CASE WHEN sub.total_amount > 100000000000 THEN 1 ELSE NULL END) AS Count_Over_1k,\n"
-            "COUNT(CASE WHEN sub.total_amount > 100000000000000 THEN 1 ELSE NULL END) AS Count_Over_1m\n"
-        "FROM (\n"
-            "SELECT \n"
-            "    u.address,\n"
-            "    SUM(u.amount) AS total_amount\n"
-            "FROM utxos u\n"
-            "WHERE \n"
-            "    u.assetIndex = 1 \n"
-            "    AND u.heightCreated <= " + to_string(startHeight) + "\n"
-            "    AND (u.heightDestroyed IS NULL OR u.heightDestroyed > " + to_string(startHeight) + ")\n"
-            "GROUP BY u.address\n"
-        ") AS sub;";
-    // clang-format on
+    //get list of all addresses that have changed since previous time frame
+    vector<Change> changes;
+    {
+        LockedStatement addressChanges{_stmtGetAddressChangesDuringPeriod};
+        addressChanges.bindInt(1, startHeight);
+        addressChanges.bindInt(2, endHeight);
+        addressChanges.bindInt(3, startHeight);
+        addressChanges.bindInt(4, endHeight);
+
+        addressChanges.bindInt(5, startHeight);
+        addressChanges.bindInt(6, endHeight);
+        addressChanges.bindInt(7, startHeight);
+        addressChanges.bindInt(8, endHeight);
+
+        addressChanges.bindInt(9, startHeight);
+        addressChanges.bindInt(10, endHeight);
+
+        addressChanges.bindInt(11, startHeight);
+        addressChanges.bindInt(12, endHeight);
+        addressChanges.bindInt(13, startHeight);
+        addressChanges.bindInt(14, endHeight);
+
+        while (addressChanges.executeStep() == SQLITE_ROW) {
+            changes.emplace_back(
+                    addressChanges.getColumnText(0),
+                    addressChanges.getColumnInt64(1),
+                    addressChanges.getColumnInt64(2),
+                    static_cast<bool>(addressChanges.getColumnInt(3)));
+        }
+    }
+
+
+
+    //get number of addresses used
+    unsigned int addressesUsed=count_if(changes.begin(), changes.end(), [](const Change& ch) { return ch.spent; });
+
+    //get number of addresses there were
+    sql = "SELECT COUNT(*) FROM StatsAddressSum_" + timeStr + " WHERE 1";
     rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
     if (rc != SQLITE_OK) {
         sqlite3_finalize(stmt);
         throw exceptionCreatingStatement();
     }
-    analyzer->_state=ChainAnalyzer::BUSY;
     rc = executeSqliteStepWithRetry(stmt);
     if (rc != SQLITE_ROW) {
         sqlite3_finalize(stmt);
         throw exceptionFailedSelect();
     }
-    unsigned int fundedAddressesOver0=sqlite3_column_int(stmt, 0);
-    unsigned int fundedAddressesOver1=sqlite3_column_int(stmt, 1);
-    unsigned int fundedAddressesOver1k=sqlite3_column_int(stmt, 2);
-    unsigned int fundedAddressesOver1m=sqlite3_column_int(stmt, 3);
+    unsigned int previousAddressCount = sqlite3_column_int(stmt, 0);
     sqlite3_finalize(stmt);
 
-    //allow chain to catch up if fell behind
-    waitForSync(analyzer);
-
-    //populate stats address table with asset counts
-    log->addMessage("Database::updateStats calculating number of addresses with assets", Log::DEBUG);
-    // clang-format off
-    sql = "SELECT \n"
-            "COALESCE(COUNT(DISTINCT u.address), 0) AS num_addresses_with_assets\n"
-        "FROM utxos u\n"
-        "WHERE \n"
-            "u.heightCreated <= " + to_string(startHeight) + "\n"
-            "AND (u.heightDestroyed IS NULL OR u.heightDestroyed > " + to_string(startHeight) + ")\n"
-            "AND u.assetIndex > 1;";
-    // clang-format on
+    //combine the changes with the previous address sums
+    sql = "INSERT INTO StatsAddressSum_" + timeStr + " (address, digibyte, assets, spent)\n"
+          "VALUES (?, ?, ?, ?)\n"
+          "ON CONFLICT(address) DO UPDATE SET\n"
+          "    digibyte = digibyte + (excluded.digibyte),\n"
+          "    assets = assets + (excluded.assets),\n"
+          "    spent = MAX(spent, excluded.spent);";
     rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
     if (rc != SQLITE_OK) {
         sqlite3_finalize(stmt);
         throw exceptionCreatingStatement();
     }
-    analyzer->_state=ChainAnalyzer::BUSY;
-    rc = executeSqliteStepWithRetry(stmt);
-    if (rc != SQLITE_ROW) {
-        sqlite3_finalize(stmt);
-        throw exceptionFailedSelect();
+    for (auto change: changes) {
+        sqlite3_bind_text(stmt, 1, change.address.c_str(), -1, SQLITE_STATIC);
+        sqlite3_bind_int64(stmt, 2, change.digibyteChange);
+        sqlite3_bind_int64(stmt, 3, change.assetChange);
+        sqlite3_bind_int(stmt, 4, change.spent);
+        if (sqlite3_step(stmt) != SQLITE_DONE) {
+            sqlite3_finalize(stmt);
+            throw exceptionFailedUpdate();
+        }
+        sqlite3_reset(stmt);
     }
-    unsigned int addressesWithAssets=sqlite3_column_int(stmt, 0);
     sqlite3_finalize(stmt);
 
-    //allow chain to catch up if fell behind
-    waitForSync(analyzer);
-
-    //populate StatsAddress table with address created counts
-    log->addMessage("Database::updateStats calculate number of addresses created", Log::DEBUG);
-    // clang-format off
-    sql = "SELECT \n"
-            "COALESCE(COUNT(DISTINCT address), 0) AS num_addresses_created\n"
-        "FROM (\n"
-            "SELECT address, MIN(heightCreated) AS first_utxo_created\n"
-            "FROM utxos\n"
-            "GROUP BY address\n"
-        ") AS u\n"
-        "WHERE u.first_utxo_created BETWEEN " + to_string(startHeight) + " AND " + to_string(endHeight) + ";";
-    // clang-format on
+    //get total number of addresses
+    sql = "SELECT COUNT(*) FROM StatsAddressSum_" + timeStr + " WHERE 1";
     rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
     if (rc != SQLITE_OK) {
         sqlite3_finalize(stmt);
         throw exceptionCreatingStatement();
     }
-    analyzer->_state=ChainAnalyzer::BUSY;
     rc = executeSqliteStepWithRetry(stmt);
     if (rc != SQLITE_ROW) {
         sqlite3_finalize(stmt);
         throw exceptionFailedSelect();
     }
-    unsigned int addressesCreated=sqlite3_column_int(stmt, 0);
+    unsigned int addressesTotal = sqlite3_column_int(stmt, 0);
     sqlite3_finalize(stmt);
 
-    //allow chain to catch up if fell behind
-    waitForSync(analyzer);
+    //get number of addresses created
+    unsigned int addressesCreated = addressesTotal - previousAddressCount;
 
-    //populate StatsAddress table with number of addresses used
-    log->addMessage("Database::updateStats calculate number of addresses used", Log::DEBUG);
-    // clang-format off
-    sql="SELECT \n"
-            "COALESCE(COUNT(DISTINCT u.address), 0) AS num_addresses_used\n"
-        "FROM utxos u\n"
-        "WHERE u.heightDestroyed BETWEEN " + to_string(startHeight) + " AND " + to_string(endHeight) + ";";
-    // clang-format on
+    //get number of quantum unsafe
+    sql = "SELECT COUNT(*) FROM StatsAddressSum_" + timeStr + " WHERE spent=1 AND digibyte>0";  //assets must be 0 if digibyte is 0 since it takes 600 to store an asset so don't need to check asset count
     rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
     if (rc != SQLITE_OK) {
         sqlite3_finalize(stmt);
         throw exceptionCreatingStatement();
     }
-    analyzer->_state=ChainAnalyzer::BUSY;
     rc = executeSqliteStepWithRetry(stmt);
     if (rc != SQLITE_ROW) {
         sqlite3_finalize(stmt);
         throw exceptionFailedSelect();
     }
-    unsigned int addressesUsed=sqlite3_column_int(stmt, 0);
+    unsigned int quantumUnsafeAddresses = sqlite3_column_int(stmt, 0);
     sqlite3_finalize(stmt);
 
-    //allow chain to catch up if fell behind
-    waitForSync(analyzer);
-
-    //populate StatsAddress table with number of addresses
-    log->addMessage("Database::updateStats calculate total number of addresses", Log::DEBUG);
-    // clang-format off
-    sql = "SELECT \n"
-            "COALESCE(COUNT(DISTINCT u.address), 0)\n"
-        "FROM utxos u\n"
-        "WHERE u.heightCreated <= " + to_string(endHeight) + ";";
-    // clang-format on
+    //get number of addresses with assets
+    sql = "SELECT COUNT(*) FROM StatsAddressSum_" + timeStr + " WHERE assets>0";  //assets must be 0 if digibyte is 0 since it takes 600 to store an asset so don't need to check asset count
     rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
     if (rc != SQLITE_OK) {
         sqlite3_finalize(stmt);
         throw exceptionCreatingStatement();
     }
-    analyzer->_state=ChainAnalyzer::BUSY;
     rc = executeSqliteStepWithRetry(stmt);
     if (rc != SQLITE_ROW) {
         sqlite3_finalize(stmt);
         throw exceptionFailedSelect();
     }
-    unsigned int addressesTotal=sqlite3_column_int(stmt, 0);
+    unsigned int addressesWithAssets = sqlite3_column_int(stmt, 0);
     sqlite3_finalize(stmt);
 
-    //allow chain to catch up if fell behind
-    waitForSync(analyzer);
-
-    //populate StatsAddress table with number of quantum unsafe addresses
-    log->addMessage("Database::updateStats calculate number of quantum unsafe addresses", Log::DEBUG);
-    analyzer->_state=ChainAnalyzer::BUSY;
-    // clang-format off
-    sql = "SELECT \n"
-            "COUNT(DISTINCT u.address) AS num_quantum_unsafe\n"
-        "FROM utxos u\n"
-        "WHERE \n"
-            "(u.heightCreated <= " + to_string(endHeight) + " AND (u.heightDestroyed > " + to_string(endHeight) + " OR u.heightDestroyed IS NULL))\n"
-            "AND EXISTS (\n"
-                "SELECT 1 \n"
-                "FROM utxos u2 \n"
-                "WHERE u2.address = u.address \n"
-                "AND u2.heightDestroyed <= " + to_string(endHeight) + " \n"
-                "AND u2.heightDestroyed IS NOT NULL\n"
-            ");";
-    // clang-format on
+    //get funded addresses over 0
+    sql = "SELECT COUNT(*) FROM StatsAddressSum_" + timeStr + " WHERE digibyte>0";  //assets must be 0 if digibyte is 0 since it takes 600 to store an asset so don't need to check asset count
     rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
     if (rc != SQLITE_OK) {
         sqlite3_finalize(stmt);
         throw exceptionCreatingStatement();
     }
-    analyzer->_state=ChainAnalyzer::BUSY;
     rc = executeSqliteStepWithRetry(stmt);
     if (rc != SQLITE_ROW) {
         sqlite3_finalize(stmt);
         throw exceptionFailedSelect();
     }
-    unsigned int quantumUnsafeAddresses=sqlite3_column_int(stmt, 0);
+    unsigned int fundedAddressesOver0 = sqlite3_column_int(stmt, 0);
     sqlite3_finalize(stmt);
 
-    //allow chain to catch up if fell behind
-    waitForSync(analyzer);
+    //get funded addresses with at least 1 digibyte
+    sql = "SELECT COUNT(*) FROM StatsAddressSum_" + timeStr + " WHERE digibyte>=100000000";  //assets must be 0 if digibyte is 0 since it takes 600 to store an asset so don't need to check asset count
+    rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
+    if (rc != SQLITE_OK) {
+        sqlite3_finalize(stmt);
+        throw exceptionCreatingStatement();
+    }
+    rc = executeSqliteStepWithRetry(stmt);
+    if (rc != SQLITE_ROW) {
+        sqlite3_finalize(stmt);
+        throw exceptionFailedSelect();
+    }
+    unsigned int fundedAddressesOver1 = sqlite3_column_int(stmt, 0);
+    sqlite3_finalize(stmt);
+
+    //get funded addresses with at least 1k digibyte
+    sql = "SELECT COUNT(*) FROM StatsAddressSum_" + timeStr + " WHERE digibyte>=100000000000";  //assets must be 0 if digibyte is 0 since it takes 600 to store an asset so don't need to check asset count
+    rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
+    if (rc != SQLITE_OK) {
+        sqlite3_finalize(stmt);
+        throw exceptionCreatingStatement();
+    }
+    rc = executeSqliteStepWithRetry(stmt);
+    if (rc != SQLITE_ROW) {
+        sqlite3_finalize(stmt);
+        throw exceptionFailedSelect();
+    }
+    unsigned int fundedAddressesOver1k = sqlite3_column_int(stmt, 0);
+    sqlite3_finalize(stmt);
+
+    //get funded addresses with at least 1m digibyte
+    sql = "SELECT COUNT(*) FROM StatsAddressSum_" + timeStr + " WHERE digibyte>=100000000000000";  //assets must be 0 if digibyte is 0 since it takes 600 to store an asset so don't need to check asset count
+    rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
+    if (rc != SQLITE_OK) {
+        sqlite3_finalize(stmt);
+        throw exceptionCreatingStatement();
+    }
+    rc = executeSqliteStepWithRetry(stmt);
+    if (rc != SQLITE_ROW) {
+        sqlite3_finalize(stmt);
+        throw exceptionFailedSelect();
+    }
+    unsigned int fundedAddressesOver1m = sqlite3_column_int(stmt, 0);
+    sqlite3_finalize(stmt);
 
     //insert row based on calculated values
     executeSQLStatement(
             "INSERT INTO StatsAddress_" + timeStr + " (end_time, total, Count_Over_0, Count_Over_1, Count_Over_1k, Count_Over_1m, num_addresses_with_assets, num_addresses_created, num_addresses_used, num_quantum_unsafe) "
-                                                  "VALUES (" + to_string(endTime) + ", "
-          + to_string(addressesTotal) + ", "
-          + to_string(fundedAddressesOver0) + ", "
-          + to_string(fundedAddressesOver1) + ", "
-          + to_string(fundedAddressesOver1k) + ", "
-          + to_string(fundedAddressesOver1m) + ", "
-          + to_string(addressesWithAssets) + ", "
-          + to_string(addressesCreated) + ", "
-          + to_string(addressesUsed) + ", "
-          + to_string(quantumUnsafeAddresses) + ");",
-            exceptionFailedInsert()
-    );
+                                                    "VALUES (" +
+                    to_string(endTime) + ", " + to_string(addressesTotal) + ", " + to_string(fundedAddressesOver0) + ", " + to_string(fundedAddressesOver1) + ", " + to_string(fundedAddressesOver1k) + ", " + to_string(fundedAddressesOver1m) + ", " + to_string(addressesWithAssets) + ", " + to_string(addressesCreated) + ", " + to_string(addressesUsed) + ", " + to_string(quantumUnsafeAddresses) + ");",
+            exceptionFailedInsert());
 }
 
 std::vector<AlgoStats> Database::getAlgoStats(unsigned int start, unsigned int end, unsigned int timeFrame) {

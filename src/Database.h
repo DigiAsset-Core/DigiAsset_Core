@@ -157,6 +157,7 @@ private:
     Statement _stmtGetAssetCreateByAddress;
     Statement _stmtGetAddressHoldings;
     Statement _stmtGetValidUTXO;
+    Statement _stmtGetAddressChangesDuringPeriod;
     Statement _stmtGetLastBlocks;
 
 public:
@@ -269,6 +270,7 @@ private:
     //locks
     std::mutex _mutexGetNextIPFSJob;
     std::mutex _mutexRemoveIPFSJob;
+    std::mutex _mutexUpdateStats;
 
     void buildTables(unsigned int dbVersionNumber = 0);
     void initializeClassValues();
@@ -299,7 +301,6 @@ private:
     void addStatsPerformanceIndexes();
     unsigned int getStatsEndTime(unsigned int timeFrame, unsigned int beginHeight);
     unsigned int getStatsEndBlockHeight(unsigned int timeFrame, unsigned int endTime);
-    void repairStats(unsigned int timeFrame, unsigned int endTime);
     void updateAlgoStats(unsigned int timeFrame, unsigned int endTime, unsigned int startHeight, unsigned int endHeight);
     void updateAddressStats(unsigned int timeFrame, unsigned int endTime, unsigned int startHeight, unsigned int endHeight);
 
