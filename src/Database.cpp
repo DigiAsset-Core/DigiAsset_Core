@@ -16,6 +16,7 @@
 #include <sqlite3.h>
 #include <stdio.h>
 
+
 using namespace std;
 
 namespace {
@@ -2696,9 +2697,8 @@ void Database::addStatsPerformanceIndexes() {
     addPerformanceIndex("blocks", "height");
     addPerformanceIndex("blocks", "time");
     if (canGetAddressStats()) {
-        addPerformanceIndex("utxos", "assetIndex", "heightCreated", "heightDestroyed");
-        addPerformanceIndex("utxos", "address", "amount", "heightCreated", "heightDestroyed");
-        addPerformanceIndex("utxos", "heightCreated", "heightDestroyed");
+        addPerformanceIndex("utxos", "assetIndex", "heightCreated");
+        addPerformanceIndex("utxos", "assetIndex", "heightDestroyed");
     }
     while (!_performanceIndexes.empty()) {
         executePerformanceIndex(analyzer->_state);
