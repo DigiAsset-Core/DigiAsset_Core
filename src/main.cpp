@@ -12,6 +12,10 @@
 
 
 int main() {
+    ///When updating bootstrap image change both values.   Reviewers make sure this value is only ever changed by trusted party
+    const string officialBootstrapCID="QmVYaAEq5Whh1951RtRrBx1aFXiLuPoho4apRRa9tX6BDM";
+    const unsigned int officialBootStrapHeight=18927358;
+
     /*
      * Start Log
      */
@@ -29,11 +33,14 @@ int main() {
      * Predownload database files if config files allow and database missing
      */
     unsigned int pauseHeight = 0;
-    if (config.getBool("bootstrapchainstate", true) && !utils::fileExists("chain.db")) {
+    if (                                                                        //download bootstrap if all of the above are true
+            config.getBool("bootstrapchainstate", true) &&      //if bootstrap is allowed by config(default true)
+            !config.getBool("storenonassetutxo", false) &&      //if we are not storing the non asset utxo
+            !utils::fileExists("chain.db")) {                           //if the chain database does not yet exist
         log->addMessage("Bootstraping Database.  This may take a while depending on how faster your internet is.");
         IPFS ipfs("config.cfg", false);
-        ipfs.downloadFile("QmVYaAEq5Whh1951RtRrBx1aFXiLuPoho4apRRa9tX6BDM", "chain.db", true);
-        pauseHeight = 18927358; ///when updating images always set this to 1 greater than largest height in blocks table
+        ipfs.downloadFile(officialBootstrapCID, "chain.db",true);
+        pauseHeight = officialBootStrapHeight;
     }
 
     /*
@@ -85,6 +92,7 @@ int main() {
     log->addMessage("Starting IPFS handler");
     IPFS ipfs("config.cfg");
     main->setIPFS(&ipfs);
+    ipfs.pin(officialBootstrapCID);
 
     /**
      * Connect to Permanent Storage Pools

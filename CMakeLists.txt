@@ -14,7 +14,7 @@ SET(CMAKE_CXX_FLAGS "-std=c++11 -g -Wall")
 SET(MAJOR_VERSION 0)
 SET(MINOR_VERSION 2)
 SET(PATCH_VERSION 4)
-SET(SO_VERSION    22)
+SET(SO_VERSION    23)
 
 # Add source directory
 include_directories(src)
