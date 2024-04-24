@@ -24,6 +24,7 @@ public:
 
 
     explicit Config(const string& fileName);
+    explicit Config();
 
 
     string getString(const string& key) const;

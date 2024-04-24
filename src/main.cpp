@@ -17,6 +17,73 @@ int main() {
     const unsigned int officialBootStrapHeight=18927358;
 
     /*
+     * Check if config exists and prompt user to make one if it doesn't
+     */
+    if (!utils::fileExists("config.cfg")) {
+        Config config;
+        cout << "Config file not found starting config wizard\n";
+
+        //get DigiByte Core IP
+        cout << "Is DigiByte Core running on this machine(Y/N)? ";
+        bool localCore=utils::getAnswerBool();
+        string rpcbind ="127.0.0.1";
+        if (!localCore) {
+            cout << "What is the IP address of DigiByte core? ";
+            rpcbind =utils::getAnswerString(R"(^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$)");
+        }
+        config.setString("rpcbind", rpcbind);
+
+        //Get DigiByte Core Port
+        cout << "What port is DigiByte Core running on(Default 14022)? ";
+        int rpcport=utils::getAnswerInt(0,65535);
+        config.setInteger("rpcport",rpcport);
+
+        //Get DigiByte Core username
+        cout << "What is the username for DigiByte Core? ";
+        string rpcuser=utils::getAnswerString();
+        config.setString("rpcuser",rpcuser);
+
+        //Get DigiByte Core password
+        cout << "What is the password for DigiByte Core? ";
+        string rpcpassword=utils::getAnswerString();
+        config.setString("rpcpassword",rpcpassword);
+
+        //todo check if above is correct
+
+        cout << "Is IPFS running on this machine(Y/N)? ";
+        bool localIPFS=utils::getAnswerBool();
+        string ipfsPath="http://localhost:5001/api/v0/";
+        if (!localIPFS) {
+            cout << "What is the path to the IPFS node? ";
+            ipfsPath=utils::getAnswerString();
+        }
+        config.setString("ipfspath",ipfsPath);
+
+        //todo check if above is correct
+
+        //Get payout address
+        cout << "You will get paid for running this app.  What DigiByte address would you like to get paid to? ";
+        string payout=utils::getAnswerString(R"(^(D|S)[1-9A-HJ-NP-Za-km-z]{25,34}|(dgb1)[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{6,90}$)");
+        config.setString("psp0payout",payout);
+        config.setString("psp1payout",payout);
+
+        //check if user wants to store minimal information or everything
+        cout << "Unpruned DigiAsset Core requires 100GB of storage.  Pruned DigiAsset Core requires 2 GB of storage.  Unless running a service like an explorer or wallet back end Pruned Mode is recommended.\n";
+        cout << "Would you like DigiAsset Core to run in pruning mode(Y/N)? ";
+        bool pruneMode=utils::getAnswerBool();
+        bool bootstrap=false;
+        if (pruneMode) {
+            cout << "Would you like to bootstrap the database from IPFS(Y) or sync from the begining(N)? ";
+            bootstrap=utils::getAnswerBool();
+        }
+        config.setInteger("pruneage",pruneMode?5760:-1);
+        config.setBool("bootstrapchainstate",bootstrap);
+
+        //save config
+        config.write("config.cfg");
+    }
+
+    /*
      * Start Log
      */
     Log* log = Log::GetInstance("debug.log");

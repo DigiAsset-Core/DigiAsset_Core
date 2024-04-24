@@ -6,7 +6,7 @@
 5. [Install VCPKG](#install-vcpkg)
 6. [Install Standard C++ Dependencies](#install-standard-c-dependencies)
 7. [Update CMAKE](#update-cmake)
-8. [Install IPFS Desktop](#install-ipfs-desktop)
+8. [Install IPFS](#install-ipfs)
 9. [Set IPFS to Run on Boot](#set-ipfs-to-run-on-boot)
 10. [Build DigiAsset Core](#build-digiasset-core)
 11. [Configure DigiAsset Core](#configure-digiasset-core)
@@ -168,7 +168,7 @@ at the end of the file add
 export PATH=/usr/local/cmake-3.27.7-linux-x86_64/bin:$PATH
 ```
 
-## Install IPFS Desktop
+## Install IPFS
 
 ```bash
 wget https://dist.ipfs.tech/kubo/v0.22.0/kubo_v0.22.0_linux-amd64.tar.gz
@@ -236,18 +236,15 @@ cd ../bin
 
 ## Configure DigiAsset Core
 
+The first time you run DigiAsset Core it will ask you several questions to set up your config file.  Run DigiAsset Core using
+
 ```bash
-nano config.cfg
+./digiasset_core
 ```
 
-Set your config settings in here. At minimum, you need
+This will create bin/config.cfg the wizard creates only the basic config for a full list of config options see example.cfg
 
-```
-rpcuser=user
-rpcpassword=pass11
-```
-
-for a full list of config options see example.cfg
+Make sure DigiAsset Core is running correctly and then press ctrl+c to stop it and continue with instructions.
 
 ---
 

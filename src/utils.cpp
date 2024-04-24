@@ -3,14 +3,18 @@
 //
 
 #include "utils.h"
-#include <jsoncpp/json/value.h>
-#include <random>
-#include <sstream>
-#include <sys/stat.h>
-#include <iostream>
+#include <algorithm>
 #include <fstream>
 #include <iomanip>
-#include <algorithm>
+#include <iostream>
+#include <jsoncpp/json/value.h>
+#include <random>
+#include <regex>
+#include <sstream>
+#include <sys/stat.h>
+
+
+using namespace std;
 
 namespace utils {
 
@@ -150,5 +154,70 @@ namespace utils {
         // Add additional memory used by other types as needed
 
         return size;
+    }
+
+
+
+
+
+    bool getAnswerBool() {
+        char input;
+        while (true) {
+            cin >> input;
+            input = toupper(input); // Convert to uppercase to handle lowercase inputs
+
+            if (input == 'Y') {
+                return true;
+            } else if (input == 'N') {
+                return false;
+            } else {
+                cout << "Invalid input. Please enter Y or N: ";
+            }
+        }
+    }
+
+    int getAnswerInt(int min, int max) {
+        string inputLine;
+        int input;
+
+        while (true) {
+            // Check if there's a pending newline or other character in the input buffer
+            if (cin.peek() == '\n' || cin.peek() == EOF) {
+                cin.ignore();  // Ignore the leftover newline or EOF before reading the line
+            }
+
+            getline(cin, inputLine);  // Use getline to read the full line
+
+            stringstream ss(inputLine);
+            if (ss >> input && ss.eof()) {  // Check if the entire stringstream converts to an integer and if there's nothing else
+                if (input < min || input > max) {
+                    cout << "Invalid input. Please enter a number between " << min << " and " << max << ": ";
+                } else {
+                    return input;
+                }
+            } else {
+                cout << "Invalid input. Please enter a valid number: ";
+            }
+        }
+    }
+
+    string getAnswerString(const string& regexPattern) {
+        string input;
+        regex pattern(regexPattern);
+
+        // Check if there's a pending newline or other character in the input buffer
+        if (cin.peek() == '\n' || cin.peek() == EOF) {
+            cin.ignore();  // Ignore the leftover newline or EOF before reading the line
+        }
+
+        while (true) {
+            getline(cin, input);  // Use getline to read the full line of input
+
+            if (regexPattern.empty() || regex_match(input, pattern)) {
+                return input;  // Return the input if it matches the pattern or no pattern is provided
+            } else {
+                cout << "Invalid input. Please try again: ";
+            }
+        }
     }
 } // namespace utils
