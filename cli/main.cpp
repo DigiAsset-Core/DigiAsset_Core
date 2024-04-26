@@ -4,6 +4,7 @@
 #include "RPC/Server.h"
 #include <iostream>
 #include <jsonrpccpp/client.h>
+#include <regex>
 
 
 int main(int argc, char* argv[]) {
@@ -53,8 +54,29 @@ int main(int argc, char* argv[]) {
     try {
         cout << dgb.sendcommand(command, args) << "\n";
     } catch (const DigiByteException& e) {
+        string errorMessage=e.getMessage();
+
+        //check if DigiAsset Core is offline
+        if (errorMessage.substr(0,20)=="Could not connect to") {
+            cout << "Exception: It looks like DigiAsset Core RPC Service is down.";
+            return 0;
+        }
+
+        //check if command is forbiden
+        regex pattern(">>.* is forbidden<<");
+        if (regex_search(errorMessage, pattern)) {
+            cout << "Exception: " + command + " is forbidden by config settings.";
+            return 0;
+        }
+
+
+
+
+        //show generic error
         cout << "error code: " << e.getCode() << "\n";
         cout << "error message:\n"
-             << e.getMessage() << "\n";
+             << errorMessage << "\n";
+    } catch (...) {
+        cout << "Exception: unexpected error.";
     }
 }

@@ -79,6 +79,20 @@ int main() {
         config.setInteger("pruneage",pruneMode?5760:-1);
         config.setBool("bootstrapchainstate",bootstrap);
 
+        //get list of allowed rpc calls
+        cout << "Do you wish to allow all RPC commands(Y/N)? ";
+        bool allowAllRPC=utils::getAnswerBool();
+        if (allowAllRPC) {
+            config.setBool("rpcallow*",true);
+        } else {
+            cout << "Please list all RPC commands you would like to allow.  Press Enter on blank line when done";
+            while (true) {
+                string command=utils::getAnswerString();
+                if (command.empty()) break;
+                config.setBool("rpcallow"+command,true);
+            }
+        }
+
         //save config
         config.write("config.cfg");
     }
@@ -164,9 +178,15 @@ int main() {
     /**
      * Connect to Permanent Storage Pools
      */
-    log->addMessage("Starting Permanent Storage Pool handler");
-    PermanentStoragePoolList psp("config.cfg");
-    main->setPermanentStoragePoolList(&psp);
+    PermanentStoragePoolList* psp;
+    try {
+        log->addMessage("Starting Permanent Storage Pool handler");
+        psp = new PermanentStoragePoolList("config.cfg");
+        main->setPermanentStoragePoolList(psp);
+    } catch (const DigiByteException& e) {
+        log->addMessage("Error PSP payout address not set and couldn't auto create one",Log::CRITICAL);
+        return 0;
+    }
 
     /**
      * Start RPC Cache
