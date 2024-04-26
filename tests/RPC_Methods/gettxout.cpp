@@ -141,6 +141,12 @@ TEST_F(RPCMethodsTest, gettxout) {
         auto results=RPC::methods[METHOD](params).toJSON(1)["result"];
         EXPECT_TRUE(results["assets"].isArray());
         EXPECT_EQ(results["assets"].size(), 1);
+        EXPECT_EQ(results["assets"][0]["assetId"].asString(),"Ua94nEKabzhJeDJtxGFXdviT185tYeHqyHKeWC");
+        EXPECT_EQ(results["assets"][0]["assetIndex"].asInt64(),2);
+        EXPECT_EQ(results["assets"][0]["cid"].asString(),"bafkreifkzom442xtxj2vll3pgbsnw4t4tgh5w54unh2j3kbkeal2nqp6uy");
+        EXPECT_EQ(results["assets"][0]["count"].asInt64(),1);
+        EXPECT_EQ(results["assets"][0]["decimals"].asInt(),2);
+        EXPECT_EQ(results["assets"][0]["height"].asInt(),8432316);
         EXPECT_EQ(results["coinbase"].asBool(),false);
         EXPECT_EQ(results["digibyte"].asUInt(),600);
         EXPECT_TRUE(results["scriptPubKey"].isObject());

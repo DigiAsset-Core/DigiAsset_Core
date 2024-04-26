@@ -28,6 +28,7 @@ namespace RPC {
         extern const Response getoldstreamkey(const Json::Value& params);
         extern const Response getpsp(const Json::Value& params);
         extern const Response getrawtransaction(const Json::Value& params);
+        extern const Response gettxout(const Json::Value& params);
         extern const Response listaddresshistory(const Json::Value& params);
         extern const Response listassetissuances(const Json::Value& params);
         extern const Response listassets(const Json::Value& params);

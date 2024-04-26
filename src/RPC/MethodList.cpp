@@ -22,6 +22,7 @@ namespace RPC {
         {"getoldstreamkey", Methods::getoldstreamkey},
         {"getpsp", Methods::getpsp},
         {"getrawtransaction", Methods::getrawtransaction},
+        {"gettxout", Methods::gettxout},
         {"listaddresshistory", Methods::listaddresshistory},
         {"listassetissuances", Methods::listassetissuances},
         {"listassets", Methods::listassets},
