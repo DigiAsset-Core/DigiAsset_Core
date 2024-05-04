@@ -35,7 +35,7 @@ namespace RPC {
 
                 Database* db = AppMain::GetInstance()->getDatabase();
                 AssetUTXO assetInputData = db->getAssetUTXO(params[0].asString(), params[1].asInt());
-                coreInputData["digibyte"] = assetInputData.digibyte;
+                coreInputData["digibyte"] = static_cast<Json::UInt64>(assetInputData.digibyte);
 
                 Value jsonArray=Json::arrayValue;
                 for (const auto& asset: assetInputData.assets) {
