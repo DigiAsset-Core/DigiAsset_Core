@@ -149,7 +149,7 @@ int main() {
             this_thread::sleep_for(chrono::seconds(30)); //Don't hammer wallet
         } catch (const Config::exceptionConfigFileInvalid& e) {
             log->addMessage("DigiByte Core config values wrong in config file", Log::CRITICAL);
-            throw;
+            return -1;
         }
     }
     main->setDigiByteCore(&dgb);
@@ -166,9 +166,15 @@ int main() {
      * Connect to Database
      * Make sure it is initialized with correct database
      */
-    log->addMessage("Loading Database");
-    Database db("chain.db");
-    main->setDatabase(&db);
+    Database* db;
+    try {
+        log->addMessage("Loading Database");
+        db = new Database("chain.db");
+        main->setDatabase(db);
+    } catch (const Database::exceptionFailedToOpen& e) {
+        log->addMessage("Database could not be opened", Log::CRITICAL);
+        return -1;
+    }
 
     /**
      * Connect to IPFS

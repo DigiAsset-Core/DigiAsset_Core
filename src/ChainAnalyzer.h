@@ -57,7 +57,16 @@ public:
         long long avgDuration = transactions > 0 ? totalDuration / transactions : 0;
 
         std::ostringstream oss;
-        oss << std::right << std::setw(30) << "ChainAnalyzer Transaction"
+        oss << std::right << std::setw(30) << "ChainAnalyzer Tx Process"
+            << std::setw(20) << totalDuration
+            << std::setw(20) << avgDuration
+            << std::setw(20) << transactions << std::endl;
+
+        totalDuration = _saveTransactionRunTime;
+        transactions = _saveTransactionRunCount;
+        avgDuration = transactions > 0 ? totalDuration / transactions : 0;
+
+        oss << std::right << std::setw(30) << "ChainAnalyzer Tx Save"
             << std::setw(20) << totalDuration
             << std::setw(20) << avgDuration
             << std::setw(20) << transactions << std::endl;
@@ -115,6 +124,8 @@ private:
     //time stats
     long long _processTransactionRunTime = 0;
     unsigned int _processTransactionRunCount = 0;
+    long long _saveTransactionRunTime = 0;
+    unsigned int _saveTransactionRunCount = 0;
     long long _clearAddressCacheRunTime = 0;
     unsigned int _clearAddressCacheRunCount = 0;
 

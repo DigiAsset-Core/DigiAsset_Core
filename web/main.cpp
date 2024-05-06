@@ -49,6 +49,7 @@ void handle_request(http::request<Body, http::basic_fields<Allocator>>&& req, Se
     };
 
     // Returns a server error response
+    /*
     auto server_error = [&req](boost::beast::string_view what)
     {
         http::response<http::string_body> res{http::status::internal_server_error, req.version()};
@@ -58,7 +59,7 @@ void handle_request(http::request<Body, http::basic_fields<Allocator>>&& req, Se
         res.body() = "An error occurred: '" + string(what) + "'";
         res.prepare_payload();
         return res;
-    };
+    };*/
 
     // Handle GET request
     if(req.method() != http::verb::get)

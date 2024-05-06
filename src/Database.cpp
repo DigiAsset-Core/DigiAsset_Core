@@ -1162,40 +1162,25 @@ uint Database::getBlockHeight() {
 void Database::clearBlocksAboveHeight(uint height) {
     int rc;
     char* zErrMsg = nullptr;
-    atomic<bool> keepLogging(true);
     string lineEnd = to_string(height) + ";";
-    const string sql = "DELETE FROM assets WHERE heightCreated>1 AND heightCreated>=" + lineEnd +
-                       "DELETE FROM exchange WHERE height>=" + lineEnd +
-                       "DELETE FROM kyc WHERE height>=" + lineEnd +
-                       "UPDATE kyc SET revoked=NULL WHERE revoked>=" + lineEnd +
-                       "DELETE FROM utxos WHERE heightCreated>=" + lineEnd +
-                       "UPDATE utxos SET heightDestroyed=NULL WHERE heightDestroyed>=" + lineEnd +
-                       "DELETE FROM votes WHERE height>=" + lineEnd +
-                       "DELETE FROM blocks WHERE height>" + lineEnd;
-
-    // Start a logger thread
-    thread logger([&]() {
-        Log* log=Log::GetInstance();
-        unsigned int length=0;
-        while (keepLogging) {
-            this_thread::sleep_for(chrono::minutes(5));
-            length+=5;
-            if (!keepLogging) break;  // Ensure we don't log if stopped while sleeping
-            log->addMessage("Still Rewinding...  Duration: " + to_string(length) + " minutes.");
+    string sqlCommands[] = {
+            "DELETE FROM assets WHERE heightCreated>1 AND heightCreated>=" + lineEnd,
+            "DELETE FROM exchange WHERE height>=" + lineEnd,
+            "DELETE FROM kyc WHERE height>=" + lineEnd,
+            "UPDATE kyc SET revoked=NULL WHERE revoked>=" + lineEnd,
+            "DELETE FROM utxos WHERE heightCreated>=" + lineEnd,
+            "UPDATE utxos SET heightDestroyed=NULL WHERE heightDestroyed>=" + lineEnd,
+            "DELETE FROM votes WHERE height>=" + lineEnd,
+            "DELETE FROM blocks WHERE height>" + lineEnd,
+            "UPDATE sqlite_sequence SET seq = (SELECT MAX(assetIndex) FROM assets) WHERE name = 'assets';"
+    };
+    for (const string& sql : sqlCommands) {
+        rc = sqlite3_exec(_db, sql.c_str(), nullptr, nullptr, &zErrMsg);
+        if (rc != SQLITE_OK) {
+            sqlite3_free(zErrMsg);
+            throw exceptionFailedDelete();
         }
-    });
-
-    rc = sqlite3_exec(_db, sql.c_str(), nullptr, nullptr, &zErrMsg);
-    if (rc != SQLITE_OK) {
-        sqlite3_free(zErrMsg);
-        keepLogging = false;
-        logger.join();  // Ensure logger stops before throwing exception
-        throw exceptionFailedDelete();
     }
-
-    // Stop the logger after successful completion
-    keepLogging = false;
-    logger.join();  // Ensure logger stops before exiting method
 }
 
 /**

@@ -441,7 +441,13 @@ void ChainAnalyzer::processTX(const string& txid, unsigned int height) {
     auto duration = std::chrono::steady_clock::now() - startTime;
     _processTransactionRunTime+=std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
     _processTransactionRunCount++;
+
+    //add transaction to database
+    startTime=std::chrono::steady_clock::now();
     tx.addToDatabase();
+    duration = std::chrono::steady_clock::now() - startTime;
+    _saveTransactionRunTime+=std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
+    _saveTransactionRunCount++;
 
     //get list of addresses that have been changed
     startTime=std::chrono::steady_clock::now();
