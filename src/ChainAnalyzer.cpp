@@ -67,6 +67,7 @@ void ChainAnalyzer::resetConfig() {
     _pruneUTXOHistory = true;
     _pruneVoteHistory = true;
     _verifyDatabaseWrite = true;
+    _showAllBlockSyncTime = false;
 }
 
 /**
@@ -98,6 +99,7 @@ void ChainAnalyzer::loadConfig() {
     setPruneVoteHistory(config.getBool("prunevotehistory", true));
     setStoreNonAssetUTXO(config.getBool("storenonassetutxo", false));
     _verifyDatabaseWrite=config.getBool("verifydatabasewrite",true);
+    _showAllBlockSyncTime=config.getBool("showallblocksynctimes",false);
 }
 
 /**
@@ -238,7 +240,7 @@ void ChainAnalyzer::shutdownFunction() {
 
 void ChainAnalyzer::phaseRewind() {
     Log* log = Log::GetInstance();
-    log->addMessage("Rewinding");
+    log->addMessage("Rewinding Phase Started");
 
     AppMain* main = AppMain::GetInstance();
     Database* db = main->getDatabase();
@@ -252,6 +254,7 @@ void ChainAnalyzer::phaseRewind() {
         _state = ChainAnalyzer::REWINDING;
 
         //rewind until correct
+        unsigned int originalHeight=_height;
         while (hash != _nextHash) {
             _height--;
             hash = dgb->getBlockHash(_height);
@@ -264,9 +267,11 @@ void ChainAnalyzer::phaseRewind() {
                 return;
             }
         }
+        log->addMessage("Rewinding " + to_string(originalHeight-_height) + " blocks");
 
         //delete all data above & including _height
         db->clearBlocksAboveHeight(_height);
+        log->addMessage("Rewinding Phase Ended");
     }
 }
 
@@ -289,7 +294,7 @@ void ChainAnalyzer::phaseSync() {
         if (totalProcessed == 0) {
             beginTotalTime = chrono::steady_clock::now();
         }
-        if (_height % 100 == 0) fastMode = (_state < -110);
+        if (!_showAllBlockSyncTime && (_height % 100 == 0)) fastMode = (_state < -110);
 
         //show processing block
         if (fastMode) {
@@ -431,10 +436,15 @@ void ChainAnalyzer::restart() {
 
 void ChainAnalyzer::processTX(const string& txid, unsigned int height) {
     //get raw transaction
+    std::chrono::steady_clock::time_point startTime=std::chrono::steady_clock::now();
     DigiByteTransaction tx(txid, height);
+    auto duration = std::chrono::steady_clock::now() - startTime;
+    _processTransactionRunTime+=std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
+    _processTransactionRunCount++;
     tx.addToDatabase();
 
     //get list of addresses that have been changed
+    startTime=std::chrono::steady_clock::now();
     vector<string> addresses;
     size_t inputCount=tx.getInputCount();
     for (size_t i=0; i<inputCount; i++) {
@@ -455,6 +465,9 @@ void ChainAnalyzer::processTX(const string& txid, unsigned int height) {
     for (auto address: addresses) {
         cache->addressChanged(address);
     }
+    duration = std::chrono::steady_clock::now() - startTime;
+    _clearAddressCacheRunTime+=std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
+    _clearAddressCacheRunCount++;
 }
 
 

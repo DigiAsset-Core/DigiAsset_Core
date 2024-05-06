@@ -37,8 +37,8 @@ class DigiByteCore {
     template<typename fn_t>
     auto errorCheckAPI(fn_t fn) -> decltype(fn());
 
-    long long _runTime=0;
-    unsigned int _runCount=0;
+    long long _runTime = 0;
+    unsigned int _runCount = 0;
 
 public:
     enum AddressTypes {
@@ -48,16 +48,16 @@ public:
     };
 
 
-    std::string printStatementInfo() {
+    std::string printProfilingInfo() {
         long long totalDuration = _runTime;
         int transactions = _runCount;
         long long avgDuration = transactions > 0 ? totalDuration / transactions : 0;
 
         std::ostringstream oss;
         oss << std::right << std::setw(30) << "DigiByte Core"
-                  << std::setw(20) << totalDuration
-                  << std::setw(20) << avgDuration
-                  << std::setw(20) << transactions << std::endl;
+            << std::setw(20) << totalDuration
+            << std::setw(20) << avgDuration
+            << std::setw(20) << transactions << std::endl;
         return oss.str();
     }
 
@@ -82,7 +82,7 @@ public:
     std::string getBlockHash(uint height);
     blockinfo_t getBlock(const std::string& hash);
     getrawtransaction_t getRawTransaction(const std::string& txid);
-    std::vector<unspenttxout_t> listUnspent(int minconf = 1, int maxconf = 99999999, const std::vector<std::string>& addresses={});
+    std::vector<unspenttxout_t> listUnspent(int minconf = 1, int maxconf = 99999999, const std::vector<std::string>& addresses = {});
     getaddressinfo_t getAddressInfo(const std::string& address);
 
 
@@ -166,7 +166,7 @@ public:
     utxoinfo_t gettxout(const std::string& txid, int n, bool includemempool = true);
     utxosetinfo_t gettxoutsetinfo();
 
-    std::vector<unspenttxout_t> listunspent(int minconf = 1, int maxconf = 99999999, const std::vector<std::string>& addresses={});
+    std::vector<unspenttxout_t> listunspent(int minconf = 1, int maxconf = 99999999, const std::vector<std::string>& addresses = {});
     std::vector<txout_t> listlockunspent();
     bool lockunspent(bool unlock, const std::vector<txout_t>& outputs);
 

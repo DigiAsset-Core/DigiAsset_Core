@@ -13,8 +13,9 @@ namespace RPC {
         */
         extern const Response debugwaittimes(const Json::Value& params) {
             std::string result;
-            result+=AppMain::GetInstance()->getDatabase()->printProfilingInfo();
-            result+=AppMain::GetInstance()->getDigiByteCore()->printStatementInfo();
+            result += AppMain::GetInstance()->getDatabase()->printProfilingInfo();
+            result += AppMain::GetInstance()->getDigiByteCore()->printProfilingInfo();
+            result += AppMain::GetInstance()->getChainAnalyzer()->printProfilingInfo();
 
             std::istringstream stream(result);
             std::string line;
@@ -32,5 +33,5 @@ namespace RPC {
             return response;
         }
 
-    }
-}
+    } // namespace Methods
+} // namespace RPC
