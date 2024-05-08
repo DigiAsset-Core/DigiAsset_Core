@@ -47,6 +47,7 @@ namespace RPC {
         unsigned int _port;
         std::map<std::string, bool> _allowedRPC;
         int8_t _allowRPCDefault = -1; //unknown
+        bool _showParamsOnError = false;
 
         //functions to handle requests
         Value parseRequest(tcp::socket& socket);

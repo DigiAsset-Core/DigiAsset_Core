@@ -98,6 +98,8 @@ namespace RPC {
         _acceptor.listen();
 
         _allowedRPC = config.getBoolMap("rpcallow");
+
+        _showParamsOnError = config.getBool("rpcdebugshowparamsonerror", false);
     }
 
     Server::~Server() {
@@ -160,6 +162,7 @@ namespace RPC {
             // Handle the request and send the response
             Value response;
             Value request;
+            bool error = false;
             try {
                 request = parseRequest(*socket);
                 method = request["method"].asString();
@@ -168,21 +171,29 @@ namespace RPC {
             } catch (const DigiByteException& e) {
                 log->addMessage("Expected exception in RPC call #" + std::to_string(callNumber) + ": " + e.getMessage(), Log::DEBUG);
                 response = createErrorResponse(e.getCode(), e.getMessage(), request);
-            } catch (const out_of_range& e) {
-                string text = e.what();
-                log->addMessage("Out of range exception in RPC call #" + std::to_string(callNumber) + ": " + text, Log::DEBUG);
-                response = createErrorResponse(-32601, "Unauthorized", request);
+                error = true;
+            } catch (const std::exception& e) {
+                log->addMessage("Unexpected exception in RPC call #" + std::to_string(callNumber) + ": " + e.what(), Log::DEBUG);
+                response = createErrorResponse(RPC_MISC_ERROR, "Unexpected Error", request);
+                error = true;
+            } catch (...) {
+                log->addMessage("Unknown exception in RPC call #" + std::to_string(callNumber), Log::DEBUG);
+                response = createErrorResponse(RPC_MISC_ERROR, "Unexpected Error", request);
+                error = true;
             }
 
             sendResponse(*socket, response);
+            if (error && _showParamsOnError && request.isMember("params")) {
+                log->addMessage("RPC call #" + std::to_string(callNumber) + " params: " + request["params"].toStyledString(), Log::DEBUG);
+            }
         } catch (const std::exception& e) {
-            log->addMessage("Unexpected exception in RPC call #" + std::to_string(callNumber) + ": " + e.what(), Log::DEBUG);
+            log->addMessage("Unexpected exception trying to reply to RPC call #" + std::to_string(callNumber) + ": " + e.what(), Log::DEBUG);
         } catch (...) {
-            log->addMessage("Unknown exception in RPC call #" + std::to_string(callNumber), Log::DEBUG);
+            log->addMessage("Unknown exception trying to reply to RPC call #" + std::to_string(callNumber), Log::DEBUG);
         }
 
 
-        //calculate time took
+        //calculate time taken
         auto duration = std::chrono::steady_clock::now() - startTime;
         log->addMessage("RPC call #" + std::to_string(callNumber) + " finished in " + to_string(std::chrono::duration_cast<std::chrono::microseconds>(duration).count()) + " µs", Log::DEBUG);
     }
