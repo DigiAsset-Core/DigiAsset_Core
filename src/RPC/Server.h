@@ -35,10 +35,11 @@ using boost::asio::ip::tcp;
 namespace RPC {
 
     class Server {
+        std::atomic<uint64_t> _callCounter{0};
 
         boost::asio::io_service _io{};
         boost::asio::io_service::work _work;
-        std::vector<std::thread> thread_pool;
+        std::vector<std::thread> _thread_pool;
 
         tcp::acceptor _acceptor{_io};
         std::string _username;
@@ -50,7 +51,7 @@ namespace RPC {
         //functions to handle requests
         Value parseRequest(tcp::socket& socket);
         [[noreturn]] void accept();
-        void handleConnection(std::shared_ptr<tcp::socket> socket);
+        void handleConnection(std::shared_ptr<tcp::socket> socket, uint64_t callNumber);
         Value handleRpcRequest(const Value& request);
         static Value createErrorResponse(int code, const std::string& message, const Value& request);
         static void sendResponse(tcp::socket& socket, const Value& response);

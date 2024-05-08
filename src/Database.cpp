@@ -2794,8 +2794,6 @@ unsigned int Database::getStatsEndBlockHeight(unsigned int timeFrame, unsigned i
  * @param endHeight
  */
 void Database::updateAlgoStats(unsigned int timeFrame, unsigned int endTime, unsigned int startHeight, unsigned int endHeight) {
-    Log* log = Log::GetInstance();
-
     //prep key variables
     string sql;
     string timeStr = to_string(timeFrame);

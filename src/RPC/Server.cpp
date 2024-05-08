@@ -10,6 +10,8 @@
 #include "RPC/MethodList.h"
 #include "Version.h"
 #include "utils.h"
+#include <algorithm>
+#include <boost/asio.hpp>
 #include <iostream>
 #include <jsonrpccpp/client.h>
 #include <jsonrpccpp/client/connectors/httpclient.h>
@@ -18,8 +20,6 @@
 #include <openssl/evp.h>
 #include <thread>
 #include <vector>
-#include <boost/asio.hpp>
-#include <algorithm>
 
 
 
@@ -28,7 +28,7 @@ using namespace std;
 namespace RPC {
     namespace {
         ///List of RPC commands whose values will not change until a new block is added
-        vector<string> cacheableRpcCommands={
+        vector<string> cacheableRpcCommands = {
                 "getbestblockhash",
                 "getblock",
                 "getblockchaininfo",
@@ -53,9 +53,8 @@ namespace RPC {
                 "savemempool",
                 "scantxoutset",
                 "verifychain",
-                "verifytxoutproof"
-        };
-    }
+                "verifytxoutproof"};
+    } // namespace
 
     /**
      * Small class that allows easy forcing close socket when it goes out of scope
@@ -89,7 +88,7 @@ namespace RPC {
         // Create a pool of threads to run all of the io_services.
         size_t poolSize = config.getInteger("rpcparallel", 8);
         for (std::size_t i = 0; i < poolSize; ++i) {
-            thread_pool.emplace_back([this] { run_thread(); });
+            _thread_pool.emplace_back([this] { run_thread(); });
         }
 
         tcp::endpoint endpoint(tcp::v4(), _port);
@@ -103,7 +102,7 @@ namespace RPC {
 
     Server::~Server() {
         // Wait for all threads in the pool to exit.
-        for (auto& thread: thread_pool) {
+        for (auto& thread: _thread_pool) {
             if (thread.joinable()) {
                 thread.join();
             }
@@ -130,18 +129,22 @@ namespace RPC {
     void Server::accept() {
         Log* log = Log::GetInstance();
         while (true) {
+            uint64_t callNumber = _callCounter++; // Get a unique identifier for this call
             try {
                 auto socket = std::make_shared<tcp::socket>(_io);
                 _acceptor.accept(*socket);
 
-                _io.post([this, socket]() { this->handleConnection(socket); });
+                log->addMessage("RPC call #" + std::to_string(callNumber) + " added to que", Log::DEBUG);
+                _io.post([this, socket, callNumber]() { this->handleConnection(socket, callNumber); });
+            } catch (const std::exception& e) {
+                log->addMessage("Unexpected exception in RPC call #" + std::to_string(callNumber) + ": " + e.what(), Log::DEBUG);
             } catch (...) {
-                log->addMessage("Unexpected exception caught in accept loop", Log::DEBUG);
+                log->addMessage("Unknown exception in RPC call #" + std::to_string(callNumber), Log::DEBUG);
             }
         }
     }
 
-    void Server::handleConnection(std::shared_ptr<tcp::socket> socket) {
+    void Server::handleConnection(std::shared_ptr<tcp::socket> socket, uint64_t callNumber) {
         Log* log = Log::GetInstance();
 
         std::chrono::steady_clock::time_point startTime;
@@ -151,7 +154,7 @@ namespace RPC {
             SocketRAII socketGuard(*socket); //make sure socket always gets closed
 
             //start timer and add debug log
-            log->addMessage("request start", Log::DEBUG);
+            log->addMessage("RPC call #" + std::to_string(callNumber) + " started", Log::DEBUG);
             startTime = std::chrono::steady_clock::now();
 
             // Handle the request and send the response
@@ -160,25 +163,28 @@ namespace RPC {
             try {
                 request = parseRequest(*socket);
                 method = request["method"].asString();
+                log->addMessage("RPC call #" + std::to_string(callNumber) + " method: " + method, Log::DEBUG);
                 response = handleRpcRequest(request);
             } catch (const DigiByteException& e) {
-                log->addMessage("expected error caught: " + e.getMessage(), Log::DEBUG);
+                log->addMessage("Expected exception in RPC call #" + std::to_string(callNumber) + ": " + e.getMessage(), Log::DEBUG);
                 response = createErrorResponse(e.getCode(), e.getMessage(), request);
             } catch (const out_of_range& e) {
                 string text = e.what();
-                log->addMessage("out of range error caught: " + text, Log::DEBUG);
+                log->addMessage("Out of range exception in RPC call #" + std::to_string(callNumber) + ": " + text, Log::DEBUG);
                 response = createErrorResponse(-32601, "Unauthorized", request);
             }
 
             sendResponse(*socket, response);
+        } catch (const std::exception& e) {
+            log->addMessage("Unexpected exception in RPC call #" + std::to_string(callNumber) + ": " + e.what(), Log::DEBUG);
         } catch (...) {
-            Log* log = Log::GetInstance();
-            log->addMessage("Unexpected exception caught", Log::DEBUG);
+            log->addMessage("Unknown exception in RPC call #" + std::to_string(callNumber), Log::DEBUG);
         }
+
 
         //calculate time took
         auto duration = std::chrono::steady_clock::now() - startTime;
-        log->addMessage("request(" + method + ") finished in " + to_string(std::chrono::duration_cast<std::chrono::microseconds>(duration).count()) + " µs", Log::DEBUG);
+        log->addMessage("RPC call #" + std::to_string(callNumber) + " finished in " + to_string(std::chrono::duration_cast<std::chrono::microseconds>(duration).count()) + " µs", Log::DEBUG);
     }
 
     Value Server::parseRequest(tcp::socket& socket) {
@@ -274,7 +280,7 @@ namespace RPC {
             response = methods[methodName](params);
         } else {
             // Method does not exist in the map, fallback to sending to DigiByte core
-            Json::Value walletResponse=app->getDigiByteCore()->sendcommand(methodName, params);
+            Json::Value walletResponse = app->getDigiByteCore()->sendcommand(methodName, params);
             response.setResult(walletResponse);
 
             //if the method is not it cacheableRpcCommands then disable caching
