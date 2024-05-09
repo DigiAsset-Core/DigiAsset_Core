@@ -1,0 +1,54 @@
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link rel="stylesheet" type="text/css" href="/css/style.css" />
+    </head>
+    <body>
+        <div class="document" id="getassetholders">
+            <h1 class="title">getassetholders</h1>
+            <!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+            <tt class="docutils literal">getassetholders</tt>
+            <p>
+                Returns a list of all addresses holding a specific asset and the
+                quantity they hold.
+            </p>
+            <div class="section" id="input">
+                <h2>Input Parameters</h2>
+                <p>
+                    <tt>assetIndex</tt> (unsigned int): The index of the asset
+                    for which holder information is requested.
+                </p>
+            </div>
+            <div class="section" id="output">
+                <h2>Output Format</h2>
+                <pre class="literal-block">
+JSON object with addresses as keys and the quantity of the asset held as values:
+{
+    "D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC": 1500,
+    "Dabc123Def456Ghi789Jkl010Mno234Pqr": 300,
+    ...
+}
+</pre
+                >
+            </div>
+            <div class="section" id="examples">
+                <h2>Examples</h2>
+                <pre class="literal-block">
+digiasset_core-cli getassetholders 12345
+</pre
+                >
+                <pre class="literal-block">
+curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "getassetholders", "params": [12345]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre
+                >
+            </div>
+        </div>
+
+        <script src="/js/main.js"></script>
+        <footer class="fixed-bottom">
+            <p class="copyright">© Copyright DigiByte Project 2024</p>
+        </footer>
+    </body>
+</html>

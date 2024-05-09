@@ -1,0 +1,85 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="bumpfee">
+<h1 class="title">bumpfee</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">bumpfee &quot;txid&quot; ( options )</tt></p>
+<p>Bumps the fee of an opt-in-RBF transaction T, replacing it with a new transaction B.</p>
+<p>An opt-in RBF transaction with the given txid must be in the wallet.</p>
+<p>The command will pay the additional fee by reducing change outputs or adding inputs when necessary.</p>
+<p>It may add a new change output if one does not already exist.</p>
+<p>All inputs in the original transaction will be included in the replacement transaction.</p>
+<p>The command will fail if the wallet or mempool contains a transaction that spends one of T's outputs.</p>
+<p>By default, the new fee will be calculated automatically using the estimatesmartfee RPC.</p>
+<p>The user can specify a confirmation target for estimatesmartfee.</p>
+<p>Alternatively, the user can specify a fee rate in sat/vB for the new transaction.</p>
+<p>At a minimum, the new fee rate must be high enough to pay an additional new relay fee (incrementalfee
+returned by getnetworkinfo) to enter the node's mempool.</p>
+<p>* WARNING: before version 0.21, fee_rate was in DGB/kvB. As of 0.21, fee_rate is in sat/vB. *</p>
+<div class="section" id="argument-1-txid">
+<h1>Argument #1 - txid</h1>
+<p><strong>Type:</strong> string, required</p>
+<p>The txid to be bumped</p>
+</div>
+<div class="section" id="argument-2-options">
+<h1>Argument #2 - options</h1>
+<p><strong>Type:</strong> json object, optional</p>
+<pre class="literal-block">
+{
+  &quot;conf_target&quot;: n,          (numeric, optional, default=wallet -txconfirmtarget) Confirmation target in blocks
+
+  &quot;fee_rate&quot;: amount,        (numeric or string, optional, default=not set, fall back to wallet fee estimation)
+                             Specify a fee rate in sat/vB instead of relying on the built-in fee estimator.
+                             Must be at least 1.000 sat/vB higher than the current transaction fee rate.
+                             WARNING: before version 0.21, fee_rate was in DGB/kvB. As of 0.21, fee_rate is in sat/vB.
+
+  &quot;replaceable&quot;: bool,       (boolean, optional, default=true) Whether the new transaction should still be
+                             marked bip-125 replaceable. If true, the sequence numbers in the transaction will
+                             be left unchanged from the original. If false, any input sequence numbers in the
+                             original transaction that were less than 0xfffffffe will be increased to 0xfffffffe
+                             so the new transaction will not be explicitly bip-125 replaceable (though it may
+                             still be replaceable in practice, for example if it has unconfirmed ancestors which
+                             are replaceable).
+
+  &quot;estimate_mode&quot;: &quot;str&quot;,    (string, optional, default=unset) The fee estimate mode, must be one of (case insensitive):
+                             &quot;unset&quot;
+                             &quot;economical&quot;
+                             &quot;conservative&quot;
+}
+</pre>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+{                    (json object)
+  &quot;psbt&quot; : &quot;str&quot;,    (string) The base64-encoded unsigned PSBT of the new transaction. Only returned when wallet private keys are disabled. (DEPRECATED)
+  &quot;txid&quot; : &quot;hex&quot;,    (string) The id of the new transaction. Only returned when wallet private keys are enabled.
+  &quot;origfee&quot; : n,     (numeric) The fee of the replaced transaction.
+  &quot;fee&quot; : n,         (numeric) The fee of the new transaction.
+  &quot;errors&quot; : [       (json array) Errors encountered during processing (may be empty).
+    &quot;str&quot;,           (string)
+    ...
+  ]
+}
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<p>Bump the fee, get the new transaction'stxid:</p>
+<pre class="literal-block">
+digibyte-cli bumpfee &lt;txid&gt;
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
+</body>
+</html>

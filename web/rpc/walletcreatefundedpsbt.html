@@ -1,0 +1,116 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="walletcreatefundedpsbt">
+<h1 class="title">walletcreatefundedpsbt</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">walletcreatefundedpsbt ( <span class="pre">[{&quot;txid&quot;:&quot;hex&quot;,&quot;vout&quot;:n,&quot;sequence&quot;:n},...]</span> ) <span class="pre">[{&quot;address&quot;:amount},{&quot;data&quot;:&quot;hex&quot;},...]</span> ( locktime options bip32derivs )</tt></p>
+<p>Creates and funds a transaction in the Partially Signed Transaction format.</p>
+<p>Implements the Creator and Updater roles.</p>
+<div class="section" id="argument-1-inputs">
+<h1>Argument #1 - inputs</h1>
+<p><strong>Type:</strong> json array, optional</p>
+<p>Leave empty to add inputs automatically. See add_inputs option.</p>
+<pre class="literal-block">
+[
+  {                              (json object)
+    &quot;txid&quot;: &quot;hex&quot;,               (string, required) The transaction id
+    &quot;vout&quot;: n,                   (numeric, required) The output number
+    &quot;sequence&quot;: n,               (numeric, optional, default=depends on the value of the 'locktime' and 'options.replaceable' arguments) The sequence number
+  },
+  ...
+]
+</pre>
+</div>
+<div class="section" id="argument-2-outputs">
+<h1>Argument #2 - outputs</h1>
+<p><strong>Type:</strong> json array, required</p>
+<dl class="docutils">
+<dt>The outputs (key-value pairs), where none of the keys are duplicated.</dt>
+<dd>That is, each address can only appear once and there can only be one 'data' object.
+For compatibility reasons, a dictionary, which holds the key-value pairs directly, is also
+accepted as second parameter.</dd>
+</dl>
+<pre class="literal-block">
+[
+  {                              (json object)
+    &quot;address&quot;: amount,           (numeric or string, required) A key-value pair. The key (string) is the bitcoin address, the value (float or string) is the amount in DGB
+  },
+  {                              (json object)
+    &quot;data&quot;: &quot;hex&quot;,               (string, required) A key-value pair. The key must be &quot;data&quot;, the value is hex-encoded data
+  },
+  ...
+]
+</pre>
+</div>
+<div class="section" id="argument-3-locktime">
+<h1>Argument #3 - locktime</h1>
+<p><strong>Type:</strong> numeric, optional, default=0</p>
+<p>Raw locktime. Non-0 value also locktime-activates inputs</p>
+</div>
+<div class="section" id="argument-4-options">
+<h1>Argument #4 - options</h1>
+<p><strong>Type:</strong> json object, optional</p>
+<dl class="docutils">
+<dt>&quot;replaceable&quot;: bool,           (boolean, optional, default=wallet default) Marks this transaction as BIP125 replaceable.</dt>
+<dd>Allows this transaction to be replaced by a transaction with higher fees
+&quot;conf_target&quot;: n,              (numeric, optional, default=wallet -txconfirmtarget) Confirmation target in blocks
+&quot;estimate_mode&quot;: &quot;str&quot;,        (string, optional, default=unset) The fee estimate mode, must be one of (case insensitive):
+&quot;unset&quot;
+&quot;economical&quot;
+&quot;conservative&quot;
+}</dd>
+</dl>
+<pre class="literal-block">
+{
+  &quot;add_inputs&quot;: bool,            (boolean, optional, default=false) If inputs are specified, automatically include more if they are not enough.
+  &quot;changeAddress&quot;: &quot;hex&quot;,        (string, optional, default=pool address) The bitcoin address to receive the change
+  &quot;changePosition&quot;: n,           (numeric, optional, default=random) The index of the change output
+  &quot;change_type&quot;: &quot;str&quot;,          (string, optional, default=set by -changetype) The output type to use. Only valid if changeAddress is not specified. Options are &quot;legacy&quot;, &quot;p2sh-segwit&quot;, and &quot;bech32&quot;.
+  &quot;includeWatching&quot;: bool,       (boolean, optional, default=true for watch-only wallets, otherwise false) Also select inputs which are watch only
+  &quot;lockUnspents&quot;: bool,          (boolean, optional, default=false) Lock selected unspent outputs
+  &quot;fee_rate&quot;: amount,            (numeric or string, optional, default=not set, fall back to wallet fee estimation) Specify a fee rate in sat/vB.
+  &quot;feeRate&quot;: amount,             (numeric or string, optional, default=not set, fall back to wallet fee estimation) Specify a fee rate in DGB/kvB.
+  &quot;subtractFeeFromOutputs&quot;: [    (json array, optional, default=empty array) The outputs to subtract the fee from.
+                                 The fee will be equally deducted from the amount of each specified output.
+                                 Those recipients will receive less bitcoins than you enter in their corresponding amount field.
+                                 If no outputs are specified here, the sender pays the fee.
+    vout_index,                  (numeric) The zero-based output index, before a change output is added.
+    ...
+  ],
+</pre>
+</div>
+<div class="section" id="argument-5-bip32derivs">
+<h1>Argument #5 - bip32derivs</h1>
+<p><strong>Type:</strong> boolean, optional, default=true</p>
+<p>Include BIP 32 derivation paths for public keys if we know them</p>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+{                     (json object)
+  &quot;psbt&quot; : &quot;str&quot;,     (string) The resulting raw transaction (base64-encoded string)
+  &quot;fee&quot; : n,          (numeric) Fee in DGB the resulting transaction pays
+  &quot;changepos&quot; : n     (numeric) The position of the added change output, or -1
+}
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<p>Create a transaction with no inputs:</p>
+<pre class="literal-block">
+digibyte-cli walletcreatefundedpsbt &quot;[{\&quot;txid\&quot;:\&quot;myid\&quot;,\&quot;vout\&quot;:0}]&quot; &quot;[{\&quot;data\&quot;:\&quot;00010203\&quot;}]&quot;
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
+</body>
+</html>

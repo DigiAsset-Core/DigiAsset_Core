@@ -1,0 +1,50 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="gettxoutsetinfo">
+<h1 class="title">gettxoutsetinfo</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">gettxoutsetinfo ( &quot;hash_type&quot; )</tt></p>
+<p>Returns statistics about the unspent transaction output set.</p>
+<p>Note this call may take some time.</p>
+<div class="section" id="argument-1-hash-type">
+<h1>Argument #1 - hash_type</h1>
+<p><strong>Type:</strong> string, optional, default=hash_serialized_2</p>
+<p>Which UTXO set hash should be calculated. Options: 'hash_serialized_2' (the legacy algorithm), 'none'.</p>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+{                                 (json object)
+  &quot;height&quot; : n,                   (numeric) The current block height (index)
+  &quot;bestblock&quot; : &quot;hex&quot;,            (string) The hash of the block at the tip of the chain
+  &quot;transactions&quot; : n,             (numeric) The number of transactions with unspent outputs
+  &quot;txouts&quot; : n,                   (numeric) The number of unspent transaction outputs
+  &quot;bogosize&quot; : n,                 (numeric) A meaningless metric for UTXO set size
+  &quot;hash_serialized_2&quot; : &quot;hex&quot;,    (string) The serialized hash (only present if 'hash_serialized_2' hash_type is chosen)
+  &quot;disk_size&quot; : n,                (numeric) The estimated size of the chainstate on disk
+  &quot;total_amount&quot; : n              (numeric) The total amount
+}
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digibyte-cli gettxoutsetinfo
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;gettxoutsetinfo&quot;, &quot;params&quot;: []}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
+</body>
+</html>

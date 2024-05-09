@@ -1,0 +1,63 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="getnetworkhashps">
+<h1 class="title">getnetworkhashps</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">getnetworkhashps ( nblocks height )</tt></p>
+<p>Returns the estimated network hashes per second based on the last n blocks.</p>
+<p>Pass in [blocks] to override # of blocks, -1 specifies since last difficulty change.</p>
+<p>Pass in [height] to estimate the network speed at the time when a certain block was found.</p>
+<div class="section" id="argument-1-nblocks">
+<h1>Argument #1 - nblocks</h1>
+<p><strong>Type:</strong> numeric, optional, default=120</p>
+<p>The number of blocks, or -1 for blocks since last difficulty change.</p>
+</div>
+<div class="section" id="argument-2-height">
+<h1>Argument #2 - height</h1>
+<p><strong>Type:</strong> numeric, optional, default=-1</p>
+<p>To estimate at the time of the given height.</p>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<table border="1" class="docutils">
+<colgroup>
+<col width="33%" />
+<col width="33%" />
+<col width="33%" />
+</colgroup>
+<thead valign="bottom">
+<tr><th class="head">Name</th>
+<th class="head">Type</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr><td>n</td>
+<td>numeric</td>
+<td>Hashes per second estimated</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digibyte-cli getnetworkhashps
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;getnetworkhashps&quot;, &quot;params&quot;: []}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
+</body>
+</html>

@@ -1,0 +1,78 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="getmemoryinfo">
+<h1 class="title">getmemoryinfo</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">getmemoryinfo ( &quot;mode&quot; )</tt></p>
+<p>Returns an object containing information about memory usage.</p>
+<div class="section" id="argument-1-mode">
+<h1>Argument #1 - mode</h1>
+<p><strong>Type:</strong> string, optional, default=&quot;stats&quot;</p>
+<dl class="docutils">
+<dt>determines what kind of information is returned.</dt>
+<dd><ul class="first last simple">
+<li>&quot;stats&quot; returns general statistics about memory usage in the daemon.</li>
+<li>&quot;mallocinfo&quot; returns an XML string describing low-level heap state (only available if compiled with glibc 2.10+).</li>
+</ul>
+</dd>
+</dl>
+</div>
+<div class="section" id="result-mode-stats">
+<h1>Result (mode &quot;stats&quot;)</h1>
+<pre class="literal-block">
+{                         (json object)
+  &quot;locked&quot; : {            (json object) Information about locked memory manager
+    &quot;used&quot; : n,           (numeric) Number of bytes used
+    &quot;free&quot; : n,           (numeric) Number of bytes available in current arenas
+    &quot;total&quot; : n,          (numeric) Total number of bytes managed
+    &quot;locked&quot; : n,         (numeric) Amount of bytes that succeeded locking. If this number is smaller than total, locking pages failed at some point and key data could be swapped to disk.
+    &quot;chunks_used&quot; : n,    (numeric) Number allocated chunks
+    &quot;chunks_free&quot; : n     (numeric) Number unused chunks
+  }
+}
+</pre>
+</div>
+<div class="section" id="result-mode-mallocinfo">
+<h1>Result (mode &quot;mallocinfo&quot;)</h1>
+<table border="1" class="docutils">
+<colgroup>
+<col width="33%" />
+<col width="33%" />
+<col width="33%" />
+</colgroup>
+<thead valign="bottom">
+<tr><th class="head">Name</th>
+<th class="head">Type</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr><td>str</td>
+<td>string</td>
+<td>&quot;&lt;malloc version=&quot;1&quot;&gt;...&quot;</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digibyte-cli getmemoryinfo
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;getmemoryinfo&quot;, &quot;params&quot;: []}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
+</body>
+</html>

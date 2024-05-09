@@ -1,0 +1,44 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="getdescriptorinfo">
+<h1 class="title">getdescriptorinfo</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">getdescriptorinfo &quot;descriptor&quot;</tt></p>
+<p>Analyses a descriptor.</p>
+<div class="section" id="argument-1-descriptor">
+<h1>Argument #1 - descriptor</h1>
+<p><strong>Type:</strong> string, required</p>
+<p>The descriptor.</p>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+{                                   (json object)
+  &quot;descriptor&quot; : &quot;str&quot;,             (string) The descriptor in canonical form, without private keys
+  &quot;checksum&quot; : &quot;str&quot;,               (string) The checksum for the input descriptor
+  &quot;isrange&quot; : true|false,           (boolean) Whether the descriptor is ranged
+  &quot;issolvable&quot; : true|false,        (boolean) Whether the descriptor is solvable
+  &quot;hasprivatekeys&quot; : true|false     (boolean) Whether the input descriptor contained at least one private key
+}
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<p>Analyse a descriptor:</p>
+<pre class="literal-block">
+digibyte-cli getdescriptorinfo &quot;wpkh([d34db33f/84h/0h/0h]0279be667ef9dcbbac55a06295Ce870b07029Bfcdb2dce28d959f2815b16f81798)&quot;
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
+</body>
+</html>

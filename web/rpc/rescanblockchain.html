@@ -1,0 +1,49 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="rescanblockchain">
+<h1 class="title">rescanblockchain</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">rescanblockchain ( start_height stop_height )</tt></p>
+<p>Rescan the local blockchain for wallet related transactions.</p>
+<p>Note: Use &quot;getwalletinfo&quot; to query the scanning progress.</p>
+<div class="section" id="argument-1-start-height">
+<h1>Argument #1 - start_height</h1>
+<p><strong>Type:</strong> numeric, optional, default=0</p>
+<p>block height where the rescan should start</p>
+</div>
+<div class="section" id="argument-2-stop-height">
+<h1>Argument #2 - stop_height</h1>
+<p><strong>Type:</strong> numeric, optional</p>
+<p>the last block height that should be scanned. If none is provided it will rescan up to the tip at return time of this call.</p>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+{                        (json object)
+  &quot;start_height&quot; : n,    (numeric) The block height where the rescan started (the requested height or 0)
+  &quot;stop_height&quot; : n      (numeric) The height of the last rescanned block. May be null in rare cases if there was a reorg and the call didn't scan any blocks because they were already scanned in the background.
+}
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digibyte-cli rescanblockchain 100000 120000
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;rescanblockchain&quot;, &quot;params&quot;: [100000, 120000]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
+</body>
+</html>

@@ -1,0 +1,66 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="estimatesmartfee">
+<h1 class="title">estimatesmartfee</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">estimatesmartfee conf_target ( &quot;estimate_mode&quot; )</tt></p>
+<p>Estimates the approximate fee per kilobyte needed for a transaction to begin
+confirmation within conf_target blocks if possible and return the number of blocks
+for which the estimate is valid. Uses virtual transaction size as defined
+in BIP 141 (witness data is discounted).</p>
+<div class="section" id="argument-1-conf-target">
+<h1>Argument #1 - conf_target</h1>
+<p><strong>Type:</strong> numeric, required</p>
+<p>Confirmation target in blocks (1 - 1008)</p>
+</div>
+<div class="section" id="argument-2-estimate-mode">
+<h1>Argument #2 - estimate_mode</h1>
+<p><strong>Type:</strong> string, optional, default=CONSERVATIVE</p>
+<dl class="docutils">
+<dt>The fee estimate mode.</dt>
+<dd>Whether to return a more conservative estimate which also satisfies
+a longer history. A conservative estimate potentially returns a
+higher feerate and is more likely to be sufficient for the desired
+target, but is not as responsive to short term drops in the
+prevailing fee market.  Must be one of:
+&quot;UNSET&quot;
+&quot;ECONOMICAL&quot;
+&quot;CONSERVATIVE&quot;</dd>
+</dl>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+{                   (json object)
+  &quot;feerate&quot; : n,    (numeric, optional) estimate fee rate in DGB/kB (only present if no errors were encountered)
+  &quot;errors&quot; : [      (json array, optional) Errors encountered during processing (if there are any)
+    &quot;str&quot;,          (string) error
+    ...
+  ],
+  &quot;blocks&quot; : n      (numeric) block number where estimate was found
+                    The request target will be clamped between 2 and the highest target
+                    fee estimation is able to return based on how long it has been running.
+                    An error is returned if not enough transactions and blocks
+                    have been observed to make an estimate for any number of blocks.
+}
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digibyte-cli estimatesmartfee 6
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
+</body>
+</html>

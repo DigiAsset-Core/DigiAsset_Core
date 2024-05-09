@@ -1,0 +1,61 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="listreceivedbylabel">
+<h1 class="title">listreceivedbylabel</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">listreceivedbylabel ( minconf include_empty include_watchonly )</tt></p>
+<p>List received transactions by label.</p>
+<div class="section" id="argument-1-minconf">
+<h1>Argument #1 - minconf</h1>
+<p><strong>Type:</strong> numeric, optional, default=1</p>
+<p>The minimum number of confirmations before payments are included.</p>
+</div>
+<div class="section" id="argument-2-include-empty">
+<h1>Argument #2 - include_empty</h1>
+<p><strong>Type:</strong> boolean, optional, default=false</p>
+<p>Whether to include labels that haven't received any payments.</p>
+</div>
+<div class="section" id="argument-3-include-watchonly">
+<h1>Argument #3 - include_watchonly</h1>
+<p><strong>Type:</strong> boolean, optional, default=true for watch-only wallets, otherwise false</p>
+<p>Whether to include watch-only addresses (see 'importaddress')</p>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+[                                        (json array)
+  {                                      (json object)
+    &quot;involvesWatchonly&quot; : true|false,    (boolean) Only returns true if imported addresses were involved in transaction
+    &quot;amount&quot; : n,                        (numeric) The total amount received by addresses with this label
+    &quot;confirmations&quot; : n,                 (numeric) The number of confirmations of the most recent transaction included
+    &quot;label&quot; : &quot;str&quot;                      (string) The label of the receiving address. The default label is &quot;&quot;
+  },
+  ...
+]
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digibyte-cli listreceivedbylabel
+</pre>
+<pre class="literal-block">
+digibyte-cli listreceivedbylabel 6 true
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;listreceivedbylabel&quot;, &quot;params&quot;: [6, true, true]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
+</body>
+</html>

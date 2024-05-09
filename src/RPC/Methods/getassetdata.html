@@ -1,0 +1,63 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="getassetdata">
+<h1 class="title">getassetdata</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<tt class="docutils literal">getassetdata</tt>
+<p>Returns detailed data about a specific DigiAsset, which may include IPFS information unless explicitly excluded.</p>
+<div class="section" id="input">
+<h2>Input Parameters</h2>
+<p>Two possible usages:</p>
+<ul>
+    <li>Usage 1:
+        <ul>
+            <li><tt>assetIndex</tt> (integer): The index of the asset.</li>
+            <li><tt>exclude IPFS</tt> (boolean, optional, default = false): Whether to exclude IPFS data.</li>
+        </ul>
+    </li>
+    <li>Usage 2:
+        <ul>
+            <li><tt>assetId</tt> (string): The ID of the asset.</li>
+            <li><tt>txid</tt> (string, optional): The transaction ID involving the asset.</li>
+                <ul>
+                    <li><b>Required</b> <tt>if</tt> asset(s) has more than 1 index.</li>
+                </ul>
+            <li><tt>vout</tt> (integer, optional): The output number in the transaction.</li>
+                <ul>
+                    <li><b>Required</b> <tt>if</tt> asset(s) has more than 1 index.</li>
+                </ul>
+            <li><tt>exclude IPFS</tt> (boolean, optional, default = false): Whether to exclude IPFS data.</li>
+        </ul>
+    </li>
+</ul>
+</div>
+<div class="section" id="output">
+<h2>Output Format</h2>
+<pre class="literal-block">
+JSON object that represents the asset in detailed format. Includes information such as asset name, creator, associated metadata, and IPFS links unless excluded.
+</pre>
+</div>
+<div class="section" id="examples">
+<h2>Examples</h2>
+<pre class="literal-block">
+digiasset_core-cli getassetdata 12345 true
+</pre>
+<pre class="literal-block">
+digiasset_core-cli getassetdata "Labcde12345" "D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC" 0 true
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "getassetdata", "params": ["Labcde12345", "D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC", 0, true]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
+</body>
+</html>

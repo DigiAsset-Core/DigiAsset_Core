@@ -1,0 +1,53 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="disconnectnode">
+<h1 class="title">disconnectnode</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">disconnectnode ( &quot;address&quot; nodeid )</tt></p>
+<p>Immediately disconnects from the specified peer node.</p>
+<p>Strictly one out of 'address' and 'nodeid' can be provided to identify the node.</p>
+<p>To disconnect by nodeid, either set 'address' to the empty string, or call using the named 'nodeid' argument only.</p>
+<div class="section" id="argument-1-address">
+<h1>Argument #1 - address</h1>
+<p><strong>Type:</strong> string, optional, default=fallback to nodeid</p>
+<p>The IP address/port of the node</p>
+</div>
+<div class="section" id="argument-2-nodeid">
+<h1>Argument #2 - nodeid</h1>
+<p><strong>Type:</strong> numeric, optional, default=fallback to address</p>
+<p>The node ID (see getpeerinfo for node IDs)</p>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+null    (json null)
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digibyte-cli disconnectnode &quot;192.168.0.6:8333&quot;
+</pre>
+<pre class="literal-block">
+digibyte-cli disconnectnode &quot;&quot; 1
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;disconnectnode&quot;, &quot;params&quot;: [&quot;192.168.0.6:8333&quot;]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;disconnectnode&quot;, &quot;params&quot;: [&quot;&quot;, 1]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
+</body>
+</html>

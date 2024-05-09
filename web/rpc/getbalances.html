@@ -1,0 +1,47 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="getbalances">
+<h1 class="title">getbalances</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">getbalances</tt></p>
+<p>Returns an object with all balances in DGB.</p>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+{                               (json object)
+  &quot;mine&quot; : {                    (json object) balances from outputs that the wallet can sign
+    &quot;trusted&quot; : n,              (numeric) trusted balance (outputs created by the wallet or confirmed outputs)
+    &quot;untrusted_pending&quot; : n,    (numeric) untrusted pending balance (outputs created by others that are in the mempool)
+    &quot;immature&quot; : n,             (numeric) balance from immature coinbase outputs
+    &quot;used&quot; : n                  (numeric) (only present if avoid_reuse is set) balance from coins sent to addresses that were previously spent from (potentially privacy violating)
+  },
+  &quot;watchonly&quot; : {               (json object) watchonly balances (not present if wallet does not watch anything)
+    &quot;trusted&quot; : n,              (numeric) trusted balance (outputs created by the wallet or confirmed outputs)
+    &quot;untrusted_pending&quot; : n,    (numeric) untrusted pending balance (outputs created by others that are in the mempool)
+    &quot;immature&quot; : n              (numeric) balance from immature coinbase outputs
+  }
+}
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digibyte-cli getbalances
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;getbalances&quot;, &quot;params&quot;: []}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
+</body>
+</html>

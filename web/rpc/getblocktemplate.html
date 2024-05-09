@@ -1,0 +1,110 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="getblocktemplate">
+<h1 class="title">getblocktemplate</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">getblocktemplate ( &quot;template_request&quot; )</tt></p>
+<p>If the request parameters include a 'mode' key, that is used to explicitly select between the default 'template' request or a 'proposal'.</p>
+<p>It returns data needed to construct a block to work on.</p>
+<p>For full specification, see BIPs 22, 23, 9, and 145:</p>
+<blockquote>
+<a class="reference external" href="https://github.com/bitcoin/bips/blob/master/bip-0022.mediawiki">https://github.com/bitcoin/bips/blob/master/bip-0022.mediawiki</a>
+<a class="reference external" href="https://github.com/bitcoin/bips/blob/master/bip-0023.mediawiki">https://github.com/bitcoin/bips/blob/master/bip-0023.mediawiki</a>
+<a class="reference external" href="https://github.com/bitcoin/bips/blob/master/bip-0009.mediawiki#getblocktemplate_changes">https://github.com/bitcoin/bips/blob/master/bip-0009.mediawiki#getblocktemplate_changes</a>
+<a class="reference external" href="https://github.com/bitcoin/bips/blob/master/bip-0145.mediawiki">https://github.com/bitcoin/bips/blob/master/bip-0145.mediawiki</a></blockquote>
+<div class="section" id="argument-1-template-request">
+<h1>Argument #1 - template_request</h1>
+<p><strong>Type:</strong> json object, optional, default={}</p>
+<dl class="docutils">
+<dt>Format of the template</dt>
+<dd>&quot;rules&quot;: [           (json array, required) A list of strings
+&quot;segwit&quot;,          (string, required) (literal) indicates client side segwit support
+&quot;str&quot;,             (string) other client side supported softfork deployment
+...
+],
+}</dd>
+</dl>
+<pre class="literal-block">
+{
+  &quot;mode&quot;: &quot;str&quot;,       (string, optional) This must be set to &quot;template&quot;, &quot;proposal&quot; (see BIP 23), or omitted
+  &quot;capabilities&quot;: [    (json array, optional) A list of strings
+    &quot;str&quot;,             (string) client side supported feature, 'longpoll', 'coinbasevalue', 'proposal', 'serverlist', 'workid'
+    ...
+  ],
+</pre>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+{                                          (json object)
+  &quot;version&quot; : n,                           (numeric) The preferred block version
+  &quot;rules&quot; : [                              (json array) specific block rules that are to be enforced
+    &quot;str&quot;,                                 (string) name of a rule the client must understand to some extent; see BIP 9 for format
+    ...
+  ],
+  &quot;vbavailable&quot; : {                        (json object) set of pending, supported versionbit (BIP 9) softfork deployments
+    &quot;rulename&quot; : n,                        (numeric) identifies the bit number as indicating acceptance and readiness for the named softfork rule
+    ...
+  },
+  &quot;vbrequired&quot; : n,                        (numeric) bit mask of versionbits the server requires set in submissions
+  &quot;previousblockhash&quot; : &quot;str&quot;,             (string) The hash of current highest block
+  &quot;transactions&quot; : [                       (json array) contents of non-coinbase transactions that should be included in the next block
+    {                                      (json object)
+      &quot;data&quot; : &quot;hex&quot;,                      (string) transaction data encoded in hexadecimal (byte-for-byte)
+      &quot;txid&quot; : &quot;hex&quot;,                      (string) transaction id encoded in little-endian hexadecimal
+      &quot;hash&quot; : &quot;hex&quot;,                      (string) hash encoded in little-endian hexadecimal (including witness data)
+      &quot;depends&quot; : [                        (json array) array of numbers
+        n,                                 (numeric) transactions before this one (by 1-based index in 'transactions' list) that must be present in the final block if this one is
+        ...
+      ],
+      &quot;fee&quot; : n,                           (numeric) difference in value between transaction inputs and outputs (in satoshis); for coinbase transactions, this is a negative Number of the total collected block fees (ie, not including the block subsidy); if key is not present, fee is unknown and clients MUST NOT assume there isn't one
+      &quot;sigops&quot; : n,                        (numeric) total SigOps cost, as counted for purposes of block limits; if key is not present, sigop cost is unknown and clients MUST NOT assume it is zero
+      &quot;weight&quot; : n                         (numeric) total transaction weight, as counted for purposes of block limits
+    },
+    ...
+  ],
+  &quot;coinbaseaux&quot; : {                        (json object) data that should be included in the coinbase's scriptSig content
+    &quot;key&quot; : &quot;hex&quot;,                         (string) values must be in the coinbase (keys may be ignored)
+    ...
+  },
+  &quot;coinbasevalue&quot; : n,                     (numeric) maximum allowable input to coinbase transaction, including the generation award and transaction fees (in satoshis)
+  &quot;longpollid&quot; : &quot;str&quot;,                    (string) an id to include with a request to longpoll on an update to this template
+  &quot;target&quot; : &quot;str&quot;,                        (string) The hash target
+  &quot;mintime&quot; : xxx,                         (numeric) The minimum timestamp appropriate for the next block time, expressed in UNIX epoch time
+  &quot;mutable&quot; : [                            (json array) list of ways the block template may be changed
+    &quot;str&quot;,                                 (string) A way the block template may be changed, e.g. 'time', 'transactions', 'prevblock'
+    ...
+  ],
+  &quot;noncerange&quot; : &quot;hex&quot;,                    (string) A range of valid nonces
+  &quot;sigoplimit&quot; : n,                        (numeric) limit of sigops in blocks
+  &quot;sizelimit&quot; : n,                         (numeric) limit of block size
+  &quot;weightlimit&quot; : n,                       (numeric) limit of block weight
+  &quot;curtime&quot; : xxx,                         (numeric) current timestamp in UNIX epoch time
+  &quot;bits&quot; : &quot;str&quot;,                          (string) compressed target of next block
+  &quot;height&quot; : n,                            (numeric) The height of the next block
+  &quot;default_witness_commitment&quot; : &quot;str&quot;     (string, optional) a valid witness commitment for the unmodified block template
+}
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digibyte-cli getblocktemplate '{&quot;rules&quot;: [&quot;segwit&quot;]}'
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;getblocktemplate&quot;, &quot;params&quot;: [{&quot;rules&quot;: [&quot;segwit&quot;]}]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
+</body>
+</html>

@@ -1,0 +1,49 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="listaddresshistory">
+<h1 class="title">listaddresshistory</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<tt class="docutils literal">listaddresshistory</tt>
+<p>Returns a list of transaction IDs (txids) that involve a specific address, with optional filters for block height and result limit. Note that the results may be limited based on the pruning level of the node.</p>
+<div class="section" id="input">
+<h2>Input Parameters</h2>
+<p>
+<ul>
+    <li><tt>address</tt> (string): The address to retrieve transaction history for.</li>
+    <li><tt>minHeight</tt> (unsigned int, optional, default = 1): The minimum block height from which to retrieve transactions.</li>
+    <li><tt>maxHeight</tt> (unsigned int, optional, default = infinity): The maximum block height to which to retrieve transactions.</li>
+    <li><tt>limit</tt> (unsigned int, optional, default = infinity): The maximum number of transactions to return.</li>
+</ul>
+</p>
+</div>
+<div class="section" id="output">
+<h2>Output Format</h2>
+<pre class="literal-block">
+JSON array of strings, each representing a transaction ID:
+["txid1", "txid2", "txid3", ...]
+</pre>
+</div>
+<div class="section" id="examples">
+<h2>Examples</h2>
+<pre class="literal-block">
+digiasset_core-cli listaddresshistory "D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC"
+</pre>
+<pre class="literal-block">
+digiasset_core-cli listaddresshistory "D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC" 100 200 10
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "listaddresshistory", "params": ["D7hrf5D21PV24ksEGRdYCZ6JqgsboSVKKC", 100, 200, 10]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
+</body>
+</html>

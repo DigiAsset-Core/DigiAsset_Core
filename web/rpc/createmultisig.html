@@ -1,0 +1,63 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="createmultisig">
+<h1 class="title">createmultisig</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">createmultisig nrequired <span class="pre">[&quot;key&quot;,...]</span> ( &quot;address_type&quot; )</tt></p>
+<p>Creates a multi-signature address with n signature of m keys required.</p>
+<p>It returns a json object with the address and redeemScript.</p>
+<div class="section" id="argument-1-nrequired">
+<h1>Argument #1 - nrequired</h1>
+<p><strong>Type:</strong> numeric, required</p>
+<p>The number of required signatures out of the n keys.</p>
+</div>
+<div class="section" id="argument-2-keys">
+<h1>Argument #2 - keys</h1>
+<p><strong>Type:</strong> json array, required</p>
+<p>The hex-encoded public keys.</p>
+<pre class="literal-block">
+[
+  &quot;key&quot;,      (string) The hex-encoded public key
+  ...
+]
+</pre>
+</div>
+<div class="section" id="argument-3-address-type">
+<h1>Argument #3 - address_type</h1>
+<p><strong>Type:</strong> string, optional, default=legacy</p>
+<p>The address type to use. Options are &quot;legacy&quot;, &quot;p2sh-segwit&quot;, and &quot;bech32&quot;.</p>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+{                            (json object)
+  &quot;address&quot; : &quot;str&quot;,         (string) The value of the new multisig address.
+  &quot;redeemScript&quot; : &quot;hex&quot;,    (string) The string value of the hex-encoded redemption script.
+  &quot;descriptor&quot; : &quot;str&quot;       (string) The descriptor for this multisig
+}
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<p>Create a multisig address from 2 public keys:</p>
+<pre class="literal-block">
+digibyte-cli createmultisig 2 &quot;[\&quot;03789ed0bb717d88f7d321a368d905e7430207ebbd82bd342cf11ae157a7ace5fd\&quot;,\&quot;03dbc6764b8884a92e871274b87583e6d5c2a58819473e17e107ef3f6aa5a61626\&quot;]&quot;
+</pre>
+<p>As a JSON-RPC call:</p>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;createmultisig&quot;, &quot;params&quot;: [2, &quot;[\&quot;03789ed0bb717d88f7d321a368d905e7430207ebbd82bd342cf11ae157a7ace5fd\&quot;,\&quot;03dbc6764b8884a92e871274b87583e6d5c2a58819473e17e107ef3f6aa5a61626\&quot;]&quot;]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
+</body>
+</html>

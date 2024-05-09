@@ -1,0 +1,41 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="removeprunedfunds">
+<h1 class="title">removeprunedfunds</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">removeprunedfunds &quot;txid&quot;</tt></p>
+<p>Deletes the specified transaction from the wallet. Meant for use with pruned wallets and as a companion to importprunedfunds. This will affect wallet balances.</p>
+<div class="section" id="argument-1-txid">
+<h1>Argument #1 - txid</h1>
+<p><strong>Type:</strong> string, required</p>
+<p>The hex-encoded id of the transaction you are deleting</p>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+null    (json null)
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digibyte-cli removeprunedfunds &quot;a8d0c0184dde994a09ec054286f1ce581bebf46446a512166eae7628734ea0a5&quot;
+</pre>
+<p>As a JSON-RPC call:</p>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;removeprunedfunds&quot;, &quot;params&quot;: [&quot;a8d0c0184dde994a09ec054286f1ce581bebf46446a512166eae7628734ea0a5&quot;]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
+</body>
+</html>

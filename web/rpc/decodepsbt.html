@@ -1,0 +1,124 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="decodepsbt">
+<h1 class="title">decodepsbt</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">decodepsbt &quot;psbt&quot;</tt></p>
+<p>Return a JSON object representing the serialized, base64-encoded partially signed Bitcoin transaction.</p>
+<div class="section" id="argument-1-psbt">
+<h1>Argument #1 - psbt</h1>
+<p><strong>Type:</strong> string, required</p>
+<p>The PSBT base64 string</p>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+{                                          (json object)
+  &quot;tx&quot; : {                                 (json object) The decoded network-serialized unsigned transaction.
+    ...                                    The layout is the same as the output of decoderawtransaction.
+  },
+  &quot;unknown&quot; : {                            (json object) The unknown global fields
+    &quot;key&quot; : &quot;hex&quot;,                         (string) (key-value pair) An unknown key-value pair
+    ...
+  },
+  &quot;inputs&quot; : [                             (json array)
+    {                                      (json object)
+      &quot;non_witness_utxo&quot; : {               (json object, optional) Decoded network transaction for non-witness UTXOs
+        ...
+      },
+      &quot;witness_utxo&quot; : {                   (json object, optional) Transaction output for witness UTXOs
+        &quot;amount&quot; : n,                      (numeric) The value in DGB
+        &quot;scriptPubKey&quot; : {                 (json object)
+          &quot;asm&quot; : &quot;str&quot;,                   (string) The asm
+          &quot;hex&quot; : &quot;hex&quot;,                   (string) The hex
+          &quot;type&quot; : &quot;str&quot;,                  (string) The type, eg 'pubkeyhash'
+          &quot;address&quot; : &quot;str&quot;                (string)  Bitcoin address if there is one
+        }
+      },
+      &quot;partial_signatures&quot; : {             (json object, optional)
+        &quot;pubkey&quot; : &quot;str&quot;,                  (string) The public key and signature that corresponds to it.
+        ...
+      },
+      &quot;sighash&quot; : &quot;str&quot;,                   (string, optional) The sighash type to be used
+      &quot;redeem_script&quot; : {                  (json object, optional)
+        &quot;asm&quot; : &quot;str&quot;,                     (string) The asm
+        &quot;hex&quot; : &quot;hex&quot;,                     (string) The hex
+        &quot;type&quot; : &quot;str&quot;                     (string) The type, eg 'pubkeyhash'
+      },
+      &quot;witness_script&quot; : {                 (json object, optional)
+        &quot;asm&quot; : &quot;str&quot;,                     (string) The asm
+        &quot;hex&quot; : &quot;hex&quot;,                     (string) The hex
+        &quot;type&quot; : &quot;str&quot;                     (string) The type, eg 'pubkeyhash'
+      },
+      &quot;bip32_derivs&quot; : [                   (json array, optional)
+        {                                  (json object, optional) The public key with the derivation path as the value.
+          &quot;master_fingerprint&quot; : &quot;str&quot;,    (string) The fingerprint of the master key
+          &quot;path&quot; : &quot;str&quot;                   (string) The path
+        },
+        ...
+      ],
+      &quot;final_scriptsig&quot; : {                (json object, optional)
+        &quot;asm&quot; : &quot;str&quot;,                     (string) The asm
+        &quot;hex&quot; : &quot;str&quot;                      (string) The hex
+      },
+      &quot;final_scriptwitness&quot; : [            (json array)
+        &quot;hex&quot;,                             (string) hex-encoded witness data (if any)
+        ...
+      ],
+      &quot;unknown&quot; : {                        (json object) The unknown global fields
+        &quot;key&quot; : &quot;hex&quot;,                     (string) (key-value pair) An unknown key-value pair
+        ...
+      }
+    },
+    ...
+  ],
+  &quot;outputs&quot; : [                            (json array)
+    {                                      (json object)
+      &quot;redeem_script&quot; : {                  (json object, optional)
+        &quot;asm&quot; : &quot;str&quot;,                     (string) The asm
+        &quot;hex&quot; : &quot;hex&quot;,                     (string) The hex
+        &quot;type&quot; : &quot;str&quot;                     (string) The type, eg 'pubkeyhash'
+      },
+      &quot;witness_script&quot; : {                 (json object, optional)
+        &quot;asm&quot; : &quot;str&quot;,                     (string) The asm
+        &quot;hex&quot; : &quot;hex&quot;,                     (string) The hex
+        &quot;type&quot; : &quot;str&quot;                     (string) The type, eg 'pubkeyhash'
+      },
+      &quot;bip32_derivs&quot; : [                   (json array, optional)
+        {                                  (json object)
+          &quot;pubkey&quot; : &quot;str&quot;,                (string) The public key this path corresponds to
+          &quot;master_fingerprint&quot; : &quot;str&quot;,    (string) The fingerprint of the master key
+          &quot;path&quot; : &quot;str&quot;                   (string) The path
+        },
+        ...
+      ],
+      &quot;unknown&quot; : {                        (json object) The unknown global fields
+        &quot;key&quot; : &quot;hex&quot;,                     (string) (key-value pair) An unknown key-value pair
+        ...
+      }
+    },
+    ...
+  ],
+  &quot;fee&quot; : n                                (numeric, optional) The transaction fee paid if all UTXOs slots in the PSBT have been filled.
+}
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digibyte-cli decodepsbt &quot;psbt&quot;
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
+</body>
+</html>

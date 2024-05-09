@@ -1,0 +1,55 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="generatetoaddress">
+<h1 class="title">generatetoaddress</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">generatetoaddress nblocks &quot;address&quot; ( maxtries )</tt></p>
+<p>Mine blocks immediately to a specified address (before the RPC call returns)</p>
+<div class="section" id="argument-1-nblocks">
+<h1>Argument #1 - nblocks</h1>
+<p><strong>Type:</strong> numeric, required</p>
+<p>How many blocks are generated immediately.</p>
+</div>
+<div class="section" id="argument-2-address">
+<h1>Argument #2 - address</h1>
+<p><strong>Type:</strong> string, required</p>
+<p>The address to send the newly generated bitcoin to.</p>
+</div>
+<div class="section" id="argument-3-maxtries">
+<h1>Argument #3 - maxtries</h1>
+<p><strong>Type:</strong> numeric, optional, default=1000000</p>
+<p>How many iterations to try.</p>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+[           (json array) hashes of blocks generated
+  &quot;hex&quot;,    (string) blockhash
+  ...
+]
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<p>Generate 11 blocks to myaddress:</p>
+<pre class="literal-block">
+digibyte-cli generatetoaddress 11 &quot;myaddress&quot;
+</pre>
+<p>If you are using the DigiByte Core wallet, you can get a new address to send the newly generated bitcoin to with::</p>
+<pre class="literal-block">
+digibyte-cli getnewaddress
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
+</body>
+</html>

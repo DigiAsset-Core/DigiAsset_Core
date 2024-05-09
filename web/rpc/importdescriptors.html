@@ -1,0 +1,72 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="importdescriptors">
+<h1 class="title">importdescriptors</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">importdescriptors &quot;requests&quot;</tt></p>
+<p>Import descriptors. This will trigger a rescan of the blockchain based on the earliest timestamp of all descriptors being imported. Requires a new wallet backup.</p>
+<p>Note: This call can take over an hour to complete if using an early timestamp; during that time, other rpc calls
+may report that the imported keys, addresses or scripts exist but related transactions are still missing.</p>
+<div class="section" id="argument-1-requests">
+<h1>Argument #1 - requests</h1>
+<p><strong>Type:</strong> json array, required</p>
+<p>Data to be imported</p>
+<pre class="literal-block">
+[
+  {                                    (json object)
+    &quot;desc&quot;: &quot;str&quot;,                     (string, required) Descriptor to import.
+    &quot;active&quot;: bool,                    (boolean, optional, default=false) Set this descriptor to be the active descriptor for the corresponding output type/externality
+    &quot;range&quot;: n or [n,n],               (numeric or array) If a ranged descriptor is used, this specifies the end or the range (in the form [begin,end]) to import
+    &quot;next_index&quot;: n,                   (numeric) If a ranged descriptor is set to active, this specifies the next index to generate addresses from
+    &quot;timestamp&quot;: timestamp | &quot;now&quot;,    (integer / string, required) Time from which to start rescanning the blockchain for this descriptor, in UNIX epoch time
+                                       Use the string &quot;now&quot; to substitute the current synced blockchain time.
+                                       &quot;now&quot; can be specified to bypass scanning, for outputs which are known to never have been used, and
+                                       0 can be specified to scan the entire blockchain. Blocks up to 2 hours before the earliest timestamp
+                                       of all descriptors being imported will be scanned.
+    &quot;internal&quot;: bool,                  (boolean, optional, default=false) Whether matching outputs should be treated as not incoming payments (e.g. change)
+    &quot;label&quot;: &quot;str&quot;,                    (string, optional, default='') Label to assign to the address, only allowed with internal=false
+  },
+  ...
+]
+</pre>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+[                              (json array) Response is an array with the same size as the input that has the execution result
+  {                            (json object)
+    &quot;success&quot; : true|false,    (boolean)
+    &quot;warnings&quot; : [             (json array, optional)
+      &quot;str&quot;,                   (string)
+      ...
+    ],
+    &quot;error&quot; : {                (json object, optional)
+      ...                      JSONRPC error
+    }
+  },
+  ...
+]
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digibyte-cli importdescriptors '[{ &quot;desc&quot;: &quot;&lt;my descriptor&gt;&quot;, &quot;timestamp&quot;:1455191478, &quot;internal&quot;: true }, { &quot;desc&quot;: &quot;&lt;my desccriptor 2&gt;&quot;, &quot;label&quot;: &quot;example 2&quot;, &quot;timestamp&quot;: 1455191480 }]'
+</pre>
+<pre class="literal-block">
+digibyte-cli importdescriptors '[{ &quot;desc&quot;: &quot;&lt;my descriptor&gt;&quot;, &quot;timestamp&quot;:1455191478, &quot;active&quot;: true, &quot;range&quot;: [0,100], &quot;label&quot;: &quot;&lt;my bech32 wallet&gt;&quot; }]'
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
+</body>
+</html>

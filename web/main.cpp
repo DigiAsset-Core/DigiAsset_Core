@@ -18,6 +18,13 @@ using tcp = boost::asio::ip::tcp;                   // from <boost/asio/ip/tcp.h
 namespace http = boost::beast::http;                // from <boost/beast/http.hpp>
 namespace fs = std::filesystem;
 
+//taken from src/utils.cpp didn't use direct because didn't want to include other requirements
+bool fileExists(const std::string& fileName) {
+    //see if this is first run
+    struct stat buffer {};
+    return (stat(fileName.c_str(), &buffer) == 0);
+}
+
 // This function produces an HTTP response for the given request.
 // The type of the request body and the response body must match,
 // so the body type is templated to allow flexibility.
@@ -73,9 +80,22 @@ void handle_request(http::request<Body, http::basic_fields<Allocator>>&& req, Se
     // Build the path to the requested file
     string path;
     if (req.target().substr(0,5)=="/src/") {
+
+        //get from source folder
         path = ".." + string(req.target());
-    } else {
+
+    } else if (req.target().substr(0,5)=="/rpc/") {
+
+        //rpc method check if it has been overwritten
+        path="../src/RPC/Methods/"+string(req.target()).substr(5);
+        if (!fileExists(path)) {
+            path = "../web" + string(req.target());
+        }
+    } else  {
+
+        //normal path
         path = "../web" + string(req.target());
+
     }
     if(req.target().back() == '/')
         path += "index.html";

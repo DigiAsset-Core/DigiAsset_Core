@@ -12,7 +12,7 @@ namespace RPC {
         /**
         * Returns current DGB equivalent for an exchange amount
         * params[0] - address(string)
-        * params[1] - index(unsinged int between 0 and 9)
+        * params[1] - index(unsigned int between 0 and 9)
         * params[2] - fixed precision amount to convert.  8 decimals(unsigned int)
         * Warning will throw error if sync is more then 120 blocks behind
         *
