@@ -28,7 +28,7 @@ DigiByteTransaction::DigiByteTransaction() {
  * Creates an object that can hold a transactions data including any DigiAssets
  * height is optional but if known will speed things up if provided
  */
-DigiByteTransaction::DigiByteTransaction(const string& txid, unsigned int height) {
+DigiByteTransaction::DigiByteTransaction(const string& txid, unsigned int height, bool dontBotherIfNotSpecial) {
     AppMain* main = AppMain::GetInstance();
     DigiByteCore* dgb = main->getDigiByteCore();
     Database* db = main->getDatabase();
@@ -36,10 +36,39 @@ DigiByteTransaction::DigiByteTransaction(const string& txid, unsigned int height
     getrawtransaction_t txData = dgb->getRawTransaction(txid);
     if (height == 0) height = dgb->getBlock(txData.blockhash).height;
 
+    //store transaction key data
     _height = height;
     _blockHash = txData.blockhash;
     _time = txData.time;
     _txid = txData.txid;
+
+    //check if we should cheat loading to save time(chain analyzer when not storing non asset utxo data
+    if (dontBotherIfNotSpecial) {
+        //check if may be special
+        bool opReturnFound=false;
+        for (const vout_t& vout: txData.vout) {
+            if (vout.scriptPubKey.type != "nulldata") continue;
+            opReturnFound=true;
+            break;
+        }
+
+        //if no op_return data then load inputs so they can be cleared if necessary and thats it since outputs won't be written anyways
+        if (!opReturnFound) {
+            for (const vin_t& vin: txData.vin) {
+                //if a coinbase transaction don't look up the input
+                if (vin.txid.empty()) break;
+
+                //find any assets on input utxos
+                AssetUTXO input{
+                        .txid=vin.txid,
+                        .vout=static_cast<uint16_t>(vin.n)
+                };
+                _inputs.push_back(input);
+            }
+            _txType=STANDARD;
+            return;
+        }
+    }
 
     //copy input data
     _assetFound = false;

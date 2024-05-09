@@ -437,7 +437,7 @@ void ChainAnalyzer::restart() {
 void ChainAnalyzer::processTX(const string& txid, unsigned int height) {
     //get raw transaction
     std::chrono::steady_clock::time_point startTime=std::chrono::steady_clock::now();
-    DigiByteTransaction tx(txid, height);
+    DigiByteTransaction tx(txid, height, !_storeNonAssetUTXOs);
     auto duration = std::chrono::steady_clock::now() - startTime;
     _processTransactionRunTime+=std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
     _processTransactionRunCount++;
