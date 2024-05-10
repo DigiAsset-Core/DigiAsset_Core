@@ -125,7 +125,7 @@ int main()
         try {
             Config config("config.cfg");
             auto const address = boost::asio::ip::make_address("0.0.0.0");
-            unsigned short port = config.getInteger("webport", 8080);
+            unsigned short port = config.getInteger("webport", 8090);
 
             boost::asio::io_context ioc{1};
             tcp::acceptor acceptor{ioc, {address, port}};

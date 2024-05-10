@@ -316,7 +316,7 @@ sudo systemctl start digiasset_core.service
 
 ## Documentation
 
-To access documentation run the digiasset_core-web application then go to http://127.0.0.1:8080/
+To access documentation run the digiasset_core-web application then go to http://127.0.0.1:8090/
 
 ## Other Notes
 
