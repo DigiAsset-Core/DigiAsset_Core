@@ -44,28 +44,38 @@ DigiByteTransaction::DigiByteTransaction(const string& txid, unsigned int height
 
     //check if we should cheat loading to save time(chain analyzer when not storing non asset utxo data
     if (dontBotherIfNotSpecial) {
-        //check if may be special
-        bool opReturnFound=false;
+        bool mayNeedInputProcessing = false;
+
+        //check if there is an op_return
         for (const vout_t& vout: txData.vout) {
             if (vout.scriptPubKey.type != "nulldata") continue;
-            opReturnFound=true;
+            mayNeedInputProcessing = true;
             break;
         }
 
-        //if no op_return data then load inputs so they can be cleared if necessary and thats it since outputs won't be written anyways
-        if (!opReturnFound) {
+        //large transactions can only be DigiAsset transactions or normal so check if DigiAsset Transaction if large.
+        if ((mayNeedInputProcessing) && (txData.vin.size() > 5)) {
+            unsigned char opcode;
+            BitIO dataStream;
+            DigiAsset::decodeAssetTxHeader(txData, _assetTransactionVersion, opcode, dataStream);
+            if (opcode == 0) mayNeedInputProcessing = false; //not a DigiByte transaction
+        }
+
+        //if it doesn't need input processing then
+        if (!mayNeedInputProcessing) {
+            // we only need to copy the txid and vout for each input so they can be cleared
+            // no need to check if there is any assets on inputs or add the outputs
             for (const vin_t& vin: txData.vin) {
                 //if a coinbase transaction don't look up the input
                 if (vin.txid.empty()) break;
 
                 //find any assets on input utxos
                 AssetUTXO input{
-                        .txid=vin.txid,
-                        .vout=static_cast<uint16_t>(vin.n)
-                };
+                        .txid = vin.txid,
+                        .vout = static_cast<uint16_t>(vin.n)};
                 _inputs.push_back(input);
             }
-            _txType=STANDARD;
+            _txType = STANDARD;
             return;
         }
     }
@@ -79,7 +89,7 @@ DigiByteTransaction::DigiByteTransaction(const string& txid, unsigned int height
         }
 
         //find any assets on input utxos
-        AssetUTXO input = db->getAssetUTXO(vin.txid, vin.n,height);
+        AssetUTXO input = db->getAssetUTXO(vin.txid, vin.n, height);
         if (!input.assets.empty()) _assetFound = true;
         _inputs.push_back(input);
     }
@@ -531,7 +541,7 @@ void DigiByteTransaction::addToDatabase() {
             main->getRpcCache()->newAssetIssued();
 
             //add to the database and get the asset index number
-            bool indexAlreadySet=_newAsset.isAssetIndexSet();
+            bool indexAlreadySet = _newAsset.isAssetIndexSet();
             uint64_t assetIndex = db->addAsset(_newAsset);
 
             //see if part of a PSP and pin files for those we subscribe to
@@ -556,13 +566,13 @@ void DigiByteTransaction::addToDatabase() {
     //mark spent old UTXOs
     for (const AssetUTXO& vin: _inputs) {
         if (vin.txid == "") continue; //coinbase
-        db->spendUTXO(vin.txid, vin.vout, _height,_txid);
+        db->spendUTXO(vin.txid, vin.vout, _height, _txid);
     }
 
     //add utxos
-    bool isIssuance=(_txType==DIGIASSET_ISSUANCE);
+    bool isIssuance = (_txType == DIGIASSET_ISSUANCE);
     for (const AssetUTXO& vout: _outputs) {
-        db->createUTXO(vout, _height,isIssuance);
+        db->createUTXO(vout, _height, isIssuance);
     }
 
     //handle votes
@@ -591,13 +601,13 @@ void DigiByteTransaction::lookupAssetIndexes() {
     unsigned int index;
     for (const AssetUTXO& vout: _outputs) {
         if (vout.assets.empty()) continue;
-        index=vout.vout;
+        index = vout.vout;
         break;
     }
 
     //lookup assetIndex from database
-    _newAsset.lookupAssetIndex(_txid,index);
-    uint64_t assetIndex=_newAsset.getAssetIndex();
+    _newAsset.lookupAssetIndex(_txid, index);
+    uint64_t assetIndex = _newAsset.getAssetIndex();
 
     //set all vouts
     for (AssetUTXO& vout: _outputs) {
