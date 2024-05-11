@@ -13,8 +13,9 @@
 
 int main() {
     ///When updating bootstrap image change both values.   Reviewers make sure this value is only ever changed by trusted party
-    const string officialBootstrapCID = "QmVYaAEq5Whh1951RtRrBx1aFXiLuPoho4apRRa9tX6BDM";
-    const unsigned int officialBootStrapHeight = 18927358;
+    const vector<string> oldBootstrapCIDs = {"QmVYaAEq5Whh1951RtRrBx1aFXiLuPoho4apRRa9tX6BDM"};
+    const string officialBootstrapCID = "QmaAHM9ZPGDWjW2Y5HhVzRVKAyrWofjzkN7pCW1juKgizU";
+    const unsigned int officialBootStrapHeight = 19256623;
 
     /*
      * Check if config exists and prompt user to make one if it doesn't
@@ -121,7 +122,7 @@ int main() {
         log->addMessage("Bootstraping Database.  This may take a while depending on how faster your internet is.");
         IPFS ipfs("config.cfg", false);
         ipfs.downloadFile(officialBootstrapCID, "chain.db", true);
-        pauseHeight = officialBootStrapHeight;
+        pauseHeight = officialBootStrapHeight+2;
     }
 
     /*
@@ -183,6 +184,9 @@ int main() {
     IPFS ipfs("config.cfg");
     main->setIPFS(&ipfs);
     ipfs.pin(officialBootstrapCID);
+    for (const auto& cid: oldBootstrapCIDs) {
+        ipfs.unpin(cid);
+    }
 
     /**
      * Connect to Permanent Storage Pools

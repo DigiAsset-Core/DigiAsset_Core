@@ -428,6 +428,16 @@ void IPFS::pin(const string& cid, unsigned int maxSize) {
     db->addIPFSJob(cid, "pin", extra);
 }
 
+void IPFS::unpin(const string& cid) {
+    //check if no cid
+    if (!isValidCID(cid)) return;                 //just ignore bad cids for pin requests
+
+    //add type download to database
+    Database* db = AppMain::GetInstance()->getDatabase();
+    db->addIPFSJob(cid, "unpin");
+}
+
+
 
 bool IPFS::isPinned(const string& cid) const {
     string results = _command("pin/ls/" + cid);

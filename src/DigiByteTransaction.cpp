@@ -58,7 +58,7 @@ DigiByteTransaction::DigiByteTransaction(const string& txid, unsigned int height
             unsigned char opcode;
             BitIO dataStream;
             DigiAsset::decodeAssetTxHeader(txData, _assetTransactionVersion, opcode, dataStream);
-            if (opcode == 0) mayNeedInputProcessing = false; //not a DigiByte transaction
+            if (opcode == 0) mayNeedInputProcessing = false; //not a DigiAsset transaction
         }
 
         //if it doesn't need input processing then
@@ -107,6 +107,8 @@ DigiByteTransaction::DigiByteTransaction(const string& txid, unsigned int height
     if (decodeKYC(txData)) return;
     if (decodeExchangeRate(txData)) return;
     decodeAssetTX(txData);
+    ///if any new special case types are added make sure they have no more than 5 inputs allowed or
+    ///modify the mayNeedInputProcessing algorithm above to check for them.
 }
 
 /**

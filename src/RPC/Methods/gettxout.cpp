@@ -20,10 +20,10 @@ namespace RPC {
             if (params.size() < 1 || params.size() > 3) {
                 throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
             }
-            if (!params[0].isString() || (params[0].asString().length()!=64)) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
-            if (!params[1].isInt() || (params[1].asInt()<0)) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+            if (!params[0].isString() || (params[0].asString().length() != 64)) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
+            if (!params[1].isUInt()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
             if (params.size() > 2 && !params[2].isBool()) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
-            
+
             try {
                 Response response;
                 //get what core wallet has to say
@@ -34,14 +34,14 @@ namespace RPC {
                 }
 
                 Database* db = AppMain::GetInstance()->getDatabase();
-                AssetUTXO assetInputData = db->getAssetUTXO(params[0].asString(), params[1].asInt());
+                AssetUTXO assetInputData = db->getAssetUTXO(params[0].asString(), params[1].asUInt());
                 coreInputData["digibyte"] = static_cast<Json::UInt64>(assetInputData.digibyte);
 
-                Value jsonArray=Json::arrayValue;
+                Value jsonArray = Json::arrayValue;
                 for (const auto& asset: assetInputData.assets) {
                     jsonArray.append(asset.toJSON(true));
                 }
-                coreInputData["assets"] =  jsonArray;
+                coreInputData["assets"] = jsonArray;
 
                 response.setResult(coreInputData);
                 return response;
@@ -50,5 +50,5 @@ namespace RPC {
             }
         }
 
-    }
-}
+    } // namespace Methods
+} // namespace RPC

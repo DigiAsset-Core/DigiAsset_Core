@@ -777,7 +777,7 @@ uint64_t Database::addAsset(const DigiAsset& asset) {
             getUpdateAsset.bindInt64(5, assetIndex);
             rc = getUpdateAsset.executeStep();
             if (rc != SQLITE_DONE) {
-                string tempErrorMessage = sqlite3_errmsg(_db);
+                handleSpecialErrors(__LINE__);
                 throw exceptionFailedUpdate();
             }
             return assetIndex;
@@ -798,7 +798,7 @@ uint64_t Database::addAsset(const DigiAsset& asset) {
     addAsset.bindInt64(7, asset.getExpiry());
     rc = addAsset.executeStep();
     if (rc != SQLITE_DONE) {
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        handleSpecialErrors(__LINE__);
         throw exceptionFailedInsert();
     }
     return sqlite3_last_insert_rowid(_db);
@@ -851,7 +851,7 @@ DigiAsset Database::getAsset(uint64_t assetIndex, uint64_t amount) {
     getAsset.bindInt64(1, assetIndex);
     int rc = getAsset.executeStep();
     if (rc != SQLITE_ROW) {
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        handleSpecialErrors();
         throw exceptionFailedSelect();
     }
     string assetId = getAsset.getColumnText(0);
@@ -991,7 +991,7 @@ int Database::getFlagInt(const string& flag) {
     checkFlag.bindText(1, flag);
     int rc = checkFlag.executeStep();
     if (rc != SQLITE_ROW) { //there should always be one
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        handleSpecialErrors(__LINE__);
         throw exceptionFailedSelect(); //failed to check database
     }
 
@@ -1050,7 +1050,7 @@ void Database::setFlagInt(const std::string& flag, int state) {
     setFlag.bindInt(2, state);
     int rc = setFlag.executeStep();
     if (rc != SQLITE_DONE) { //there should always be one
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        handleSpecialErrors(__LINE__);
         throw exceptionFailedUpdate(); //failed to check database
     }
 
@@ -1116,7 +1116,7 @@ void Database::insertBlock(uint height, const std::string& hash, unsigned int ti
     insertBlock.bindDouble(5, difficulty);
     int rc = insertBlock.executeStep();
     if (rc != SQLITE_DONE) { //there should always be one
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        handleSpecialErrors(__LINE__);
         throw exceptionFailedInsert(); //failed to check database
     }
 }
@@ -1172,9 +1172,8 @@ void Database::clearBlocksAboveHeight(uint height) {
             "UPDATE utxos SET heightDestroyed=NULL WHERE heightDestroyed>=" + lineEnd,
             "DELETE FROM votes WHERE height>=" + lineEnd,
             "DELETE FROM blocks WHERE height>" + lineEnd,
-            "UPDATE sqlite_sequence SET seq = (SELECT MAX(assetIndex) FROM assets) WHERE name = 'assets';"
-    };
-    for (const string& sql : sqlCommands) {
+            "UPDATE sqlite_sequence SET seq = (SELECT MAX(assetIndex) FROM assets) WHERE name = 'assets';"};
+    for (const string& sql: sqlCommands) {
         rc = sqlite3_exec(_db, sql.c_str(), nullptr, nullptr, &zErrMsg);
         if (rc != SQLITE_OK) {
             sqlite3_free(zErrMsg);
@@ -1239,10 +1238,8 @@ void Database::createUTXO(const AssetUTXO& value, unsigned int heightCreated, bo
     createUTXO.bindInt(8, 0);
     rc = createUTXO.executeStep();
     if (rc != SQLITE_DONE) {
-        string tempErrorMessage = sqlite3_errmsg(_db); //todo have occasionally gotten no more rows error.  This eventually fixes itself but need to figure out why.  to prevent hammering of system have added a 2 second delay when this error occurs
-        Log::GetInstance()->addMessage("Known Unrecoverable Database Error: " + tempErrorMessage, Log::CRITICAL);
-        std::abort();                  //crash the program
-        throw exceptionFailedInsert(); //just incase
+        handleSpecialErrors(__LINE__);
+        throw exceptionFailedInsert();
     }
 
     //add any assets
@@ -1259,7 +1256,7 @@ void Database::createUTXO(const AssetUTXO& value, unsigned int heightCreated, bo
         createUTXO.bindInt(8, assetIssuance);
         rc = createUTXO.executeStep();
         if (rc != SQLITE_DONE) {
-            string tempErrorMessage = sqlite3_errmsg(_db);
+            handleSpecialErrors(__LINE__);
             throw exceptionFailedInsert();
         }
     }
@@ -1280,7 +1277,7 @@ void Database::spendUTXO(const std::string& txid, unsigned int vout, unsigned in
     spendUTXO.bindInt(4, vout);
     int rc = spendUTXO.executeStep();
     if (rc != SQLITE_DONE) {
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        handleSpecialErrors(__LINE__);
         throw exceptionFailedUpdate();
     }
 }
@@ -1318,7 +1315,7 @@ void Database::pruneUTXO(unsigned int height) {
         pruneUTXOs.bindInt(1, height);
         int rc = pruneUTXOs.executeStep();
         if (rc != SQLITE_DONE) {
-            string tempErrorMessage = sqlite3_errmsg(_db);
+            handleSpecialErrors(__LINE__);
             throw exceptionFailedDelete();
         }
     }
@@ -1329,7 +1326,7 @@ void Database::pruneUTXO(unsigned int height) {
         removeNonReachable.bindInt(1, height);
         int rc = removeNonReachable.executeStep();
         if (rc != SQLITE_DONE) {
-            string tempErrorMessage = sqlite3_errmsg(_db);
+            handleSpecialErrors(__LINE__);
             throw exceptionFailedUpdate();
         }
     }
@@ -1756,7 +1753,7 @@ void Database::addWatchAddress(const string& address) {
     addWatchAddress.bindText(1, address);
     int rc = addWatchAddress.executeStep();
     if (rc != SQLITE_OK) {
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        handleSpecialErrors(__LINE__);
         throw exceptionFailedInsert();
     }
 
@@ -1808,7 +1805,7 @@ void Database::addExchangeRate(const string& address, unsigned int index, unsign
     addExchangeRate.bindDouble(4, exchangeRate);
     int rc = addExchangeRate.executeStep();
     if (rc != SQLITE_DONE) {
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        handleSpecialErrors(__LINE__);
         throw exceptionFailedUpdate();
     }
 }
@@ -1828,7 +1825,7 @@ void Database::pruneExchange(unsigned int pruneHeight) {
         pruneExchangeRate.bindInt(1, pruneHeight);
         int rc = pruneExchangeRate.executeStep();
         if (rc != SQLITE_DONE) {
-            string tempErrorMessage = sqlite3_errmsg(_db);
+            handleSpecialErrors(__LINE__);
             throw exceptionFailedDelete();
         }
     }
@@ -1839,7 +1836,7 @@ void Database::pruneExchange(unsigned int pruneHeight) {
         removeNonReachable.bindInt(1, pruneHeight);
         int rc = removeNonReachable.executeStep();
         if (rc != SQLITE_DONE) {
-            string tempErrorMessage = sqlite3_errmsg(_db);
+            handleSpecialErrors(__LINE__);
             throw exceptionFailedUpdate();
         }
     }
@@ -1916,7 +1913,7 @@ void Database::addKYC(const string& address, const string& country, const string
     addKYC.bindInt(5, height);
     int rc = addKYC.executeStep();
     if (rc != SQLITE_DONE) {
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        handleSpecialErrors(__LINE__);
         throw exceptionFailedUpdate();
     }
 }
@@ -1927,7 +1924,7 @@ void Database::revokeKYC(const string& address, unsigned int height) {
     revokeKYC.bindText(2, address);
     int rc = revokeKYC.executeStep();
     if (rc != SQLITE_DONE) {
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        handleSpecialErrors(__LINE__);
         throw exceptionFailedUpdate();
     }
 }
@@ -1971,7 +1968,7 @@ void Database::addVote(const string& address, unsigned int assetIndex, uint64_t 
     addVote.bindInt64(5, count);
     int rc = addVote.executeStep();
     if (rc != SQLITE_DONE) {
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        handleSpecialErrors(__LINE__);
         throw exceptionFailedInsert();
     }
 }
@@ -2008,7 +2005,7 @@ void Database::pruneVote(unsigned int height) {
         pruneVote.bindInt(1, height);
         int rc = pruneVote.executeStep();
         if (rc != SQLITE_DONE) {
-            string tempErrorMessage = sqlite3_errmsg(_db);
+            handleSpecialErrors(__LINE__);
             throw exceptionFailedDelete();
         }
     }
@@ -2019,7 +2016,7 @@ void Database::pruneVote(unsigned int height) {
         removeNonReachable.bindInt(1, height);
         int rc = removeNonReachable.executeStep();
         if (rc != SQLITE_DONE) {
-            string tempErrorMessage = sqlite3_errmsg(_db);
+            handleSpecialErrors(__LINE__);
             throw exceptionFailedUpdate();
         }
     }
@@ -2219,7 +2216,7 @@ void Database::pauseIPFSSync(unsigned int jobIndex, const string& sync, unsigned
         if (rc == SQLITE_DONE) _ipfsCurrentlyPaused.emplace_back(sync, unpauseTime);
     }
     if (rc != SQLITE_DONE) { //there should always be one
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        handleSpecialErrors(__LINE__);
         throw exceptionFailedDelete(); //failed to check database
     }
 }
@@ -2238,7 +2235,7 @@ void Database::removeIPFSJob(unsigned int jobIndex, const string& sync) {
         clearNextIPFSJob.bindInt(1, jobIndex);
         int rc = clearNextIPFSJob.executeStep();
         if (rc != SQLITE_DONE) { //there should always be one
-            string tempErrorMessage = sqlite3_errmsg(_db);
+            handleSpecialErrors(__LINE__);
             throw exceptionFailedSQLCommand(); //failed to delete or unlock
         }
     }
@@ -2247,7 +2244,7 @@ void Database::removeIPFSJob(unsigned int jobIndex, const string& sync) {
         clearNextIPFSJob.bindText(1, sync);
         int rc = clearNextIPFSJob.executeStep();
         if (rc != SQLITE_DONE) { //there should always be one
-            string tempErrorMessage = sqlite3_errmsg(_db);
+            handleSpecialErrors(__LINE__);
             throw exceptionFailedSQLCommand(); //failed to delete or unlock
         }
     }
@@ -2306,7 +2303,7 @@ Database::addIPFSJob(const string& cid, const string& sync, const string& extra,
 
     int rc = insertIPFSJob.executeStep();
     if (rc != SQLITE_DONE) {
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        handleSpecialErrors(__LINE__);
         throw exceptionFailedInsert();
     }
     return sqlite3_last_insert_rowid(_db);
@@ -2349,7 +2346,7 @@ void Database::revokeDomain(const string& domain) {
     revokeDomain.bindText(1, domain);
     int rc = revokeDomain.executeStep();
     if (rc != SQLITE_DONE) {
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        handleSpecialErrors(__LINE__);
         throw exceptionFailedUpdate();
     }
 }
@@ -2360,7 +2357,7 @@ void Database::addDomain(const string& domain, const string& assetId) {
     addDomain.bindText(2, assetId);
     int rc = addDomain.executeStep();
     if (rc != SQLITE_DONE) {
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        handleSpecialErrors(__LINE__);
         throw exceptionFailedUpdate();
     }
 }
@@ -2395,7 +2392,7 @@ void Database::setMasterDomainAssetId(const string& assetId) {
         setDomainMasterAssetId.bindText(1, lastDomain);
         int rc = setDomainMasterAssetId.executeStep();
         if (rc != SQLITE_DONE) {
-            string tempErrorMessage = sqlite3_errmsg(_db);
+            handleSpecialErrors(__LINE__);
             throw exceptionFailedUpdate();
         }
     }
@@ -2403,7 +2400,7 @@ void Database::setMasterDomainAssetId(const string& assetId) {
     setDomainMasterAssetId.bindText(1, assetId);
     int rc = setDomainMasterAssetId.executeStep();
     if (rc != SQLITE_DONE) {
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        handleSpecialErrors(__LINE__);
         throw exceptionFailedInsert();
     }
     _masterDomainAssetId.push_back(assetId);
@@ -2453,7 +2450,7 @@ void Database::repinPermanent(unsigned int poolIndex) {
         LockedStatement repinAssets{_stmtRepinAssets};
         int rc = repinAssets.executeStep();
         if (rc != SQLITE_DONE) {
-            string tempErrorMessage = sqlite3_errmsg(_db);
+            handleSpecialErrors(__LINE__);
             throw exceptionFailedInsert();
         }
     }
@@ -2463,7 +2460,7 @@ void Database::repinPermanent(unsigned int poolIndex) {
     repinPermanentSpecific.bindInt(1, poolIndex);
     int rc = repinPermanentSpecific.executeStep();
     if (rc != SQLITE_DONE) {
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        handleSpecialErrors(__LINE__);
         throw exceptionFailedInsert();
     }
 }
@@ -2498,7 +2495,7 @@ void Database::unpinPermanent(unsigned int poolIndex) {
 
     int rc = sqlite3_exec(_db, sql.c_str(), Database::defaultCallback, nullptr, nullptr);
     if (rc != SQLITE_DONE) {
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        handleSpecialErrors(__LINE__);
         throw exceptionFailedInsert();
     }
 }
@@ -2514,7 +2511,7 @@ void Database::addToPermanent(unsigned int poolIndex, const string& cid) {
     insertPermanent.bindInt(2, poolIndex);
     int rc = insertPermanent.executeStep();
     if (rc != SQLITE_DONE) {
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        handleSpecialErrors(__LINE__);
         throw exceptionFailedInsert();
     }
 }
@@ -2887,7 +2884,7 @@ void Database::updateAddressStats(unsigned int timeFrame, unsigned int endTime, 
 
 
     //get number of addresses used
-    unsigned int addressesUsed=count_if(changes.begin(), changes.end(), [](const Change& ch) { return ch.spent; });
+    unsigned int addressesUsed = count_if(changes.begin(), changes.end(), [](const Change& ch) { return ch.spent; });
 
     //get number of addresses there were
     sql = "SELECT COUNT(*) FROM StatsAddressSum_" + timeStr + " WHERE 1";
@@ -2906,11 +2903,11 @@ void Database::updateAddressStats(unsigned int timeFrame, unsigned int endTime, 
 
     //combine the changes with the previous address sums
     sql = "INSERT INTO StatsAddressSum_" + timeStr + " (address, digibyte, assets, spent)\n"
-          "VALUES (?, ?, ?, ?)\n"
-          "ON CONFLICT(address) DO UPDATE SET\n"
-          "    digibyte = digibyte + (excluded.digibyte),\n"
-          "    assets = assets + (excluded.assets),\n"
-          "    spent = MAX(spent, excluded.spent);";
+                                                     "VALUES (?, ?, ?, ?)\n"
+                                                     "ON CONFLICT(address) DO UPDATE SET\n"
+                                                     "    digibyte = digibyte + (excluded.digibyte),\n"
+                                                     "    assets = assets + (excluded.assets),\n"
+                                                     "    spent = MAX(spent, excluded.spent);";
     rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
     if (rc != SQLITE_OK) {
         sqlite3_finalize(stmt);
@@ -2948,7 +2945,7 @@ void Database::updateAddressStats(unsigned int timeFrame, unsigned int endTime, 
     unsigned int addressesCreated = addressesTotal - previousAddressCount;
 
     //get number of quantum unsafe
-    sql = "SELECT COUNT(*) FROM StatsAddressSum_" + timeStr + " WHERE spent=1 AND digibyte>0";  //assets must be 0 if digibyte is 0 since it takes 600 to store an asset so don't need to check asset count
+    sql = "SELECT COUNT(*) FROM StatsAddressSum_" + timeStr + " WHERE spent=1 AND digibyte>0"; //assets must be 0 if digibyte is 0 since it takes 600 to store an asset so don't need to check asset count
     rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
     if (rc != SQLITE_OK) {
         sqlite3_finalize(stmt);
@@ -2963,7 +2960,7 @@ void Database::updateAddressStats(unsigned int timeFrame, unsigned int endTime, 
     sqlite3_finalize(stmt);
 
     //get number of addresses with assets
-    sql = "SELECT COUNT(*) FROM StatsAddressSum_" + timeStr + " WHERE assets>0";  //assets must be 0 if digibyte is 0 since it takes 600 to store an asset so don't need to check asset count
+    sql = "SELECT COUNT(*) FROM StatsAddressSum_" + timeStr + " WHERE assets>0"; //assets must be 0 if digibyte is 0 since it takes 600 to store an asset so don't need to check asset count
     rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
     if (rc != SQLITE_OK) {
         sqlite3_finalize(stmt);
@@ -2978,7 +2975,7 @@ void Database::updateAddressStats(unsigned int timeFrame, unsigned int endTime, 
     sqlite3_finalize(stmt);
 
     //get funded addresses over 0
-    sql = "SELECT COUNT(*) FROM StatsAddressSum_" + timeStr + " WHERE digibyte>0";  //assets must be 0 if digibyte is 0 since it takes 600 to store an asset so don't need to check asset count
+    sql = "SELECT COUNT(*) FROM StatsAddressSum_" + timeStr + " WHERE digibyte>0"; //assets must be 0 if digibyte is 0 since it takes 600 to store an asset so don't need to check asset count
     rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
     if (rc != SQLITE_OK) {
         sqlite3_finalize(stmt);
@@ -2993,7 +2990,7 @@ void Database::updateAddressStats(unsigned int timeFrame, unsigned int endTime, 
     sqlite3_finalize(stmt);
 
     //get funded addresses with at least 1 digibyte
-    sql = "SELECT COUNT(*) FROM StatsAddressSum_" + timeStr + " WHERE digibyte>=100000000";  //assets must be 0 if digibyte is 0 since it takes 600 to store an asset so don't need to check asset count
+    sql = "SELECT COUNT(*) FROM StatsAddressSum_" + timeStr + " WHERE digibyte>=100000000"; //assets must be 0 if digibyte is 0 since it takes 600 to store an asset so don't need to check asset count
     rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
     if (rc != SQLITE_OK) {
         sqlite3_finalize(stmt);
@@ -3008,7 +3005,7 @@ void Database::updateAddressStats(unsigned int timeFrame, unsigned int endTime, 
     sqlite3_finalize(stmt);
 
     //get funded addresses with at least 1k digibyte
-    sql = "SELECT COUNT(*) FROM StatsAddressSum_" + timeStr + " WHERE digibyte>=100000000000";  //assets must be 0 if digibyte is 0 since it takes 600 to store an asset so don't need to check asset count
+    sql = "SELECT COUNT(*) FROM StatsAddressSum_" + timeStr + " WHERE digibyte>=100000000000"; //assets must be 0 if digibyte is 0 since it takes 600 to store an asset so don't need to check asset count
     rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
     if (rc != SQLITE_OK) {
         sqlite3_finalize(stmt);
@@ -3023,7 +3020,7 @@ void Database::updateAddressStats(unsigned int timeFrame, unsigned int endTime, 
     sqlite3_finalize(stmt);
 
     //get funded addresses with at least 1m digibyte
-    sql = "SELECT COUNT(*) FROM StatsAddressSum_" + timeStr + " WHERE digibyte>=100000000000000";  //assets must be 0 if digibyte is 0 since it takes 600 to store an asset so don't need to check asset count
+    sql = "SELECT COUNT(*) FROM StatsAddressSum_" + timeStr + " WHERE digibyte>=100000000000000"; //assets must be 0 if digibyte is 0 since it takes 600 to store an asset so don't need to check asset count
     rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
     if (rc != SQLITE_OK) {
         sqlite3_finalize(stmt);
@@ -3141,17 +3138,34 @@ void Database::executeSQLStatement(const string& query, const std::exception& er
     sqlite3_stmt* stmt;
     rc = sqlite3_prepare_v2(_db, query.c_str(), -1, &stmt, nullptr);
     if (rc != SQLITE_OK) {
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        handleSpecialErrors(__LINE__);
         sqlite3_finalize(stmt);
         throw exceptionCreatingStatement();
     }
     rc = executeSqliteStepWithRetry(stmt);
     if (rc != SQLITE_DONE) {
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        handleSpecialErrors(__LINE__);
         sqlite3_finalize(stmt);
         throw errorToThrowOnFail;
     }
     sqlite3_finalize(stmt);
+}
+
+/**
+ * Helper function that handles special errors
+ * If errors are not expected call using  handleSpecialErrors(__LINE__)
+ * If errors are expected call using handleSpecialErrors()
+ */
+void Database::handleSpecialErrors(unsigned int lineNumber) {
+    string tempErrorMessage = sqlite3_errmsg(_db);
+    if (tempErrorMessage == "no more rows available") {
+        Log::GetInstance()->addMessage("Known Unrecoverable Database Error: " + tempErrorMessage, Log::CRITICAL);
+        std::abort();                                  //crash the program
+        throw runtime_error("no more rows available"); //backup in case above does not work
+    }
+    if (lineNumber!=0) {
+        Log::GetInstance()->addMessage("Error thrown in database.cpp on line " + to_string(lineNumber) + ": " + tempErrorMessage, Log::DEBUG);
+    }
 }
 
 /**

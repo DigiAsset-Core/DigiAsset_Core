@@ -34,15 +34,21 @@ int main(int argc, char* argv[]) {
         } else {
             // For non-JSON strings, attempt to parse as number or boolean
             char* endptr;
-            double num = strtod(argv[i], &endptr);
-            if (*endptr == '\0') {
-                args.append(num);
-            } else if (argStr == "true") {
-                args.append(true);
-            } else if (argStr == "false") {
-                args.append(false);
+            long num = strtol(argv[i], &endptr, 10);
+            if (*endptr == '\0') {                  //Is integer
+                args.append(static_cast<Json::Int64>(num));
             } else {
-                args.append(argStr);
+                // Not an integer, try double
+                double fnum = strtod(argv[i], &endptr);
+                if (*endptr == '\0') {              //Is a double
+                    args.append(fnum);
+                } else if (argStr == "true") {      //Is bool
+                    args.append(true);
+                } else if (argStr == "false") {     //Is bool
+                    args.append(false);
+                } else {                            //Is String
+                    args.append(argStr);
+                }
             }
         }
     }

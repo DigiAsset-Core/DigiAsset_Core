@@ -289,6 +289,7 @@ private:
     //helpers
     static int executeSqliteStepWithRetry(sqlite3_stmt* stmt, int maxRetries = 3, int sleepDurationMs = 100);
     void executeSQLStatement(const std::string& query, const std::exception& errorToThrowOnFail);
+    void handleSpecialErrors(unsigned int lineNumber=0);
 
     //ipfs ram db values
     std::vector<std::pair<std::string, uint64_t>> _ipfsCurrentlyPaused;
