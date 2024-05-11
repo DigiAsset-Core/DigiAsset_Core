@@ -42,7 +42,13 @@ class DigiAsset {
     KYC _issuer;
 
     //count(optional to allow including a count of specific asset type)
-    uint64_t _count;
+    uint64_t _count = 0;
+
+    //count(optional to allow including the total count of specific asset type)
+    int64_t _initialCount = -1;
+
+    //array of PSP that asset is a member of.  [-1] means we have not looked it up yet
+    std::vector<int> _pspMembership={-1};
 
     //functions to help process chain data
     bool
@@ -95,6 +101,9 @@ public:
     std::string getStrCount() const;
     uint8_t getDecimals() const;
 
+    uint64_t getInitialCount();
+    std::vector<int> getPspMembership();
+
     uint64_t getAssetIndex(bool allowUnknownAssetIndex=false) const;
     bool isAssetIndexSet() const;
     void lookupAssetIndex(const std::string& txid, unsigned int vout);
@@ -121,7 +130,7 @@ public:
     checkRulesPass(const std::vector<AssetUTXO>& inputs, const std::vector<AssetUTXO>& outputs, unsigned int height,
                    uint64_t time) const;
 
-    Value toJSON(bool simplified = false) const;
+    Value toJSON(bool simplified = false, bool ignoreIPFS = false) const;
 
 
     /*

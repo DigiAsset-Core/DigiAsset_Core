@@ -1,0 +1,100 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="getrawmempool">
+<h1 class="title">getrawmempool</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">getrawmempool ( verbose mempool_sequence )</tt></p>
+<p>Returns all transaction ids in memory pool as a json array of string transaction ids.</p>
+<p>Hint: use getmempoolentry to fetch a specific transaction from the mempool.</p>
+<div class="section" id="argument-1-verbose">
+<h1>Argument #1 - verbose</h1>
+<p><strong>Type:</strong> boolean, optional, default=false</p>
+<p>True for a json object, false for array of transaction ids</p>
+</div>
+<div class="section" id="argument-2-mempool-sequence">
+<h1>Argument #2 - mempool_sequence</h1>
+<p><strong>Type:</strong> boolean, optional, default=false</p>
+<p>If verbose=false, returns a json object with transaction list and mempool sequence number attached.</p>
+</div>
+<div class="section" id="result-for-verbose-false">
+<h1>Result (for verbose = false)</h1>
+<pre class="literal-block">
+[           (json array)
+  &quot;hex&quot;,    (string) The transaction id
+  ...
+]
+</pre>
+</div>
+<div class="section" id="result-for-verbose-true">
+<h1>Result (for verbose = true)</h1>
+<pre class="literal-block">
+{                                         (json object)
+  &quot;transactionid&quot; : {                     (json object)
+    &quot;vsize&quot; : n,                          (numeric) virtual transaction size as defined in BIP 141. This is different from actual serialized size for witness transactions as witness data is discounted.
+    &quot;weight&quot; : n,                         (numeric) transaction weight as defined in BIP 141.
+    &quot;fee&quot; : n,                            (numeric) transaction fee in DGB (DEPRECATED)
+    &quot;modifiedfee&quot; : n,                    (numeric) transaction fee with fee deltas used for mining priority (DEPRECATED)
+    &quot;time&quot; : xxx,                         (numeric) local time transaction entered pool in seconds since 1 Jan 1970 GMT
+    &quot;height&quot; : n,                         (numeric) block height when transaction entered pool
+    &quot;descendantcount&quot; : n,                (numeric) number of in-mempool descendant transactions (including this one)
+    &quot;descendantsize&quot; : n,                 (numeric) virtual transaction size of in-mempool descendants (including this one)
+    &quot;descendantfees&quot; : n,                 (numeric) modified fees (see above) of in-mempool descendants (including this one) (DEPRECATED)
+    &quot;ancestorcount&quot; : n,                  (numeric) number of in-mempool ancestor transactions (including this one)
+    &quot;ancestorsize&quot; : n,                   (numeric) virtual transaction size of in-mempool ancestors (including this one)
+    &quot;ancestorfees&quot; : n,                   (numeric) modified fees (see above) of in-mempool ancestors (including this one) (DEPRECATED)
+    &quot;wtxid&quot; : &quot;hex&quot;,                      (string) hash of serialized transaction, including witness data
+    &quot;fees&quot; : {                            (json object)
+      &quot;base&quot; : n,                         (numeric) transaction fee in DGB
+      &quot;modified&quot; : n,                     (numeric) transaction fee with fee deltas used for mining priority in DGB
+      &quot;ancestor&quot; : n,                     (numeric) modified fees (see above) of in-mempool ancestors (including this one) in DGB
+      &quot;descendant&quot; : n                    (numeric) modified fees (see above) of in-mempool descendants (including this one) in DGB
+    },
+    &quot;depends&quot; : [                         (json array) unconfirmed transactions used as inputs for this transaction
+      &quot;hex&quot;,                              (string) parent transaction id
+      ...
+    ],
+    &quot;spentby&quot; : [                         (json array) unconfirmed transactions spending outputs from this transaction
+      &quot;hex&quot;,                              (string) child transaction id
+      ...
+    ],
+    &quot;bip125-replaceable&quot; : true|false,    (boolean) Whether this transaction could be replaced due to BIP125 (replace-by-fee)
+    &quot;unbroadcast&quot; : true|false            (boolean) Whether this transaction is currently unbroadcast (initial broadcast not yet acknowledged by any peers)
+  },
+  ...
+}
+</pre>
+</div>
+<div class="section" id="result-for-verbose-false-and-mempool-sequence-true">
+<h1>Result (for verbose = false and mempool_sequence = true)</h1>
+<pre class="literal-block">
+{                            (json object)
+  &quot;txids&quot; : [                (json array)
+    &quot;hex&quot;,                   (string) The transaction id
+    ...
+  ],
+  &quot;mempool_sequence&quot; : n     (numeric) The mempool sequence value.
+}
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digibyte-cli getrawmempool true
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;getrawmempool&quot;, &quot;params&quot;: [true]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
+</body>
+</html>

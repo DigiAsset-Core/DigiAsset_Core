@@ -67,6 +67,7 @@ public:
     callOnDownloadPromise(const std::string& cid, const std::string& sync = "", unsigned int maxTime = 0);
     std::string callOnDownloadSync(const std::string& cid, const std::string& sync = "", unsigned int maxTime = 0);
     void pin(const std::string& cid, unsigned int maxSize = 1); //1 is any size
+    void unpin(const std::string& cid);
 
     //synchronous requests
     bool isPinned(const std::string& cid) const;

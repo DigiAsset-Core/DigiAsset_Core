@@ -11,6 +11,9 @@ Config::Config(const string& fileName) {
     refresh();
 }
 
+Config::Config() {
+}
+
 void Config::clear() {
     _values.clear();
 }
@@ -242,4 +245,3 @@ void Config::setBoolMap(const string& key, const map<string, bool>& values) {
         _values[key + entry.first] = to_string(entry.second);
     }
 }
-

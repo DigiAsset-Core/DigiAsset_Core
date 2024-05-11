@@ -1,0 +1,91 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="lockunspent">
+<h1 class="title">lockunspent</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">lockunspent unlock ( <span class="pre">[{&quot;txid&quot;:&quot;hex&quot;,&quot;vout&quot;:n},...]</span> )</tt></p>
+<p>Updates list of temporarily unspendable outputs.</p>
+<p>Temporarily lock (unlock=false) or unlock (unlock=true) specified transaction outputs.</p>
+<p>If no transaction outputs are specified when unlocking then all current locked transaction outputs are unlocked.</p>
+<p>A locked transaction output will not be chosen by automatic coin selection, when spending bitcoins.</p>
+<p>Manually selected coins are automatically unlocked.</p>
+<p>Locks are stored in memory only. Nodes start with zero locked outputs, and the locked output list
+is always cleared (by virtue of process exit) when a node stops or fails.</p>
+<p>Also see the listunspent call</p>
+<div class="section" id="argument-1-unlock">
+<h1>Argument #1 - unlock</h1>
+<p><strong>Type:</strong> boolean, required</p>
+<p>Whether to unlock (true) or lock (false) the specified transactions</p>
+</div>
+<div class="section" id="argument-2-transactions">
+<h1>Argument #2 - transactions</h1>
+<p><strong>Type:</strong> json array, optional, default=empty array</p>
+<p>The transaction outputs and within each, the txid (string) vout (numeric).</p>
+<pre class="literal-block">
+[
+  {                   (json object)
+    &quot;txid&quot;: &quot;hex&quot;,    (string, required) The transaction id
+    &quot;vout&quot;: n,        (numeric, required) The output number
+  },
+  ...
+]
+</pre>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<table border="1" class="docutils">
+<colgroup>
+<col width="33%" />
+<col width="33%" />
+<col width="33%" />
+</colgroup>
+<thead valign="bottom">
+<tr><th class="head">Name</th>
+<th class="head">Type</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr><td>true|false</td>
+<td>boolean</td>
+<td>Whether the command was successful or not</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<p>List the unspent transactions:</p>
+<pre class="literal-block">
+digibyte-cli listunspent
+</pre>
+<p>Lock an unspent transaction:</p>
+<pre class="literal-block">
+digibyte-cli lockunspent false &quot;[{\&quot;txid\&quot;:\&quot;a08e6907dbbd3d809776dbfc5d82e371b764ed838b5655e72f463568df1aadf0\&quot;,\&quot;vout\&quot;:1}]&quot;
+</pre>
+<p>List the locked transactions:</p>
+<pre class="literal-block">
+digibyte-cli listlockunspent
+</pre>
+<p>Unlock the transaction again:</p>
+<pre class="literal-block">
+digibyte-cli lockunspent true &quot;[{\&quot;txid\&quot;:\&quot;a08e6907dbbd3d809776dbfc5d82e371b764ed838b5655e72f463568df1aadf0\&quot;,\&quot;vout\&quot;:1}]&quot;
+</pre>
+<p>As a JSON-RPC call:</p>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;lockunspent&quot;, &quot;params&quot;: [false, &quot;[{\&quot;txid\&quot;:\&quot;a08e6907dbbd3d809776dbfc5d82e371b764ed838b5655e72f463568df1aadf0\&quot;,\&quot;vout\&quot;:1}]&quot;]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
+</body>
+</html>

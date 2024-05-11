@@ -1,0 +1,81 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="gettxout">
+<h1 class="title">gettxout</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">gettxout &quot;txid&quot; n ( include_mempool )</tt></p>
+<p>Returns details about an unspent transaction output.</p>
+<div class="section" id="argument-1-txid">
+<h1>Argument #1 - txid</h1>
+<p><strong>Type:</strong> string, required</p>
+<p>The transaction id</p>
+</div>
+<div class="section" id="argument-2-n">
+<h1>Argument #2 - n</h1>
+<p><strong>Type:</strong> numeric, required</p>
+<p>vout number</p>
+</div>
+<div class="section" id="argument-3-include-mempool">
+<h1>Argument #3 - include_mempool</h1>
+<p><strong>Type:</strong> boolean, optional, default=true</p>
+<p>Whether to include the mempool. Note that an unspent output that is spent in the mempool won't appear.</p>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+{                             (json object)
+  &quot;bestblock&quot; : &quot;hex&quot;,        (string) The hash of the block at the tip of the chain
+  &quot;confirmations&quot; : n,        (numeric) The number of confirmations
+  &quot;value&quot; : n,                (numeric) The transaction value in DGB
+  &quot;scriptPubKey&quot; : {          (json object)
+    &quot;asm&quot; : &quot;hex&quot;,            (string)
+    &quot;hex&quot; : &quot;hex&quot;,            (string)
+    &quot;reqSigs&quot; : n,            (numeric) Number of required signatures
+    &quot;type&quot; : &quot;hex&quot;,           (string) The type, eg pubkeyhash
+    &quot;addresses&quot; : [           (json array) array of bitcoin addresses
+      &quot;str&quot;,                  (string) bitcoin address
+      ...
+    ]
+  },
+  "assets": [                 (json array)
+    {                         (json object)
+      "assetId":              (string) assetId
+      "assetIndex":           (number) Unique number to all assets and sub assets
+      "cid":                  (string) where you can find the meta data on IPFS
+      "count":                (number) how many assets are in the output.  Make sure to consider decimals field if count is 10 and decimals is 1 that means 1.0 assets,
+      "decimals":             (number) Number of decimals this asset can be split in to
+      "height":               (number) Height at which the asset was created
+    }
+  ]
+  &quot;coinbase&quot; : true|false     (boolean) Coinbase or not
+}
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<p>Get unspent transactions:</p>
+<pre class="literal-block">
+digibyte-cli listunspent
+</pre>
+<p>View the details:</p>
+<pre class="literal-block">
+digibyte-cli gettxout &quot;txid&quot; 1
+</pre>
+<p>As a JSON-RPC call:</p>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;gettxout&quot;, &quot;params&quot;: [&quot;txid&quot;, 1]}' -H 'content-type: text/plain;' http://127.0.0.1:14024/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
+</body>
+</html>

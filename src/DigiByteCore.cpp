@@ -93,10 +93,10 @@ void DigiByteCore::makeConnection() {
                 "http://" + config.getString("rpcuser") + ":" +
                 config.getString("rpcpassword") + "@" +
                 config.getString("rpcbind", "127.0.0.1") + ":" +
-                std::to_string(_useAssetPort ? config.getInteger("rpcassetport", 14023) : config.getInteger("rpcport", 14022))));
+                std::to_string(_useAssetPort ? config.getInteger("rpcassetport", 14024) : config.getInteger("rpcport", 14022))));
         client.reset(new jsonrpc::Client(*httpClient, jsonrpc::JSONRPC_CLIENT_V1));
         httpClient->SetTimeout(config.getInteger("rpctimeout", 50000));
-        getblockcount();
+        if (!_useAssetPort) getblockcount();
     } catch (DigiByteException& e) {
         dropConnection();
         if (e.getMessage() != "Failed to authenticate successfully") {

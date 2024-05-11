@@ -6,14 +6,15 @@
 5. [Install VCPKG](#install-vcpkg)
 6. [Install Standard C++ Dependencies](#install-standard-c-dependencies)
 7. [Update CMAKE](#update-cmake)
-8. [Install IPFS Desktop](#install-ipfs-desktop)
+8. [Install IPFS](#install-ipfs)
 9. [Set IPFS to Run on Boot](#set-ipfs-to-run-on-boot)
 10. [Build DigiAsset Core](#build-digiasset-core)
 11. [Configure DigiAsset Core](#configure-digiasset-core)
 12. [Set DigiAsset Core to Run at Boot](#set-digiasset-core-to-run-at-boot)
 13. [Upgrading DigiAsset Core](#upgrading-digiasset-core)
-14. [Other Notes](#other-notes)
-15. [Special Thanks](#special-thanks)
+14. [Documentation](#Documentation)
+15. [Other Notes](#other-notes)
+16. [Special Thanks](#special-thanks)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -52,9 +53,9 @@ place the following at the end(if swap.img is already there replace it)
 ## Install DigiByte
 
 ```bash
-wget https://github.com/digibyte/digibyte/releases/download/v7.17.2/digibyte-7.17.2-x86_64-linux-gnu.tar.gz
-tar -xf digibyte-7.17.2-x86_64-linux-gnu.tar.gz
-rm digibyte-7.17.2-x86_64-linux-gnu.tar.gz
+wget wget https://github.com/DigiByte-Core/digibyte/releases/download/v7.17.3/digibyte-7.17.3-x86_64-linux-gnu.tar.gz
+tar -xf digibyte-7.17.3-x86_64-linux-gnu.tar.gz
+rm digibyte-7.17.3-x86_64-linux-gnu.tar.gz
 mkdir .digibyte
 nano .digibyte/digibyte.conf
 ```
@@ -148,11 +149,7 @@ sudo ln -s /opt/vcpkg/vcpkg /usr/local/bin/vcpkg
 Warning: The following steps build a lot of code and can take a long time to complete
 
 ```bash
-sudo vcpkg install cryptopp
-sudo mkdir /usr/local/include/cryptopp870
-sudo cp /opt/vcpkg/packages/cryptopp_x64-linux/include/cryptopp/* /usr/local/include/cryptopp870/
 sudo vcpkg install sqlite3
-sudo apt install libcrypto++-dev
 ```
 
 ## Update CMAKE
@@ -171,7 +168,7 @@ at the end of the file add
 export PATH=/usr/local/cmake-3.27.7-linux-x86_64/bin:$PATH
 ```
 
-## Install IPFS Desktop
+## Install IPFS
 
 ```bash
 wget https://dist.ipfs.tech/kubo/v0.22.0/kubo_v0.22.0_linux-amd64.tar.gz
@@ -231,23 +228,23 @@ cmake -B . -S .. -DCMAKE_TOOLCHAIN_FILE=/opt/vcpkg/scripts/buildsystems/vcpkg.cm
 cmake --build .
 mv src/digiasset_core ../bin
 mv cli/digiasset_core-cli ../bin
+mv web/digiasset_core-web ../bin
 cd ../bin
 ```
 
+* if you wish to build the test scripts add to first cmake -DBUILD_TEST=ON
+
 ## Configure DigiAsset Core
 
+The first time you run DigiAsset Core it will ask you several questions to set up your config file.  Run DigiAsset Core using
+
 ```bash
-nano config.cfg
+./digiasset_core
 ```
 
-Set your config settings in here. At minimum, you need
+This will create bin/config.cfg the wizard creates only the basic config for a full list of config options see example.cfg
 
-```
-rpcuser=user
-rpcpassword=pass11
-```
-
-for a full list of config options see example.cfg
+Make sure DigiAsset Core is running correctly and then press ctrl+c to stop it and continue with instructions.
 
 ---
 
@@ -310,12 +307,18 @@ cmake -B . -S .. -DCMAKE_TOOLCHAIN_FILE=/opt/vcpkg/scripts/buildsystems/vcpkg.cm
 cmake --build .
 mv src/digiasset_core ../bin
 mv cli/digiasset_core-cli ../bin
+mv web/digiasset_core-web ../bin
 cd ../bin
 sudo systemctl start digiasset_core.service
 ```
 
+---
 
-### Other Notes
+## Documentation
+
+To access documentation run the digiasset_core-web application then go to http://127.0.0.1:8090/
+
+## Other Notes
 
 - If submitting pull requests please utilize the .clang-format file to keep things standardized.
 

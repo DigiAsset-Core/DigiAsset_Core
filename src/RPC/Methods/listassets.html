@@ -1,0 +1,88 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="listassets">
+<h1 class="title">listassets</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<tt class="docutils literal">listassets</tt>
+<p>Returns a list of asset IDs ordered by issuance height, with optional parameters to customize the output and filter results based on specific criteria. This command is useful for retrieving details on DigiAssets issued within certain parameters.</p>
+<div class="section" id="input">
+<h2>Input Parameters</h2>
+<p>
+<ul>
+    <li><tt>numberOfRecords</tt> (unsigned int, optional, default = infinity): The maximum number of asset records to return.</li>
+    <li><tt>startIndex</tt> (unsigned int, optional, default = 1): The starting index for asset retrieval.</li>
+    <li><tt>basic</tt> (bool, optional, default = true): Whether to return basic information about each asset or detailed information.</li>
+    <li><tt>filter</tt> (object, optional): A filter object to refine the results based on specific criteria like PSP membership:
+        <ul>
+            <li><tt>psp</tt> (bool or unsigned int): If true, only returns assets part of a PSP; if false, only those not part of a PSP; if unsigned int, only those that are part of the specified PSP.</li>
+        </ul>
+    </li>
+</ul>
+</p>
+</div>
+<div class="section" id="output">
+    <h2>Output Format</h2>
+    <p>Depending on the <tt>basic</tt> parameter, the output format changes:</p>
+    <h3>Basic Information</h3>
+    <pre class="literal-block">
+    If basic is true:
+    JSON array of objects, each representing basic asset information:
+    [
+        {
+            "assetIndex": unsigned int,
+            "assetId": string,
+            "cid": string,
+            "height": int
+        },
+        ...other assets...
+    ]
+    </pre>
+    <h3>Detailed Information</h3>
+    <pre class="literal-block">
+    If basic is false:
+    The output format matches the detailed asset data returned by the <tt>getassetdata</tt> method. This includes all attributes of the asset, potentially including metadata, IPFS links, and more detailed attributes, structured as:
+    [
+        {
+            "assetIndex": unsigned int,
+            "assetId": string,
+            "cid": string,
+            "height": int,
+            "metadata": {
+                "name": "Asset Name",
+                "creator": "Creator Address",
+                "description": "Asset Description",
+                ...other metadata fields...
+            },
+            "ipfs": "IPFS link",
+            ...additional fields depending on the asset...
+        },
+        ...other assets...
+    ]
+    </pre>
+    <p>For more information on the format of detailed asset data, please refer to the documentation for <a href="/src/RPC/Methods/getassetdata.html">getassetdata</a>.</p>
+    </div>
+    
+<div class="section" id="examples">
+<h2>Examples</h2>
+<pre class="literal-block">
+digiasset_core-cli listassets 10 1 true
+</pre>
+<pre class="literal-block">
+digiasset_core-cli listassets 10 1 false '{"psp": true}'
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "listassets", "params": [10, 1, true, {"psp": true}]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
+</body>
+</html>

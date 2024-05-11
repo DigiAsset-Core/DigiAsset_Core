@@ -1,0 +1,459 @@
+/* NORMALIZE */
+*,
+*::after,
+*::before {
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+}
+
+a {
+    text-decoration: none;
+}
+
+a,
+button {
+    color: inherit;
+}
+
+button {
+    background: none;
+    cursor: pointer;
+}
+
+label {
+    cursor: pointer;
+}
+
+input {
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+ul {
+    list-style: none;
+}
+
+input,
+button {
+    border: none;
+}
+
+/* RESPONSIVENESS */
+
+.document {
+    width: 100%;
+    padding: 0 0.75rem;
+    margin-right: auto;
+    margin-left: auto;
+}
+
+@media (min-width: 576px) {
+    .document {
+        max-width: 540px;
+    }
+}
+
+@media (min-width: 768px) {
+    .document {
+        max-width: 720px;
+    }
+}
+
+@media (min-width: 992px) {
+    .document {
+        max-width: 960px;
+    }
+}
+
+@media (min-width: 1200px) {
+    .document {
+        max-width: 1140px;
+    }
+}
+
+@media (min-width: 1400px) {
+    .document {
+        max-width: 1320px;
+    }
+}
+
+@media only screen and (min-resolution: 300dpi),
+    only screen and (min-width: 3840px) and (min-height: 2160px) {
+    /* Styles for high-resolution 4K screens */
+    .document {
+        max-width: 1800px;
+    }
+}
+
+/* GENERAL */
+
+html {
+    font-size: 14px;
+}
+
+body {
+    font-size: 1.1rem;
+    font-family: "Gill Sans", "Gill Sans MT", Calibri, "Trebuchet MS", sans-serif;
+    padding-bottom: 10rem;
+}
+
+ul ul {
+    margin-left: 4rem;
+    list-style-type: lower-alpha;
+}
+
+li {
+    margin: 1rem 0;
+}
+
+p,
+pre,
+span,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    margin: 1rem 0 !important;
+}
+
+p.info {
+    padding: 0.4rem;
+    background-color: #f7ffaa;
+    display: inline-block;
+    border-radius: 5px;
+    color: #a53d2a;
+}
+
+.section::before {
+    content: "";
+    display: block;
+    width: 80%;
+    height: 1px;
+    margin: 2rem 0;
+    background-color: #dbdbdb;
+}
+
+footer {
+    background-color: white;
+    height: 4rem;
+}
+
+footer .copyright {
+    text-align: center;
+}
+
+.sidebar {
+    width: 250px;
+    height: calc(
+        100vh - 4rem
+    ); /* Full viewport height minus footer height */
+    position: fixed;
+    left: -250px; /* Start offscreen */
+    top: 0;
+    background-color: #f4f4f4;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.5);
+    transition: left 0.3s ease;
+    z-index: 1000;
+    overflow-y: auto; /* Ensures sidebar content is scrollable */
+    padding: 0 0.2rem;
+}
+
+/* When the sidebar is open, optionally lock the body scroll */
+body.noscroll {
+    overflow: hidden; /* Prevents scrolling on the main content when sidebar is open */
+    width: 100%; /* Maintain layout during no-scroll */
+}
+
+.main-content {
+    margin-left: 0; /* No margin when sidebar is hidden */
+    flex-grow: 1;
+    padding: 1rem; /* Added padding for content area */
+    max-width: 100vw;
+}
+
+@media screen and (min-width: 768px) {
+    .main-content {
+        max-width: calc(100vw - 250px);
+    }
+
+    .toggle-sidebar {
+        display: none;
+    }
+}
+
+/* Toggle the sidebar visibility on small screens */
+.sidebar.open {
+    left: 0; /* Bring sidebar into view */
+}
+
+/* Button to toggle the sidebar */
+.toggle-sidebar {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    z-index: 1002; /* Make sure it's above the sidebar's z-index */
+    cursor: pointer;
+    padding: 10px;
+    background-color: #f4f4f4;
+    border: none;
+    outline: none;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+}
+
+/* Responsive adjustments */
+@media (min-width: 768px) {
+    .main-content {
+        margin-left: 250px; /* Restore margin when sidebar is always visible */
+    }
+    .sidebar {
+        left: 0; /* Always visible on larger screens */
+    }
+}
+
+.loader {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    width: 50px;
+    height: 50px;
+    background-color: #333;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    z-index: 9999;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* POSITIONING */
+.fixed-top,
+.fixed-bottom {
+  position: fixed;
+  right: 0;
+  left: 0;
+  z-index: 2000;
+}
+
+.fixed-top {
+  top: 0;
+}
+
+.fixed-bottom {
+  bottom: 0;
+}
+
+/* CODE BLOCKS */
+
+pre.literal-block {
+    font-family: "Courier New", Courier, monospace;
+    position: relative;
+    background-color: #3f3f3f;
+    color: white;
+    padding: 2rem 1rem 1rem 1rem;
+    border-radius: 5px;
+    box-shadow: 0 0 5px black;
+
+    overflow-x: auto; /* Enables horizontal scrolling */
+}
+
+.code-header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 1.5rem;
+    background-color: #313131;
+}
+
+.copy-button {
+    height: 1.5rem;
+    padding: 0 0.5rem;
+    color: #cacaca;
+    position: absolute;
+    top: 0;
+    /* Avoid accidentally marking text of copy button */
+    -webkit-user-select: none; /* Safari */
+    -moz-user-select: none; /* Firefox */
+    -ms-user-select: none; /* Internet Explorer/Edge */
+    user-select: none; /* Non-prefixed version, currently supported by Chrome, Opera, and Edge */
+}
+
+tt {
+    font-weight: 700;
+    color: #ff3388;
+}
+
+tt.literal {
+    font-family: "Courier New", Courier, monospace;
+    display: inline-block;
+    background-color: #3f3f3f;
+    color: white;
+    padding: 0.3rem;
+    border-radius: 5px;
+}
+
+/* INDEX NAVIGATION */
+
+.rpc_nav {
+    list-style: none;
+}
+
+a {
+    color: #06c;
+    font-size: 1.2rem;
+}
+
+section {
+    min-height: calc(100vh - 6rem);
+    padding: 1rem 0;
+}
+
+section:not(:first-of-type) {
+    margin: 5rem 0;
+}
+
+section:nth-of-type(even) {
+    background-color: #dfdfdf;
+    border-radius: 10px;
+}
+
+li.rpc_item:hover,
+li.rpc_item.active {
+    background-color: #06c;
+}
+li.rpc_item.active a,
+li.rpc_item:hover a {
+    color: white;
+}
+li.rpc_item.active a {
+    font-weight: 700;
+}
+
+.sidebar li {
+    margin: 0.2rem 0;
+    padding: 0.5rem;
+}
+/* LINKS */
+
+a.reference.external {
+    display:block;
+}
+
+/* DOCUMENT */
+
+.title {
+    text-align: center;
+}
+
+/* TABLES */
+
+table {
+    border-collapse: collapse;
+    border-spacing: 0;
+
+    max-width: 100%;
+    width: 100%;
+    height: auto;
+}
+
+table th:first-child {
+    border-top-left-radius: 10px;
+}
+
+
+table td:first-child {
+    border-left: 1px solid #cacaca;
+}
+
+table td {
+    border-right: 1px solid #cacaca;
+    border-top: none;
+}
+
+table tr {
+ border-bottom: 1px solid #cacaca;
+}
+
+table th:last-child{
+    border-top-right-radius: 10px;
+}
+
+
+
+th {
+    padding: .2rem 0;
+    background-color: #cacaca;
+}
+
+td {
+    padding: .3rem 1rem;
+}
+
+
+
+/* CARDS */
+
+.card {
+    position: relative;
+    display: -ms-flexbox;
+    display: flex;
+    -ms-flex-direction: column;
+    flex-direction: column;
+    min-width: 0;
+    word-wrap: break-word;
+    background-clip: border-box;
+    border: 1px solid rgba(0, 0, 0, .125);
+    border-radius: .25rem;
+  }
+  
+  .ch {
+    padding: .75rem 1.25rem;
+    margin-bottom: 0;
+    background-color: inherit;
+    border-bottom: 1px solid rgba(0, 0, 0, .125);
+  }
+
+  .ch:hover {
+    cursor: pointer;
+  }
+  
+  .ch:first-child {
+    border-radius: calc(.25rem - 1px) calc(.25rem - 1px) 0 0;
+  }
+  
+  .cb {
+    -ms-flex: 1 1 auto;
+    flex: 1 1 auto;
+    padding: 1.25rem;
+    overflow: hidden;
+    transition: max-height 0.5s ease-in-out, opacity 0.5s ease-in-out;
+    max-height: 0;
+    opacity: 0;
+  }
+  
+  .cb:not(.collapsed) {
+    max-height: 10000px;
+    opacity: 1;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+  
+  .cf {
+    padding: .75rem 1.25rem;
+    background-color: inherit;
+    border-top: 1px solid rgba(0, 0, 0, .125);
+  }
+  
+  .cf:last-child {
+    border-radius: 0 0 calc(.25rem - 1px) calc(.25rem - 1px);
+  }

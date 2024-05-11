@@ -1,0 +1,60 @@
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link rel="stylesheet" type="text/css" href="/css/style.css" />
+    </head>
+    <body>
+        <div class="document" id="asyncget">
+            <h1 class="title">asyncget</h1>
+            <!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+            <tt class="docutils literal">asyncget</tt>
+            <p>
+                Retrieves the results of an <tt>asyncstart</tt> command with the
+                same parameters.
+            </p>
+            <div class="section" id="input">
+                <h2>Input Parameters</h2>
+                <p>Method expects a list of parameters:</p>
+                <ul>
+                    <li>
+                        <tt>method name</tt> (string): Name of the method whose
+                        results are to be retrieved.
+                    </li>
+                    <li>
+                        <tt>param1</tt> (optional): First additional parameter
+                        of the method.
+                    </li>
+                    <li>
+                        <tt>param2</tt> (optional): Second additional parameter
+                        of the method, and so forth.
+                    </li>
+                </ul>
+            </div>
+            <div class="section" id="output">
+                <h2>Output Format</h2>
+                <pre class="literal-block">
+The output format is the same as the method called, but if the output is an object, an additional <tt>cacheTime</tt> parameter is included. Returns <tt>false</tt> if the file does not exist or cannot be read.
+</pre
+                >
+            </div>
+            <div class="section" id="examples">
+                <h2>Examples</h2>
+                <pre class="literal-block">
+digiasset_core-cli asyncget "methodName"
+</pre
+                >
+                <pre class="literal-block">
+curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "asyncget", "params": ["methodName"]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre
+                >
+            </div>
+        </div>
+
+        <script src="/js/main.js"></script>
+        <footer class="fixed-bottom">
+            <p class="copyright">© Copyright DigiByte Project 2024</p>
+        </footer>
+    </body>
+</html>

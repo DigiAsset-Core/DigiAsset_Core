@@ -18,12 +18,19 @@ set(TESTS
         DigiAssetTest.cpp
         DigiAssetRulesTest.cpp
         DigiAssetTransactionTest.cpp
-        TestHelpers.cpp TestHelpers.h)
+        TestHelpers.cpp TestHelpers.h RPCMethods.cpp RPCMethods.h)
+
+#load RPC tests
+file(GLOB RPC_METHOD_TEST_SOURCES RPC_Methods/*.cpp)
+foreach(SOURCE_FILE ${RPC_METHOD_TEST_SOURCES})
+    list(APPEND TESTS ${SOURCE_FILE})
+endforeach()
 
 # 'Google_Tests_run' is the target name
 # 'test1.cpp tests2.cpp' are source files with tests
 add_executable(Google_Tests_run ${TESTS})   #digibyteapi
-target_link_libraries(Google_Tests_run digiasset_core_lib sqlite3 cryptopp curl)
+target_link_libraries(Google_Tests_run digiasset_core_lib sqlite3 curl)
 target_link_libraries(Google_Tests_run gtest gtest_main)
+target_link_libraries(Google_Tests_run ssl crypto pthread)
 
 target_link_libraries(Google_Tests_run /lib/x86_64-linux-gnu/libjsoncpp.so jsonrpccpp-common jsonrpccpp-client)

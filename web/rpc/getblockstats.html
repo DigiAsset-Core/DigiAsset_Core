@@ -1,0 +1,95 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="getblockstats">
+<h1 class="title">getblockstats</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">getblockstats hash_or_height ( stats )</tt></p>
+<p>Compute per block statistics for a given window. All amounts are in satoshis.</p>
+<p>It won't work for some heights with pruning.</p>
+<div class="section" id="argument-1-hash-or-height">
+<h1>Argument #1 - hash_or_height</h1>
+<p><strong>Type:</strong> string or numeric, required</p>
+<p>The block hash or height of the target block</p>
+</div>
+<div class="section" id="argument-2-stats">
+<h1>Argument #2 - stats</h1>
+<p><strong>Type:</strong> json array, optional, default=all values</p>
+<p>Values to plot (see result below)</p>
+<pre class="literal-block">
+[
+  &quot;height&quot;,     (string) Selected statistic
+  &quot;time&quot;,       (string) Selected statistic
+  ...
+]
+</pre>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+{                              (json object)
+  &quot;avgfee&quot; : n,                (numeric) Average fee in the block
+  &quot;avgfeerate&quot; : n,            (numeric) Average feerate (in satoshis per virtual byte)
+  &quot;avgtxsize&quot; : n,             (numeric) Average transaction size
+  &quot;blockhash&quot; : &quot;hex&quot;,         (string) The block hash (to check for potential reorgs)
+  &quot;feerate_percentiles&quot; : [    (json array) Feerates at the 10th, 25th, 50th, 75th, and 90th percentile weight unit (in satoshis per virtual byte)
+    n,                         (numeric) The 10th percentile feerate
+    n,                         (numeric) The 25th percentile feerate
+    n,                         (numeric) The 50th percentile feerate
+    n,                         (numeric) The 75th percentile feerate
+    n                          (numeric) The 90th percentile feerate
+  ],
+  &quot;height&quot; : n,                (numeric) The height of the block
+  &quot;ins&quot; : n,                   (numeric) The number of inputs (excluding coinbase)
+  &quot;maxfee&quot; : n,                (numeric) Maximum fee in the block
+  &quot;maxfeerate&quot; : n,            (numeric) Maximum feerate (in satoshis per virtual byte)
+  &quot;maxtxsize&quot; : n,             (numeric) Maximum transaction size
+  &quot;medianfee&quot; : n,             (numeric) Truncated median fee in the block
+  &quot;mediantime&quot; : n,            (numeric) The block median time past
+  &quot;mediantxsize&quot; : n,          (numeric) Truncated median transaction size
+  &quot;minfee&quot; : n,                (numeric) Minimum fee in the block
+  &quot;minfeerate&quot; : n,            (numeric) Minimum feerate (in satoshis per virtual byte)
+  &quot;mintxsize&quot; : n,             (numeric) Minimum transaction size
+  &quot;outs&quot; : n,                  (numeric) The number of outputs
+  &quot;subsidy&quot; : n,               (numeric) The block subsidy
+  &quot;swtotal_size&quot; : n,          (numeric) Total size of all segwit transactions
+  &quot;swtotal_weight&quot; : n,        (numeric) Total weight of all segwit transactions
+  &quot;swtxs&quot; : n,                 (numeric) The number of segwit transactions
+  &quot;time&quot; : n,                  (numeric) The block time
+  &quot;total_out&quot; : n,             (numeric) Total amount in all outputs (excluding coinbase and thus reward [ie subsidy + totalfee])
+  &quot;total_size&quot; : n,            (numeric) Total size of all non-coinbase transactions
+  &quot;total_weight&quot; : n,          (numeric) Total weight of all non-coinbase transactions
+  &quot;totalfee&quot; : n,              (numeric) The fee total
+  &quot;txs&quot; : n,                   (numeric) The number of transactions (including coinbase)
+  &quot;utxo_increase&quot; : n,         (numeric) The increase/decrease in the number of unspent outputs
+  &quot;utxo_size_inc&quot; : n          (numeric) The increase/decrease in size for the utxo index (not discounting op_return and similar)
+}
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digibyte-cli getblockstats '&quot;00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09&quot;' '[&quot;minfeerate&quot;,&quot;avgfeerate&quot;]'
+</pre>
+<pre class="literal-block">
+digibyte-cli getblockstats 1000 '[&quot;minfeerate&quot;,&quot;avgfeerate&quot;]'
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;getblockstats&quot;, &quot;params&quot;: [&quot;00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09&quot;, [&quot;minfeerate&quot;,&quot;avgfeerate&quot;]]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;getblockstats&quot;, &quot;params&quot;: [1000, [&quot;minfeerate&quot;,&quot;avgfeerate&quot;]]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
+</body>
+</html>

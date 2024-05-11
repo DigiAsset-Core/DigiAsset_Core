@@ -1,0 +1,74 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="listreceivedbyaddress">
+<h1 class="title">listreceivedbyaddress</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">listreceivedbyaddress ( minconf include_empty include_watchonly &quot;address_filter&quot; )</tt></p>
+<p>List balances by receiving address.</p>
+<div class="section" id="argument-1-minconf">
+<h1>Argument #1 - minconf</h1>
+<p><strong>Type:</strong> numeric, optional, default=1</p>
+<p>The minimum number of confirmations before payments are included.</p>
+</div>
+<div class="section" id="argument-2-include-empty">
+<h1>Argument #2 - include_empty</h1>
+<p><strong>Type:</strong> boolean, optional, default=false</p>
+<p>Whether to include addresses that haven't received any payments.</p>
+</div>
+<div class="section" id="argument-3-include-watchonly">
+<h1>Argument #3 - include_watchonly</h1>
+<p><strong>Type:</strong> boolean, optional, default=true for watch-only wallets, otherwise false</p>
+<p>Whether to include watch-only addresses (see 'importaddress')</p>
+</div>
+<div class="section" id="argument-4-address-filter">
+<h1>Argument #4 - address_filter</h1>
+<p><strong>Type:</strong> string, optional</p>
+<p>If present, only return information on this address.</p>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+[                                        (json array)
+  {                                      (json object)
+    &quot;involvesWatchonly&quot; : true|false,    (boolean) Only returns true if imported addresses were involved in transaction
+    &quot;address&quot; : &quot;str&quot;,                   (string) The receiving address
+    &quot;amount&quot; : n,                        (numeric) The total amount in DGB received by the address
+    &quot;confirmations&quot; : n,                 (numeric) The number of confirmations of the most recent transaction included
+    &quot;label&quot; : &quot;str&quot;,                     (string) The label of the receiving address. The default label is &quot;&quot;
+    &quot;txids&quot; : [                          (json array)
+      &quot;hex&quot;,                             (string) The ids of transactions received with the address
+      ...
+    ]
+  },
+  ...
+]
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digibyte-cli listreceivedbyaddress
+</pre>
+<pre class="literal-block">
+digibyte-cli listreceivedbyaddress 6 true
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;listreceivedbyaddress&quot;, &quot;params&quot;: [6, true, true]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;listreceivedbyaddress&quot;, &quot;params&quot;: [6, true, true, &quot;SXXgn4BX1wTXrCxAtwtiB2r3DPg7nnhjYA&quot;]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
+</body>
+</html>

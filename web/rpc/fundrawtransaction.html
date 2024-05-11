@@ -1,0 +1,113 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="fundrawtransaction">
+<h1 class="title">fundrawtransaction</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">fundrawtransaction &quot;hexstring&quot; ( options iswitness )</tt></p>
+<p>If the transaction has no inputs, they will be automatically selected to meet its out value.</p>
+<p>It will add at most one change output to the outputs.</p>
+<p>No existing outputs will be modified unless &quot;subtractFeeFromOutputs&quot; is specified.</p>
+<p>Note that inputs which were signed may need to be resigned after completion since in/outputs have been added.</p>
+<dl class="docutils">
+<dt>The inputs added will not be signed, use signrawtransactionwithkey</dt>
+<dd>or signrawtransactionwithwallet for that.</dd>
+</dl>
+<p>Note that all existing inputs must have their previous output transaction be in the wallet.</p>
+<p>Note that all inputs selected must be of standard form and P2SH scripts must be
+in the wallet using importaddress or addmultisigaddress (to calculate fees).</p>
+<p>You can see whether this is the case by checking the &quot;solvable&quot; field in the listunspent output.</p>
+<p>Only pay-to-pubkey, multisig, and P2SH versions thereof are currently supported for watch-only</p>
+<div class="section" id="argument-1-hexstring">
+<h1>Argument #1 - hexstring</h1>
+<p><strong>Type:</strong> string, required</p>
+<p>The hex string of the raw transaction</p>
+</div>
+<div class="section" id="argument-2-options">
+<h1>Argument #2 - options</h1>
+<p><strong>Type:</strong> json object, optional</p>
+<dl class="docutils">
+<dt>for backward compatibility: passing in a true instead of an object will result in {&quot;includeWatching&quot;:true}</dt>
+<dd>&quot;replaceable&quot;: bool,           (boolean, optional, default=wallet default) Marks this transaction as BIP125 replaceable.
+Allows this transaction to be replaced by a transaction with higher fees
+&quot;conf_target&quot;: n,              (numeric, optional, default=wallet -txconfirmtarget) Confirmation target in blocks
+&quot;estimate_mode&quot;: &quot;str&quot;,        (string, optional, default=unset) The fee estimate mode, must be one of (case insensitive):
+&quot;unset&quot;
+&quot;economical&quot;
+&quot;conservative&quot;
+}</dd>
+</dl>
+<pre class="literal-block">
+{
+  &quot;add_inputs&quot;: bool,            (boolean, optional, default=true) For a transaction with existing inputs, automatically include more if they are not enough.
+  &quot;changeAddress&quot;: &quot;str&quot;,        (string, optional, default=pool address) The bitcoin address to receive the change
+  &quot;changePosition&quot;: n,           (numeric, optional, default=random) The index of the change output
+  &quot;change_type&quot;: &quot;str&quot;,          (string, optional, default=set by -changetype) The output type to use. Only valid if changeAddress is not specified. Options are &quot;legacy&quot;, &quot;p2sh-segwit&quot;, and &quot;bech32&quot;.
+  &quot;includeWatching&quot;: bool,       (boolean, optional, default=true for watch-only wallets, otherwise false) Also select inputs which are watch only.
+                                 Only solvable inputs can be used. Watch-only destinations are solvable if the public key and/or output script was imported,
+                                 e.g. with 'importpubkey' or 'importmulti' with the 'pubkeys' or 'desc' field.
+  &quot;lockUnspents&quot;: bool,          (boolean, optional, default=false) Lock selected unspent outputs
+  &quot;fee_rate&quot;: amount,            (numeric or string, optional, default=not set, fall back to wallet fee estimation) Specify a fee rate in sat/vB.
+  &quot;feeRate&quot;: amount,             (numeric or string, optional, default=not set, fall back to wallet fee estimation) Specify a fee rate in DGB/kvB.
+  &quot;subtractFeeFromOutputs&quot;: [    (json array, optional, default=empty array) The integers.
+                                 The fee will be equally deducted from the amount of each specified output.
+                                 Those recipients will receive less bitcoins than you enter in their corresponding amount field.
+                                 If no outputs are specified here, the sender pays the fee.
+    vout_index,                  (numeric) The zero-based output index, before a change output is added.
+    ...
+  ],
+</pre>
+</div>
+<div class="section" id="argument-3-iswitness">
+<h1>Argument #3 - iswitness</h1>
+<p><strong>Type:</strong> boolean, optional, default=depends on heuristic tests</p>
+<dl class="docutils">
+<dt>Whether the transaction hex is a serialized witness transaction.</dt>
+<dd>If iswitness is not present, heuristic tests will be used in decoding.
+If true, only witness deserialization will be tried.
+If false, only non-witness deserialization will be tried.
+This boolean should reflect whether the transaction has inputs
+(e.g. fully valid, or on-chain transactions), if known by the caller.</dd>
+</dl>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+{                     (json object)
+  &quot;hex&quot; : &quot;hex&quot;,      (string) The resulting raw transaction (hex-encoded string)
+  &quot;fee&quot; : n,          (numeric) Fee in DGB the resulting transaction pays
+  &quot;changepos&quot; : n     (numeric) The position of the added change output, or -1
+}
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<p>Create a transaction with no inputs:</p>
+<pre class="literal-block">
+digibyte-cli createrawtransaction &quot;[]&quot; &quot;{\&quot;myaddress\&quot;:0.01}&quot;
+</pre>
+<p>Add sufficient unsigned inputs to meet the output value:</p>
+<pre class="literal-block">
+digibyte-cli fundrawtransaction &quot;rawtransactionhex&quot;
+</pre>
+<p>Sign the transaction:</p>
+<pre class="literal-block">
+digibyte-cli signrawtransactionwithwallet &quot;fundedtransactionhex&quot;
+</pre>
+<p>Send the transaction:</p>
+<pre class="literal-block">
+digibyte-cli sendrawtransaction &quot;signedtransactionhex&quot;
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
+</body>
+</html>

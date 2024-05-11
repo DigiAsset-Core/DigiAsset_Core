@@ -1,0 +1,63 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="analyzepsbt">
+<h1 class="title">analyzepsbt</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">analyzepsbt &quot;psbt&quot;</tt></p>
+<p>Analyzes and provides information about the current status of a PSBT and its inputs</p>
+<div class="section" id="argument-1-psbt">
+<h1>Argument #1 - psbt</h1>
+<p><strong>Type:</strong> string, required</p>
+<p>A base64 string of a PSBT</p>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+{                                   (json object)
+  &quot;inputs&quot; : [                      (json array)
+    {                               (json object)
+      &quot;has_utxo&quot; : true|false,      (boolean) Whether a UTXO is provided
+      &quot;is_final&quot; : true|false,      (boolean) Whether the input is finalized
+      &quot;missing&quot; : {                 (json object, optional) Things that are missing that are required to complete this input
+        &quot;pubkeys&quot; : [               (json array, optional)
+          &quot;hex&quot;,                    (string) Public key ID, hash160 of the public key, of a public key whose BIP 32 derivation path is missing
+          ...
+        ],
+        &quot;signatures&quot; : [            (json array, optional)
+          &quot;hex&quot;,                    (string) Public key ID, hash160 of the public key, of a public key whose signature is missing
+          ...
+        ],
+        &quot;redeemscript&quot; : &quot;hex&quot;,     (string, optional) Hash160 of the redeemScript that is missing
+        &quot;witnessscript&quot; : &quot;hex&quot;     (string, optional) SHA256 of the witnessScript that is missing
+      },
+      &quot;next&quot; : &quot;str&quot;                (string, optional) Role of the next person that this input needs to go to
+    },
+    ...
+  ],
+  &quot;estimated_vsize&quot; : n,            (numeric, optional) Estimated vsize of the final signed transaction
+  &quot;estimated_feerate&quot; : n,          (numeric, optional) Estimated feerate of the final signed transaction in DGB/kB. Shown only if all UTXO slots in the PSBT have been filled
+  &quot;fee&quot; : n,                        (numeric, optional) The transaction fee paid. Shown only if all UTXO slots in the PSBT have been filled
+  &quot;next&quot; : &quot;str&quot;,                   (string) Role of the next person that this psbt needs to go to
+  &quot;error&quot; : &quot;str&quot;                   (string, optional) Error message (if there is one)
+}
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digibyte-cli analyzepsbt &quot;psbt&quot;
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
+</body>
+</html>

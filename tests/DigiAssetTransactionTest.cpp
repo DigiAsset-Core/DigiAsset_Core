@@ -11,6 +11,7 @@
 #include "Log.h"
 #include "TestHelpers.h"
 #include "gtest/gtest.h"
+#include "utils.h"
 #include <cmath>
 
 #include <algorithm>
@@ -30,7 +31,7 @@ TEST(DigiAssetTransaction, existingAssetTransactions) {
     Log* log = Log::GetInstance("debug.log");
     log->setMinLevelToFile(Log::INFO);
 
-    const bool showAll = true; ///set true if debugging and want it to show the txid before doing each test
+    const bool showAll = false; ///set true if debugging and want it to show the txid before doing each test
     string errorList = "";
 
     //delete old test database if still exists
@@ -40,7 +41,7 @@ TEST(DigiAssetTransaction, existingAssetTransactions) {
 
     IPFS ipfs("config.cfg", false);
     ipfs.downloadFile("QmNPyr5tkm48cUu5iMbReiM8GN8AW6PRpzUztPFadaxC8j", "../tests/testFiles/assetTest.csv", true);
-    ipfs.downloadFile("QmcvaYnWtft2zxYoj8Mzy9cauB6Je11cTwtD7Qi2oThJdh", "../tests/testFiles/assetTest.db", true);
+    ipfs.downloadFile("QmVoawgnYej8TNwpBB7DtJ75KbrAB99k7f9VAWzqSLJBeX", "../tests/testFiles/assetTest.db", true);
 
     //initialize prerequisites
     AppMain* main = AppMain::GetInstance();
@@ -54,6 +55,8 @@ TEST(DigiAssetTransaction, existingAssetTransactions) {
     ipfs.start();
     PermanentStoragePoolList psp("config.cfg");
     main->setPermanentStoragePoolList(&psp);
+    RPC::Cache rpcCache;
+    main->setRpcCache(&rpcCache);
 
 
     //download test files
@@ -67,9 +70,8 @@ TEST(DigiAssetTransaction, existingAssetTransactions) {
             std::string line;
             DigiByteTransaction test;
             while (std::getline(file, line)) {
-                if ((!showAll) && (testNumber % 100 == 0)) {
-                    cout << "*";
-                    std::cout.flush();
+                if ((!showAll) && (testTotal>0) && (testNumber % 1000 == 0)) {
+                    utils::printProgressBar(static_cast<float>(testNumber) / static_cast<float>(testTotal) );
                 }
 
                 //initialize some variables that are needed by the test script
@@ -278,6 +280,11 @@ TEST(DigiAssetTransaction, existingAssetTransactions) {
     while (db.getIPFSJobCount()>0) {
         chrono::minutes dura(1);
         this_thread::sleep_for(dura);
+    }
+
+    //copy processed database if all good so rpc tests can run on it
+    if (errorList.empty()) {
+        utils::copyFile("../tests/testFiles/assetTest.db", "../tests/testFiles/rpcTest.db");
     }
 
     //clean up

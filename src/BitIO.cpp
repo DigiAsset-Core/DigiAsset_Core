@@ -1174,7 +1174,7 @@ double BitIO::getDouble(bool isLE) {
 
     if (e == 0) {
         e = 1 - eBias;
-    } else if (e == eMax) {
+    } else if (static_cast<uint64_t>(e) == eMax) {  //e will never be negative at this point so safe to cast to uin64_t for comparison
         return m ? nan("") : ((s ? -1 : 1) * INFINITY);
     } else {
         m = m + ((uint64_t) 1 << mLen);      //1<<mLen is same as 2^mLen

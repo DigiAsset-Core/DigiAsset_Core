@@ -1,0 +1,56 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="getwalletinfo">
+<h1 class="title">getwalletinfo</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">getwalletinfo</tt></p>
+<p>Returns an object containing various wallet state info.</p>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+{                                         (json object)
+  &quot;walletname&quot; : &quot;str&quot;,                   (string) the wallet name
+  &quot;walletversion&quot; : n,                    (numeric) the wallet version
+  &quot;format&quot; : &quot;str&quot;,                       (string) the database format (bdb or sqlite)
+  &quot;balance&quot; : n,                          (numeric) DEPRECATED. Identical to getbalances().mine.trusted
+  &quot;unconfirmed_balance&quot; : n,              (numeric) DEPRECATED. Identical to getbalances().mine.untrusted_pending
+  &quot;immature_balance&quot; : n,                 (numeric) DEPRECATED. Identical to getbalances().mine.immature
+  &quot;txcount&quot; : n,                          (numeric) the total number of transactions in the wallet
+  &quot;keypoololdest&quot; : xxx,                  (numeric) the UNIX epoch time of the oldest pre-generated key in the key pool. Legacy wallets only.
+  &quot;keypoolsize&quot; : n,                      (numeric) how many new keys are pre-generated (only counts external keys)
+  &quot;keypoolsize_hd_internal&quot; : n,          (numeric) how many new keys are pre-generated for internal use (used for change outputs, only appears if the wallet is using this feature, otherwise external keys are used)
+  &quot;unlocked_until&quot; : xxx,                 (numeric, optional) the UNIX epoch time until which the wallet is unlocked for transfers, or 0 if the wallet is locked (only present for passphrase-encrypted wallets)
+  &quot;paytxfee&quot; : n,                         (numeric) the transaction fee configuration, set in DGB/kvB
+  &quot;hdseedid&quot; : &quot;hex&quot;,                     (string, optional) the Hash160 of the HD seed (only present when HD is enabled)
+  &quot;private_keys_enabled&quot; : true|false,    (boolean) false if privatekeys are disabled for this wallet (enforced watch-only wallet)
+  &quot;avoid_reuse&quot; : true|false,             (boolean) whether this wallet tracks clean/dirty coins in terms of reuse
+  &quot;scanning&quot; : {                          (json object) current scanning details, or false if no scan is in progress
+    &quot;duration&quot; : n,                       (numeric) elapsed seconds since scan start
+    &quot;progress&quot; : n                        (numeric) scanning progress percentage [0.0, 1.0]
+  },
+  &quot;descriptors&quot; : true|false              (boolean) whether this wallet uses descriptors for scriptPubKey management
+}
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digibyte-cli getwalletinfo
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;getwalletinfo&quot;, &quot;params&quot;: []}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
+</body>
+</html>

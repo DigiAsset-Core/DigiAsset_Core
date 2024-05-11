@@ -1,0 +1,54 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="getaddednodeinfo">
+<h1 class="title">getaddednodeinfo</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">getaddednodeinfo ( &quot;node&quot; )</tt></p>
+<p>Returns information about the given added node, or all added nodes
+(note that onetry addnodes are not listed here)</p>
+<div class="section" id="argument-1-node">
+<h1>Argument #1 - node</h1>
+<p><strong>Type:</strong> string, optional, default=all nodes</p>
+<p>If provided, return information about this specific node, otherwise all nodes are returned.</p>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+[                                (json array)
+  {                              (json object)
+    &quot;addednode&quot; : &quot;str&quot;,         (string) The node IP address or name (as provided to addnode)
+    &quot;connected&quot; : true|false,    (boolean) If connected
+    &quot;addresses&quot; : [              (json array) Only when connected = true
+      {                          (json object)
+        &quot;address&quot; : &quot;str&quot;,       (string) The bitcoin server IP and port we're connected to
+        &quot;connected&quot; : &quot;str&quot;      (string) connection, inbound or outbound
+      },
+      ...
+    ]
+  },
+  ...
+]
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digibyte-cli getaddednodeinfo &quot;192.168.0.201&quot;
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;getaddednodeinfo&quot;, &quot;params&quot;: [&quot;192.168.0.201&quot;]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
+</body>
+</html>

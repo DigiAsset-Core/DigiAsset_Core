@@ -1,0 +1,99 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="signrawtransactionwithkey">
+<h1 class="title">signrawtransactionwithkey</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">signrawtransactionwithkey &quot;hexstring&quot; <span class="pre">[&quot;privatekey&quot;,...]</span> ( <span class="pre">[{&quot;txid&quot;:&quot;hex&quot;,&quot;vout&quot;:n,&quot;scriptPubKey&quot;:&quot;hex&quot;,&quot;redeemScript&quot;:&quot;hex&quot;,&quot;witnessScript&quot;:&quot;hex&quot;,&quot;amount&quot;:amount},...]</span> &quot;sighashtype&quot; )</tt></p>
+<p>Sign inputs for raw transaction (serialized, hex-encoded).</p>
+<p>The second argument is an array of base58-encoded private
+keys that will be the only keys used to sign the transaction.</p>
+<p>The third optional argument (may be null) is an array of previous transaction outputs that
+this transaction depends on but may not yet be in the block chain.</p>
+<div class="section" id="argument-1-hexstring">
+<h1>Argument #1 - hexstring</h1>
+<p><strong>Type:</strong> string, required</p>
+<p>The transaction hex string</p>
+</div>
+<div class="section" id="argument-2-privkeys">
+<h1>Argument #2 - privkeys</h1>
+<p><strong>Type:</strong> json array, required</p>
+<p>The base58-encoded private keys for signing</p>
+<pre class="literal-block">
+[
+  &quot;privatekey&quot;,                (string) private key in base58-encoding
+  ...
+]
+</pre>
+</div>
+<div class="section" id="argument-3-prevtxs">
+<h1>Argument #3 - prevtxs</h1>
+<p><strong>Type:</strong> json array, optional</p>
+<p>The previous dependent transaction outputs</p>
+<pre class="literal-block">
+[
+  {                            (json object)
+    &quot;txid&quot;: &quot;hex&quot;,             (string, required) The transaction id
+    &quot;vout&quot;: n,                 (numeric, required) The output number
+    &quot;scriptPubKey&quot;: &quot;hex&quot;,     (string, required) script key
+    &quot;redeemScript&quot;: &quot;hex&quot;,     (string) (required for P2SH) redeem script
+    &quot;witnessScript&quot;: &quot;hex&quot;,    (string) (required for P2WSH or P2SH-P2WSH) witness script
+    &quot;amount&quot;: amount,          (numeric or string) (required for Segwit inputs) the amount spent
+  },
+  ...
+]
+</pre>
+</div>
+<div class="section" id="argument-4-sighashtype">
+<h1>Argument #4 - sighashtype</h1>
+<p><strong>Type:</strong> string, optional, default=ALL</p>
+<dl class="docutils">
+<dt>The signature hash type. Must be one of:</dt>
+<dd>&quot;ALL&quot;
+&quot;NONE&quot;
+&quot;SINGLE&quot;
+&quot;ALL|ANYONECANPAY&quot;
+&quot;NONE|ANYONECANPAY&quot;
+&quot;SINGLE|ANYONECANPAY&quot;</dd>
+</dl>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+{                             (json object)
+  &quot;hex&quot; : &quot;hex&quot;,              (string) The hex-encoded raw transaction with signature(s)
+  &quot;complete&quot; : true|false,    (boolean) If the transaction has a complete set of signatures
+  &quot;errors&quot; : [                (json array, optional) Script verification errors (if there are any)
+    {                         (json object)
+      &quot;txid&quot; : &quot;hex&quot;,         (string) The hash of the referenced, previous transaction
+      &quot;vout&quot; : n,             (numeric) The index of the output to spent and used as input
+      &quot;scriptSig&quot; : &quot;hex&quot;,    (string) The hex-encoded signature script
+      &quot;sequence&quot; : n,         (numeric) Script sequence number
+      &quot;error&quot; : &quot;str&quot;         (string) Verification or signing error related to the input
+    },
+    ...
+  ]
+}
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digibyte-cli signrawtransactionwithkey &quot;myhex&quot; &quot;[\&quot;key1\&quot;,\&quot;key2\&quot;]&quot;
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;signrawtransactionwithkey&quot;, &quot;params&quot;: [&quot;myhex&quot;, &quot;[\&quot;key1\&quot;,\&quot;key2\&quot;]&quot;]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
+</body>
+</html>

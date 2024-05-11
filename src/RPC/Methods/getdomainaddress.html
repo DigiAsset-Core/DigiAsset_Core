@@ -1,0 +1,50 @@
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link rel="stylesheet" type="text/css" href="/css/style.css" />
+    </head>
+    <body>
+        <div class="document" id="getdomainaddress">
+            <h1 class="title">getdomainaddress</h1>
+            <!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+            <tt class="docutils literal">getdomainaddress</tt>
+            <p>
+                Returns the DigiByte address associated with a specific domain.
+                This command is useful for resolving the blockchain address
+                linked to a domain name registered in the DigiByte network.
+            </p>
+            <div class="section" id="input">
+                <h2>Input Parameters</h2>
+                <p>
+                    <tt>domain</tt> (string): The domain name for which the
+                    associated DigiByte address is requested.
+                </p>
+            </div>
+            <div class="section" id="output">
+                <h2>Output Format</h2>
+                <pre class="literal-block">
+String representing the DigiByte address associated with the given domain.
+</pre
+                >
+            </div>
+            <div class="section" id="examples">
+                <h2>Examples</h2>
+                <pre class="literal-block">
+digiasset_core-cli getdomainaddress "example.dgb"
+</pre
+                >
+                <pre class="literal-block">
+curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "getdomainaddress", "params": ["example.dgb"]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre
+                >
+            </div>
+        </div>
+
+        <script src="/js/main.js"></script>
+        <footer class="fixed-bottom">
+            <p class="copyright">© Copyright DigiByte Project 2024</p>
+        </footer>
+    </body>
+</html>

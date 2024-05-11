@@ -1,0 +1,57 @@
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link rel="stylesheet" type="text/css" href="/css/style.css" />
+    </head>
+    <body>
+        <div class="document" id="getaddresskyc">
+            <h1 class="title">getaddresskyc</h1>
+            <!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+            <tt class="docutils literal">getaddresskyc</tt>
+            <p>
+                Returns KYC (Know Your Customer) information related to a
+                specific address. The information may include the country code
+                and optionally the name or a hash of the name,
+                depending on the level of verification.
+            </p>
+            <div class="section" id="input">
+                <h2>Input Parameters</h2>
+                <p>
+                    <tt>address</tt> (string): The blockchain address for which
+                    KYC information is requested.
+                </p>
+            </div>
+            <div class="section" id="output">
+                <h2>Output Format</h2>
+                <pre class="literal-block">
+JSON object with the following fields:
+{
+    "address": "DGb6Bv...",   // The requested address
+    "country": "USA",         // ISO 3166-1 alpha-3 country code (if KYC verified)
+    "name": "John Doe",       // Name of the person (optional, if verified and not anonymous)
+    "hash": "abc123def456..." // SHA256 hash of the person's full name and pin (optional, if anonymous)
+}
+</pre
+                >
+            </div>
+            <div class="section" id="examples">
+                <h2>Examples</h2>
+                <pre class="literal-block">
+digiasset_core-cli getaddresskyc "DGb6Bv..."
+</pre
+                >
+                <pre class="literal-block">
+curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "getaddresskyc", "params": ["DGb6Bv..."]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre
+                >
+            </div>
+        </div>
+
+        <script src="/js/main.js"></script>
+        <footer class="fixed-bottom">
+            <p class="copyright">© Copyright DigiByte Project 2024</p>
+        </footer>
+    </body>
+</html>

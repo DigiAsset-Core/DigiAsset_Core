@@ -28,7 +28,7 @@ DigiByteTransaction::DigiByteTransaction() {
  * Creates an object that can hold a transactions data including any DigiAssets
  * height is optional but if known will speed things up if provided
  */
-DigiByteTransaction::DigiByteTransaction(const string& txid, unsigned int height) {
+DigiByteTransaction::DigiByteTransaction(const string& txid, unsigned int height, bool dontBotherIfNotSpecial) {
     AppMain* main = AppMain::GetInstance();
     DigiByteCore* dgb = main->getDigiByteCore();
     Database* db = main->getDatabase();
@@ -36,10 +36,49 @@ DigiByteTransaction::DigiByteTransaction(const string& txid, unsigned int height
     getrawtransaction_t txData = dgb->getRawTransaction(txid);
     if (height == 0) height = dgb->getBlock(txData.blockhash).height;
 
+    //store transaction key data
     _height = height;
     _blockHash = txData.blockhash;
     _time = txData.time;
     _txid = txData.txid;
+
+    //check if we should cheat loading to save time(chain analyzer when not storing non asset utxo data
+    if (dontBotherIfNotSpecial) {
+        bool mayNeedInputProcessing = false;
+
+        //check if there is an op_return
+        for (const vout_t& vout: txData.vout) {
+            if (vout.scriptPubKey.type != "nulldata") continue;
+            mayNeedInputProcessing = true;
+            break;
+        }
+
+        //large transactions can only be DigiAsset transactions or normal so check if DigiAsset Transaction if large.
+        if ((mayNeedInputProcessing) && (txData.vin.size() > 5)) {
+            unsigned char opcode;
+            BitIO dataStream;
+            DigiAsset::decodeAssetTxHeader(txData, _assetTransactionVersion, opcode, dataStream);
+            if (opcode == 0) mayNeedInputProcessing = false; //not a DigiAsset transaction
+        }
+
+        //if it doesn't need input processing then
+        if (!mayNeedInputProcessing) {
+            // we only need to copy the txid and vout for each input so they can be cleared
+            // no need to check if there is any assets on inputs or add the outputs
+            for (const vin_t& vin: txData.vin) {
+                //if a coinbase transaction don't look up the input
+                if (vin.txid.empty()) break;
+
+                //find any assets on input utxos
+                AssetUTXO input{
+                        .txid = vin.txid,
+                        .vout = static_cast<uint16_t>(vin.n)};
+                _inputs.push_back(input);
+            }
+            _txType = STANDARD;
+            return;
+        }
+    }
 
     //copy input data
     _assetFound = false;
@@ -50,7 +89,7 @@ DigiByteTransaction::DigiByteTransaction(const string& txid, unsigned int height
         }
 
         //find any assets on input utxos
-        AssetUTXO input = db->getAssetUTXO(vin.txid, vin.n);
+        AssetUTXO input = db->getAssetUTXO(vin.txid, vin.n, height);
         if (!input.assets.empty()) _assetFound = true;
         _inputs.push_back(input);
     }
@@ -68,6 +107,8 @@ DigiByteTransaction::DigiByteTransaction(const string& txid, unsigned int height
     if (decodeKYC(txData)) return;
     if (decodeExchangeRate(txData)) return;
     decodeAssetTX(txData);
+    ///if any new special case types are added make sure they have no more than 5 inputs allowed or
+    ///modify the mayNeedInputProcessing algorithm above to check for them.
 }
 
 /**
@@ -498,8 +539,11 @@ void DigiByteTransaction::addToDatabase() {
             }
             break;
         case DIGIASSET_ISSUANCE:
+            //Set that caches based on new issuances should be deleted
+            main->getRpcCache()->newAssetIssued();
+
             //add to the database and get the asset index number
-            bool indexAlreadySet=_newAsset.isAssetIndexSet();
+            bool indexAlreadySet = _newAsset.isAssetIndexSet();
             uint64_t assetIndex = db->addAsset(_newAsset);
 
             //see if part of a PSP and pin files for those we subscribe to
@@ -524,13 +568,13 @@ void DigiByteTransaction::addToDatabase() {
     //mark spent old UTXOs
     for (const AssetUTXO& vin: _inputs) {
         if (vin.txid == "") continue; //coinbase
-        db->spendUTXO(vin.txid, vin.vout, _height,_txid);
+        db->spendUTXO(vin.txid, vin.vout, _height, _txid);
     }
 
     //add utxos
-    bool isIssuance=(_txType==DIGIASSET_ISSUANCE);
+    bool isIssuance = (_txType == DIGIASSET_ISSUANCE);
     for (const AssetUTXO& vout: _outputs) {
-        db->createUTXO(vout, _height,isIssuance);
+        db->createUTXO(vout, _height, isIssuance);
     }
 
     //handle votes
@@ -559,13 +603,13 @@ void DigiByteTransaction::lookupAssetIndexes() {
     unsigned int index;
     for (const AssetUTXO& vout: _outputs) {
         if (vout.assets.empty()) continue;
-        index=vout.vout;
+        index = vout.vout;
         break;
     }
 
     //lookup assetIndex from database
-    _newAsset.lookupAssetIndex(_txid,index);
-    uint64_t assetIndex=_newAsset.getAssetIndex();
+    _newAsset.lookupAssetIndex(_txid, index);
+    uint64_t assetIndex = _newAsset.getAssetIndex();
 
     //set all vouts
     for (AssetUTXO& vout: _outputs) {

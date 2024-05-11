@@ -10,10 +10,8 @@
 #include "IPFS.h"
 #include "KYC.h"
 #include "PermanentStoragePool/PermanentStoragePoolList.h"
-#include "static_block.hpp"
-#include <cryptopp870/ripemd.h>
-#include <cryptopp870/sha.h>
-#include <iostream>
+#include "crypto/SHA256.h"
+#include "crypto/ripemd.h"
 
 using namespace std;
 
@@ -160,18 +158,18 @@ const ExchangeRate DigiAsset::standardExchangeRates[] = {
  * Takes binary data stored in a string and hashes it twice.  First with sha256 then with ripemd160
  */
 void DigiAsset::insertSRHash(vector<uint8_t> dataToHash, vector<uint8_t>& result, size_t startIndex) {
-    //do sha256
-    CryptoPP::byte abDigest[CryptoPP::SHA256::DIGESTSIZE];
-    CryptoPP::SHA256().CalculateDigest(abDigest, reinterpret_cast<const CryptoPP::byte*>(dataToHash.data()),
-                                       dataToHash.size());
+    // Perform SHA256 hash
+    SHA256 sha256;
+    sha256.update(dataToHash.data(), dataToHash.size());
+    auto sha256Digest = sha256.digest();
 
-    //do ripemd160
-    CryptoPP::byte abDigest2[CryptoPP::RIPEMD160::DIGESTSIZE];
-    CryptoPP::RIPEMD160().CalculateDigest(abDigest2, abDigest, CryptoPP::SHA256::DIGESTSIZE);
+    // Perform RIPEMD160 hash on the SHA256 result
+    uint8_t ripemd160Digest[20]; // RIPEMD160 produces a 160-bit hash (20 bytes)
+    ripemd160(sha256Digest.data(), sha256Digest.size(), ripemd160Digest);
 
-    //add to assetId
-    for (size_t i = 0; i < CryptoPP::RIPEMD160::DIGESTSIZE; i++) {
-        result[i + startIndex] = abDigest2[i];
+    // Add the RIPEMD160 hash to the result vector starting at the specified index
+    for (size_t i = 0; i < 20; i++) {
+        result[i + startIndex] = ripemd160Digest[i];
     }
 }
 
@@ -179,19 +177,21 @@ void DigiAsset::insertSRHash(vector<uint8_t> dataToHash, vector<uint8_t>& result
  * Takes binary data stored in a string and hashes it twice.  First with sha256 then with ripemd160
  */
 void DigiAsset::insertSRHash(const std::string& dataToHash, vector<uint8_t>& result, size_t startIndex) {
-    auto* hashData = (CryptoPP::byte*) dataToHash.c_str();
+    // Convert string to byte array for hashing
+    std::vector<uint8_t> dataBytes(dataToHash.begin(), dataToHash.end());
 
-    //do sha256
-    CryptoPP::byte abDigest[CryptoPP::SHA256::DIGESTSIZE];
-    CryptoPP::SHA256().CalculateDigest(abDigest, hashData, dataToHash.length());
+    // Perform SHA256 hash
+    SHA256 sha256;
+    sha256.update(dataBytes.data(), dataBytes.size());
+    auto sha256Digest = sha256.digest();
 
-    //do ripemd160
-    CryptoPP::byte abDigest2[CryptoPP::RIPEMD160::DIGESTSIZE];
-    CryptoPP::RIPEMD160().CalculateDigest(abDigest2, abDigest, CryptoPP::SHA256::DIGESTSIZE);
+    // Perform RIPEMD160 hash on the SHA256 result
+    uint8_t ripemd160Digest[20];
+    ripemd160(sha256Digest.data(), sha256Digest.size(), ripemd160Digest);
 
-    //add to assetId
-    for (size_t i = 0; i < CryptoPP::RIPEMD160::DIGESTSIZE; i++) {
-        result[i + startIndex] = abDigest2[i];
+    // Add the RIPEMD160 hash to the result vector starting at the specified index
+    for (size_t i = 0; i < 20; i++) {
+        result[i + startIndex] = ripemd160Digest[i];
     }
 }
 
@@ -264,13 +264,15 @@ string DigiAsset::calculateAssetId(const vin_t& firstVin, uint8_t issuanceFlags)
     assetIdBinary[22] = 0;
     assetIdBinary[23] = issuanceFlags >> 5;
 
-    //create check footer(first 4 bytes of double sha256)
-    CryptoPP::byte abDigest3[CryptoPP::SHA256::DIGESTSIZE];
-    CryptoPP::byte abDigest4[CryptoPP::SHA256::DIGESTSIZE];
-    CryptoPP::SHA256().CalculateDigest(abDigest3, assetIdBinary.data(), 24);
-    CryptoPP::SHA256().CalculateDigest(abDigest4, abDigest3, CryptoPP::SHA256::DIGESTSIZE);
+    //create check footer(first 4 bytes of double sha256b)
+    SHA256 sha256a;
+    sha256a.update(assetIdBinary.data(), 24);
+    auto firstHash = sha256a.digest();
+    SHA256 sha256b;
+    sha256b.update(firstHash.data(), 32);
+    auto secondHash = sha256b.digest();
     for (size_t i = 0; i < 4; i++) {
-        assetIdBinary[24 + i] = abDigest4[i];
+        assetIdBinary[24 + i] = secondHash[i];
     }
 
     //convert to base 58
@@ -322,9 +324,9 @@ DigiAsset::DigiAsset(uint64_t assetIndex, const string& assetId, const string& c
             _aggregation = HYBRID;
             break;
         default:
-            if ((assetId!="DigiByte")&&(assetIndex==1)) throw out_of_range("invalid assetId");
+            if ((assetId != "DigiByte") && (assetIndex == 1)) throw out_of_range("invalid assetId");
             _aggregation = AGGREGABLE;
-            _divisibility=8;
+            _divisibility = 8;
             return;
     }
     _divisibility = Base58::decode(assetId)[23];
@@ -607,6 +609,20 @@ uint8_t DigiAsset::getDecimals() const {
 }
 
 /**
+ * Returns the total number of assets this asset had.
+ * Remember to take in to account the number of decimals.  If getCount() returns 100 and getDecimals(2) there where 1.00.
+ * @return
+ */
+uint64_t DigiAsset::getInitialCount() {
+    //see if cached
+    if (_initialCount == -1) {
+        //get from database
+        _initialCount = AppMain::GetInstance()->getDatabase()->getOriginalAssetCount(_assetIndex);
+    }
+    return _initialCount;
+}
+
+/**
  * Calculates the CID based on a sha256
  * returns empty if there is no meta data
  */
@@ -622,7 +638,7 @@ std::string DigiAsset::getCID() const {
  */
 uint64_t DigiAsset::getAssetIndex(bool allowUnknownAssetIndex) const {
     if (allowUnknownAssetIndex) return _assetIndex;
-    if (_assetIndex==0) throw exceptionUnknownAssetIndex();
+    if (_assetIndex == 0) throw exceptionUnknownAssetIndex();
     return _assetIndex;
 }
 
@@ -915,6 +931,7 @@ void DigiAsset::checkRulesPass(const vector<AssetUTXO>& inputs, const vector<Ass
  *                       a quantity
  *                     - decimals (unsigned int): The number of decimals for the asset.  If decimal is 2 and count is 100
  *                       that means there are 1.00 assets
+ *                     - height (unsigned int):  Height created
  *
  *  Additional Fields (included if simplified is false):
  *                     - ipfs (string or Json::Value): IPFS metadata or error message
@@ -955,8 +972,13 @@ void DigiAsset::checkRulesPass(const vector<AssetUTXO>& inputs, const vector<Ass
  *                         - name (string, optional): Issuer's name
  *                         - hash (string, optional): Issuer's hash
  *                         name and hash will never both be present.  hash is returned if creator is anonymous
+ *
+ *  Additional Fields only included if looked up:
+ *                     - psp (Json::arrayValue):  array of PSP indexes that the asset is a member of
+ *                     - initialCount (uint64_t):   number of assets that where issued
+ *
  */
-Value DigiAsset::toJSON(bool simplified) const {
+Value DigiAsset::toJSON(bool simplified, bool ignoreIPFS) const {
     Json::Value result(Json::objectValue);
 
     // Simplified
@@ -965,11 +987,12 @@ Value DigiAsset::toJSON(bool simplified) const {
     result["cid"] = getCID();
     result["count"] = static_cast<Json::UInt64>(getCount());
     result["decimals"] = getDecimals();
+    result["height"] = _heightCreated;
 
     if (simplified) return result;
 
     // Include meta data
-    if (!_cid.empty()) {
+    if (!_cid.empty() && !ignoreIPFS) {
         try {
             IPFS* ipfs = AppMain::GetInstance()->getIPFS();
             string metadata = ipfs->callOnDownloadSync(_cid, "", DIGIASSET_JSON_IPFS_MAX_WAIT);
@@ -983,6 +1006,19 @@ Value DigiAsset::toJSON(bool simplified) const {
             }
         } catch (const IPFS::exception& e) {
             result["ipfs"] = "Metadata could not be found";
+        }
+    }
+
+    // Initial Supply
+    if (_initialCount > -1) {
+        result["initialCount"] = static_cast<Json::UInt64>(_initialCount);
+    }
+
+    // PSP Membership
+    if ( _pspMembership.empty() || (_pspMembership[0] != -1)) {
+        result["psp"]=Json::arrayValue;
+        for (const auto pspId: _pspMembership) {
+            result["psp"].append(pspId);
         }
     }
 
@@ -1015,10 +1051,23 @@ Value DigiAsset::toJSON(bool simplified) const {
  * Will do nothing if already known
  */
 void DigiAsset::lookupAssetIndex(const string& txid, unsigned int vout) {
-    if (_assetIndex>0) return;
-    Database* db=AppMain::GetInstance()->getDatabase();
-    _assetIndex=db->getAssetIndex(_assetId,txid,vout);
+    if (_assetIndex > 0) return;
+    Database* db = AppMain::GetInstance()->getDatabase();
+    _assetIndex = db->getAssetIndex(_assetId, txid, vout);
 }
 bool DigiAsset::isAssetIndexSet() const {
-    return _assetIndex!=0;
+    return _assetIndex != 0;
+}
+
+/**
+ * Returns a list of PSP that this asset is a member of
+ * @return
+ */
+std::vector<int> DigiAsset::getPspMembership() {
+    if (
+            (!_pspMembership.empty()) &&
+            (_pspMembership[0] == -1)) {
+        _pspMembership = AppMain::GetInstance()->getDatabase()->listPoolsAssetIsIn(_assetIndex);
+    }
+    return _pspMembership;
 }

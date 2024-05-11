@@ -120,3 +120,16 @@ void PermanentStoragePool::_reportFileBad(const string& cid) {
 }
 void PermanentStoragePool::_setConfig(const Config& config) {
 }
+Json::Value PermanentStoragePool::toJSON() {
+    Json::Value results=Json::objectValue;
+    results["name"]=getName();
+    results["description"]=getDescription();
+    results["url"]=getURL();
+    results["files"]=Json::arrayValue;
+    vector<string> files=getFiles();
+    for (const auto& file: files) results["files"].append(file);
+    return results;
+}
+std::vector<std::string> PermanentStoragePool::getFiles() {
+    return AppMain::GetInstance()->getDatabase()->getPSPFileList(_poolIndex);
+}

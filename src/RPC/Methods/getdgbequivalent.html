@@ -1,0 +1,45 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="getdgbequivalent">
+<h1 class="title">getdgbequivalent</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<tt class="docutils literal">getdgbequivalent</tt>
+<p>This RPC command converts currency values to their equivalent in DGB based on exchange rates published at specified addresses. Each address can store up to 10 different exchange rates, selectable via an index.</p>
+<p class="info">Will throw an error if sync is more than 120 blocks behind.</p>
+<div class="section" id="input">
+<h2>Input Parameters</h2>
+<ul>
+    <li><tt>address</tt> (string): The address where the exchange rate is published.</li>
+    <li><tt>index</tt> (unsigned int): Index of the rate at the specified address, ranging from 0 to 9.</li>
+    <li><tt>amount</tt> (unsigned int): The fixed precision amount to convert, with 8 decimals (e.g., 100000000 represents 1.0).</li>
+</ul>
+<p>Note: See the default exchange rates and their indices <a href="https://github.com/DigiAsset-Core/DigiAsset_Core/blob/master/src/DigiAsset.cpp#L85" target="_blank">here</a>.</p>
+</div>
+<div class="section" id="output">
+<h2>Output Format</h2>
+<pre class="literal-block">
+Returns the equivalent amount in DGB satoshis.
+</pre>
+</div>
+<div class="section" id="examples">
+<h2>Examples</h2>
+<p>Example converting using the first exchange rate at a specified address:</p>
+<pre class="literal-block">
+digiasset_core-cli getdgbequivalent "dgb1qunxh378eltj2jrwza5sj9grvu5xud43vqvudwh" 0 100000000
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "getdgbequivalent", "params": ["dgb1qunxh378eltj2jrwza5sj9grvu5xud43vqvudwh", 0, 100000000]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
+</body>
+</html>

@@ -1,0 +1,60 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="decodescript">
+<h1 class="title">decodescript</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">decodescript &quot;hexstring&quot;</tt></p>
+<p>Decode a hex-encoded script.</p>
+<div class="section" id="argument-1-hexstring">
+<h1>Argument #1 - hexstring</h1>
+<p><strong>Type:</strong> string, required</p>
+<p>the hex-encoded script</p>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+{                             (json object)
+  &quot;asm&quot; : &quot;str&quot;,              (string) Script public key
+  &quot;type&quot; : &quot;str&quot;,             (string) The output type (e.g. nonstandard, pubkey, pubkeyhash, scripthash, multisig, nulldata, witness_v0_scripthash, witness_v0_keyhash, witness_v1_taproot, witness_unknown)
+  &quot;reqSigs&quot; : n,              (numeric) The required signatures
+  &quot;addresses&quot; : [             (json array)
+    &quot;str&quot;,                    (string) bitcoin address
+    ...
+  ],
+  &quot;p2sh&quot; : &quot;str&quot;,             (string) address of P2SH script wrapping this redeem script (not returned if the script is already a P2SH)
+  &quot;segwit&quot; : {                (json object) Result of a witness script public key wrapping this redeem script (not returned if the script is a P2SH or witness)
+    &quot;asm&quot; : &quot;str&quot;,            (string) String representation of the script public key
+    &quot;hex&quot; : &quot;hex&quot;,            (string) Hex string of the script public key
+    &quot;type&quot; : &quot;str&quot;,           (string) The type of the script public key (e.g. witness_v0_keyhash or witness_v0_scripthash)
+    &quot;reqSigs&quot; : n,            (numeric) The required signatures (always 1)
+    &quot;addresses&quot; : [           (json array) (always length 1)
+      &quot;str&quot;,                  (string) segwit address
+      ...
+    ],
+    &quot;p2sh-segwit&quot; : &quot;str&quot;     (string) address of the P2SH script wrapping this witness redeem script
+  }
+}
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digibyte-cli decodescript &quot;hexstring&quot;
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;decodescript&quot;, &quot;params&quot;: [&quot;hexstring&quot;]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
+</body>
+</html>

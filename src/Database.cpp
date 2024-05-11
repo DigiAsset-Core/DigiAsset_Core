@@ -16,7 +16,21 @@
 #include <sqlite3.h>
 #include <stdio.h>
 
+
 using namespace std;
+
+namespace {
+    /**
+     * Make sure chain analyzer gets a chance to sync fully
+     * @param analyzer
+     */
+    void waitForSync(ChainAnalyzer* analyzer) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        while (analyzer->getSync() != 0) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        }
+    }
+} // namespace
 
 /**
  * Defines default IPFS callbacks
@@ -106,32 +120,32 @@ void Database::buildTables(unsigned int dbVersionNumber) {
 
             //Define what is changed from version 1 to version 2
             [&]() {
-                Log* log=Log::GetInstance();
-                log->addMessage("Unsupported database version.",Log::CRITICAL);
+                Log* log = Log::GetInstance();
+                log->addMessage("Unsupported database version.", Log::CRITICAL);
                 throw runtime_error("Unsupported database version.");
             },
 
 
             //Define what is changed from version 2 to version 3
             [&]() {
-                Log* log=Log::GetInstance();
-                log->addMessage("Unsupported database version.",Log::CRITICAL);
+                Log* log = Log::GetInstance();
+                log->addMessage("Unsupported database version.", Log::CRITICAL);
                 throw runtime_error("Unsupported database version.");
             },
 
 
             //Define what is changed from version 3 to version 4
             [&]() {
-                Log* log=Log::GetInstance();
-                log->addMessage("Unsupported database version.",Log::CRITICAL);
+                Log* log = Log::GetInstance();
+                log->addMessage("Unsupported database version.", Log::CRITICAL);
                 throw runtime_error("Unsupported database version.");
             },
 
 
             //Define what is changed from version 4 to version 5
             [&]() {
-                Log* log=Log::GetInstance();
-                log->addMessage("Unsupported database version.",Log::CRITICAL);
+                Log* log = Log::GetInstance();
+                log->addMessage("Unsupported database version.", Log::CRITICAL);
                 throw runtime_error("Unsupported database version.");
             }
 
@@ -171,80 +185,91 @@ void Database::buildTables(unsigned int dbVersionNumber) {
  */
 void Database::initializeClassValues() {
     //add performance indexes for rewinding
-    addPerformanceIndex("assets","heightCreated");
-    addPerformanceIndex("assets","heightCreated");
-    addPerformanceIndex("blocks","height");
-    addPerformanceIndex("exchange","height");
-    addPerformanceIndex("kyc","height");
-    addPerformanceIndex("kyc","revoked");
-    addPerformanceIndex("utxos","heightCreated");
-    addPerformanceIndex("utxos","heightDestroyed");
-    addPerformanceIndex("votes","height");
+    addPerformanceIndex("assets", "heightCreated");
+    addPerformanceIndex("assets", "heightCreated");
+    addPerformanceIndex("blocks", "height");
+    addPerformanceIndex("exchange", "height");
+    addPerformanceIndex("kyc", "height");
+    addPerformanceIndex("kyc", "revoked");
+    addPerformanceIndex("utxos", "heightCreated");
+    addPerformanceIndex("utxos", "heightDestroyed");
+    addPerformanceIndex("votes", "height");
 
 
 
     //statement to find a flag value
-    _stmtCheckFlag.prepare(_db,"SELECT value FROM flags WHERE key LIKE ?;");
+    _stmtCheckFlag.prepare(_db, "SELECT value FROM flags WHERE key LIKE ?;");
 
     //statement to set a flag value
-    _stmtSetFlag.prepare(_db,"UPDATE flags SET value=? WHERE key LIKE ?;");
-
+    _stmtSetFlag.prepare(_db, "INSERT INTO flags (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value;");
 
     //statement to get block height
-    _stmtGetBlockHeight.prepare(_db,"SELECT height FROM blocks ORDER BY height DESC LIMIT 1;");
+    _stmtGetBlockHeight.prepare(_db, "SELECT height FROM blocks ORDER BY height DESC LIMIT 1;");
 
     //statement to set block height
-    _stmtInsertBlock.prepare(_db,"INSERT INTO blocks VALUES (?,?,?,?,?);");
+    _stmtInsertBlock.prepare(_db, "INSERT INTO blocks VALUES (?,?,?,?,?);");
 
     //statement to get block hash
-    _stmtGetBlockHash.prepare(_db,"SELECT hash FROM blocks WHERE height=? LIMIT 1;");
+    _stmtGetBlockHash.prepare(_db, "SELECT hash FROM blocks WHERE height=? LIMIT 1;");
 
     //second half of prune statement.  removes blocks from list that it is no longer possible to roll back to
-    _stmtRemoveNonReachable.prepare(_db,"DELETE FROM blocks where height<?;");
+    _stmtRemoveNonReachable.prepare(_db, "DELETE FROM blocks where height<?;");
 
 
 
 
     //statement to create UTXO
-    _stmtCreateUTXO.prepare(_db,"INSERT INTO utxos (address,txid,vout,aout,assetIndex,amount,heightCreated,issuance)  VALUES (?,?,?,?,?,?,?,?);");
+    _stmtCreateUTXO.prepare(_db, "INSERT INTO utxos (address,txid,vout,aout,assetIndex,amount,heightCreated,issuance)  VALUES (?,?,?,?,?,?,?,?);");
 
     //statement to spend UTXO
-    _stmtSpendUTXO.prepare(_db,"UPDATE utxos SET heightDestroyed=?, spentTXID=? WHERE txid=? AND vout=?;");
+    _stmtSpendUTXO.prepare(_db, "UPDATE utxos SET heightDestroyed=?, spentTXID=? WHERE txid=? AND vout=?;");
 
     //statement to get spending address from UTXO
-    _stmtGetSpendingAddress.prepare(_db,"SELECT address FROM utxos WHERE txid=? AND vout=?");
+    _stmtGetSpendingAddress.prepare(_db, "SELECT address FROM utxos WHERE txid=? AND vout=?");
 
     //statement to prune utxos
-    _stmtPruneUTXOs.prepare(_db,"DELETE FROM utxos WHERE heightDestroyed<?;");
+    _stmtPruneUTXOs.prepare(_db, "DELETE FROM utxos WHERE heightDestroyed<?;");
 
     //statement to get funds on a UTXO
-    _stmtGetAssetUTXO.prepare(_db,"SELECT address,aout,assetIndex,amount FROM utxos WHERE txid=? AND vout=? ORDER BY aout ASC;");
+    _stmtGetAssetUTXO.prepare(_db, "SELECT address,aout,assetIndex,amount FROM utxos WHERE txid=? AND vout=? ORDER BY aout ASC;");
 
     //statement to get asset holders
-    _stmtGetAssetHolders.prepare(_db,"SELECT address,SUM(amount) FROM utxos WHERE assetIndex=? AND heightDestroyed IS NULL GROUP BY address;");
+    _stmtGetAssetHolders.prepare(_db, "SELECT address,SUM(amount) FROM utxos WHERE assetIndex=? AND heightDestroyed IS NULL GROUP BY address;");
 
     //statement to get all assetIndexs on a specific utxo
-    _stmtGetAssetIndexOnUTXO.prepare(_db,"SELECT assetIndex FROM utxos WHERE txid=? AND vout=? AND aout IS NOT NULL;");
+    _stmtGetAssetIndexOnUTXO.prepare(_db, "SELECT assetIndex FROM utxos WHERE txid=? AND vout=? AND aout IS NOT NULL;");
 
     //statement to get permanent storage paid on a specific transaction
-    _stmtGetPermanentPaid.prepare(_db,"SELECT amount,heightCreated FROM utxos where txid=? and address=? and aout is null;");
+    _stmtGetPermanentPaid.prepare(_db, "SELECT amount,heightCreated FROM utxos where txid=? and address=? and aout is null;");
 
     //statement to get number of assets that exist
-    _stmtGetTotalAssetCounta.prepare(_db,"SELECT sum(amount) FROM utxos where assetIndex=? and heightDestroyed is null;");
-    _stmtGetTotalAssetCountb.prepare(_db,"SELECT sum(u.amount) as totalAmount\n"
-                                         "FROM utxos u\n"
-                                         "JOIN assets a ON u.assetIndex = a.assetIndex\n"
-                                         "WHERE a.assetId = ? AND u.heightDestroyed IS NULL;");
+    _stmtGetTotalAssetCounta.prepare(_db, "SELECT sum(amount) FROM utxos where assetIndex=? and heightDestroyed is null;");
+    _stmtGetTotalAssetCountb.prepare(_db, "SELECT sum(u.amount) as totalAmount\n"
+                                          "FROM utxos u\n"
+                                          "JOIN assets a ON u.assetIndex = a.assetIndex\n"
+                                          "WHERE a.assetId = ? AND u.heightDestroyed IS NULL;");
+    addPerformanceIndex("utxos", "assetIndex", "heightDestroyed");
+    addPerformanceIndex("assets", "assetId");
 
     //statement to get number of assets that exist
-    _stmtGetOriginalAssetCounta.prepare(_db,"SELECT sum(amount) FROM utxos where assetIndex=? and issuance=1;");
-    _stmtGetOriginalAssetCountb.prepare(_db,"SELECT sum(u.amount) as totalAmount\n"
+    _stmtGetOriginalAssetCounta.prepare(_db, "SELECT sum(amount) FROM utxos where assetIndex=? and issuance=1;");
+    _stmtGetOriginalAssetCountb.prepare(_db, "SELECT sum(u.amount) as totalAmount\n"
+                                             "FROM utxos u\n"
+                                             "JOIN assets a ON u.assetIndex = a.assetIndex\n"
+                                             "WHERE a.assetId = ? AND u.issuance=1;");
+    addPerformanceIndex("utxos", "assetIndex", "issuance");
+    addPerformanceIndex("assets", "assetId");
+
+    //statement to get issuance txids
+    _stmtGetAssetIssuanceTXIDs.prepare(_db, "SELECT u.assetIndex, u.txid, sum(u.amount) as amount, u.heightCreated, a.cid\n"
                                             "FROM utxos u\n"
                                             "JOIN assets a ON u.assetIndex = a.assetIndex\n"
-                                            "WHERE a.assetId = ? AND u.issuance=1;");
+                                            "WHERE a.assetId = ? AND issuance = 1\n"
+                                            "GROUP BY u.assetIndex\n"
+                                            "ORDER BY u.heightCreated ASC");
 
     //statement to get tx history
-    _stmtGetAssetTxHistorya.prepare(_db,"SELECT txid\n"
+    _stmtGetAssetTxHistorya.prepare(_db, "SELECT txid\n"
                                          "FROM (\n"
                                          //"    -- Select txids where the asset was received\n"
                                          "    SELECT u.txid, u.heightCreated AS height\n"
@@ -263,29 +288,29 @@ void Database::initializeClassValues() {
                                          "    WHERE u1.assetIndex = ? AND u1.issuance = 1 AND u2.spentTXID IS NOT NULL\n"
                                          ") GROUP BY txid\n"
                                          "ORDER BY height ASC;");
-    _stmtGetAssetTxHistoryb.prepare(_db,"SELECT txid\n"
-                                        "FROM (\n"
-                                        //"    -- Select txids where the asset was received\n"
-                                        "    SELECT u.txid, u.heightCreated AS height\n"
-                                        "    FROM utxos u\n"
-                                        "    JOIN assets a ON u.assetIndex = a.assetIndex\n"
-                                        "    WHERE a.assetId = ?\n"
-                                        "    UNION\n"
-                                        //"    -- Select txids where the asset was spent\n"
-                                        "    SELECT u.spentTXID AS txid, u.heightDestroyed AS height\n"
-                                        "    FROM utxos u\n"
-                                        "    JOIN assets a ON u.assetIndex = a.assetIndex\n"
-                                        "    WHERE a.assetId = ? AND u.spentTXID IS NOT NULL\n"
-                                        "    UNION\n"
-                                        //"    -- find txid that created the asset"
-                                        "    SELECT u2.spentTXID AS txid, u2.heightCreated AS height\n"
-                                        "    FROM utxos u1\n"
-                                        "    JOIN utxos u2 ON u1.txid = u2.spentTXID\n"
-                                        "    JOIN assets a ON u1.assetIndex = a.assetIndex\n"
-                                        "    WHERE a.assetId = ? AND u1.issuance = 1 AND u2.spentTXID IS NOT NULL\n"
-                                        ") GROUP BY txid\n"
-                                        "ORDER BY height ASC;");
-    _stmtGetAddressTxHistory.prepare(_db,"SELECT tx\n"
+    _stmtGetAssetTxHistoryb.prepare(_db, "SELECT txid\n"
+                                         "FROM (\n"
+                                         //"    -- Select txids where the asset was received\n"
+                                         "    SELECT u.txid, u.heightCreated AS height\n"
+                                         "    FROM utxos u\n"
+                                         "    JOIN assets a ON u.assetIndex = a.assetIndex\n"
+                                         "    WHERE a.assetId = ?\n"
+                                         "    UNION\n"
+                                         //"    -- Select txids where the asset was spent\n"
+                                         "    SELECT u.spentTXID AS txid, u.heightDestroyed AS height\n"
+                                         "    FROM utxos u\n"
+                                         "    JOIN assets a ON u.assetIndex = a.assetIndex\n"
+                                         "    WHERE a.assetId = ? AND u.spentTXID IS NOT NULL\n"
+                                         "    UNION\n"
+                                         //"    -- find txid that created the asset"
+                                         "    SELECT u2.spentTXID AS txid, u2.heightCreated AS height\n"
+                                         "    FROM utxos u1\n"
+                                         "    JOIN utxos u2 ON u1.txid = u2.spentTXID\n"
+                                         "    JOIN assets a ON u1.assetIndex = a.assetIndex\n"
+                                         "    WHERE a.assetId = ? AND u1.issuance = 1 AND u2.spentTXID IS NOT NULL\n"
+                                         ") GROUP BY txid\n"
+                                         "ORDER BY height ASC;");
+    _stmtGetAddressTxHistory.prepare(_db, "SELECT tx\n"
                                           "FROM (\n"
                                           "    SELECT * FROM (\n"
                                           "        SELECT txid AS tx, heightCreated AS height\n"
@@ -303,149 +328,211 @@ void Database::initializeClassValues() {
                                           ")\n"
                                           "ORDER BY height ASC\n"
                                           "LIMIT ?;");
-    addPerformanceIndex("utxos","address","heightCreated");
-    addPerformanceIndex("utxos","address","heightDestroyed","spentTXID");
+    addPerformanceIndex("utxos", "address", "heightCreated");
+    addPerformanceIndex("utxos", "address", "heightDestroyed", "spentTXID");
 
+    //statements to get asset holdings
+    _stmtGetAddressHoldings.prepare(_db, "SELECT assetIndex,SUM(amount) FROM utxos WHERE heightDestroyed IS NULL AND address=? GROUP BY assetIndex");
+    addPerformanceIndex("utxos", "address", "heightDestroyed", "assetIndex");
 
     //statement to get valid utxos for a given address
-    _stmtGetValidUTXO.prepare(_db,"SELECT `txid`,`vout`,`aout`,`assetIndex`,`amount` FROM utxos WHERE heightDestroyed IS NULL AND address=? AND heightCreated>=? AND heightCreated<=? ORDER BY txid ASC, vout ASC, aout ASC;");
+    _stmtGetValidUTXO.prepare(_db, "SELECT `txid`,`vout`,`aout`,`assetIndex`,`amount` FROM utxos WHERE heightDestroyed IS NULL AND address=? AND heightCreated>=? AND heightCreated<=? ORDER BY txid ASC, vout ASC, aout ASC;");
+
+    //get all address changes within a time period
+    _stmtGetAddressChangesDuringPeriod.prepare(_db,
+                                               "SELECT "
+                                               "    address, "
+                                               "    SUM(CASE "
+                                               "            WHEN "
+                                               "                assetIndex = 1 AND "
+                                               "                heightCreated >= ? AND heightCreated <= ? "
+                                               "            THEN amount "
+                                               "            ELSE 0 "
+                                               "        END) - "
+                                               "    SUM(CASE "
+                                               "            WHEN "
+                                               "                assetIndex = 1 AND "
+                                               "                heightDestroyed IS NOT NULL AND heightDestroyed >= ? AND heightDestroyed <= ? "
+                                               "            THEN amount "
+                                               "            ELSE 0 "
+                                               "        END) AS sumDigiByte, "
+
+                                               "    SUM(CASE "
+                                               "            WHEN "
+                                               "                assetIndex > 1 AND "
+                                               "                heightCreated >= ? AND heightCreated <= ? "
+                                               "            THEN amount "
+                                               "            ELSE 0 "
+                                               "        END) - "
+                                               "    SUM(CASE "
+                                               "            WHEN "
+                                               "                assetIndex > 1 AND "
+                                               "                heightDestroyed IS NOT NULL AND heightDestroyed >= ? AND heightDestroyed <= ? "
+                                               "            THEN amount "
+                                               "            ELSE 0 "
+                                               "        END) AS sumAssets, "
+
+                                               "    MAX(CASE "
+                                               "            WHEN heightDestroyed IS NOT NULL AND heightDestroyed >= ? AND heightDestroyed <= ? "
+                                               "            THEN 1 "
+                                               "            ELSE 0 "
+                                               "        END) as spent "
+                                               "FROM utxos "
+                                               "WHERE "
+                                               "    (heightCreated >= ? AND heightCreated <= ?) OR "
+                                               "    (heightDestroyed IS NOT NULL AND heightDestroyed >= ? AND heightDestroyed <= ?) "
+                                               "GROUP BY "
+                                               "   address;");
 
 
 
+
+    //statement to get a list of the last n blocks
+    _stmtGetLastBlocks.prepare(_db, "SELECT height, hash, time, algo FROM blocks WHERE height<=? ORDER BY height DESC LIMIT ?");
 
     //statement to check if exchange watch address
-    _stmtIsWatchAddress.prepare(_db,"SELECT address FROM exchangeWatch WHERE address=?;");
+    _stmtIsWatchAddress.prepare(_db, "SELECT address FROM exchangeWatch WHERE address=?;");
 
     //statement to add exchange watch address
-    _stmtAddWatchAddress.prepare(_db,"INSERT INTO exchangeWatch VALUES (?);");
+    _stmtAddWatchAddress.prepare(_db, "INSERT INTO exchangeWatch VALUES (?);");
 
 
     //statement to insert new exchange rate
-    _stmtAddExchangeRate.prepare(_db,"INSERT INTO exchange VALUES (?,?,?,?);");
+    _stmtAddExchangeRate.prepare(_db, "INSERT INTO exchange VALUES (?,?,?,?);");
 
     //statement to get current exchange rates(all rates)
-    _stmtExchangeRatesAtHeight.prepare(_db,"WITH cte AS (\n"
+    _stmtExchangeRatesAtHeight.prepare(_db, "WITH cte AS (\n"
                                             "  SELECT *, ROW_NUMBER() OVER (PARTITION BY [address], [index] ORDER BY height DESC) AS row_number\n"
                                             "  FROM exchange\n"
-                                            "  WHERE height < ?\n"
+                                            "  WHERE height <= ?\n"
                                             ")\n"
                                             "SELECT [height], [address], [index], [value]\n"
                                             "FROM cte\n"
                                             "WHERE row_number = 1;");
+    addPerformanceIndex("exchange", "address", "index", "height DESC");
 
     //statement to delete exchange rates bellow a specific height
-    _stmtPruneExchangeRate.prepare(_db,"DELETE FROM exchange WHERE height<?;");
+    _stmtPruneExchangeRate.prepare(_db, "DELETE FROM exchange WHERE height<?;");
 
     //statement to get accepted exchange rate at a specific height
-    _stmtGetValidExchangeRate.prepare(_db,"SELECT value, height FROM exchange WHERE height<? AND address=? AND [index]=? ORDER BY height DESC;");
+    _stmtGetValidExchangeRate.prepare(_db, "SELECT value, height FROM exchange WHERE height<? AND address=? AND [index]=? ORDER BY height DESC;");
 
     //statement to get current exchange rate(1 rate)
-    _stmtGetCurrentExchangeRate.prepare(_db,"SELECT value FROM exchange WHERE address=? AND [index]=? ORDER BY height DESC LIMIT 1;");
+    _stmtGetCurrentExchangeRate.prepare(_db, "SELECT value FROM exchange WHERE address=? AND [index]=? ORDER BY height DESC LIMIT 1;");
 
 
     //statement to insert new kyc record
-    _stmtAddKYC.prepare(_db,"INSERT OR IGNORE INTO kyc VALUES (?,?,?,?,?,NULL);");
+    _stmtAddKYC.prepare(_db, "INSERT OR IGNORE INTO kyc VALUES (?,?,?,?,?,NULL);");
 
     //statement to revoke kyc record
-    _stmtRevokeKYC.prepare(_db,"UPDATE kyc SET revoked=? WHERE address=?;");
+    _stmtRevokeKYC.prepare(_db, "UPDATE kyc SET revoked=? WHERE address=?;");
 
     //statement to revoke kyc record
-    _stmtGetKYC.prepare(_db,"SELECT country,name,hash,height,revoked FROM kyc WHERE address=?;");
+    _stmtGetKYC.prepare(_db, "SELECT country,name,hash,height,revoked FROM kyc WHERE address=?;");
 
 
     //statement to get total votes at specific height
-    _stmtGetVoteCountAtHeight.prepare(_db,"SELECT assetIndex,address,SUM([count]),MAX([height]) FROM votes WHERE height<? GROUP BY assetIndex,address;");
+    _stmtGetVoteCountAtHeight.prepare(_db, "SELECT assetIndex,address,SUM([count]),MAX([height]) FROM votes WHERE height<? GROUP BY assetIndex,address;");
 
     //statement to prune votes
-    _stmtPruneVote.prepare(_db,"DELETE FROM votes WHERE height<?;");
+    _stmtPruneVote.prepare(_db, "DELETE FROM votes WHERE height<?;");
 
     //statement to record votes
-    _stmtAddVote.prepare(_db,"INSERT INTO votes (assetIndex, address, height, count) VALUES (?, ?, ?, ?) ON CONFLICT (assetIndex, address, height) DO UPDATE SET count=count+?;");
+    _stmtAddVote.prepare(_db, "INSERT INTO votes (assetIndex, address, height, count) VALUES (?, ?, ?, ?) ON CONFLICT (assetIndex, address, height) DO UPDATE SET count=count+?;");
 
     //statement to get vote counts for an asset
-    _stmtGetVoteCount.prepare(_db,"SELECT address,SUM([count]) FROM votes WHERE assetIndex=? GROUP BY address;");
+    _stmtGetVoteCount.prepare(_db, "SELECT address,SUM([count]) FROM votes WHERE assetIndex=? GROUP BY address;");
 
     //statement to add asset
-    _stmtAddAsset.prepare(_db,"INSERT INTO assets (assetId, issueAddress, cid, rules, heightCreated, heightUpdated, expires) VALUES (?, ?, ?, ?, ?, ?, ?);");
+    _stmtAddAsset.prepare(_db, "INSERT INTO assets (assetId, issueAddress, cid, rules, heightCreated, heightUpdated, expires) VALUES (?, ?, ?, ?, ?, ?, ?);");
 
     //statement to update asset(aggregable only)
-    _stmtUpdateAsset.prepare(_db,"UPDATE assets SET heightUpdated=?, cid=?, rules=?, expires=? WHERE assetIndex=?");
+    _stmtUpdateAsset.prepare(_db, "UPDATE assets SET heightUpdated=?, cid=?, rules=?, expires=? WHERE assetIndex=?");
 
     //statement to get assetIndex(don't use for non-aggregable)
-    _stmtGetAssetIndex.prepare(_db,"SELECT assetIndex FROM assets WHERE assetId=?");
+    _stmtGetAssetIndex.prepare(_db, "SELECT assetIndex FROM assets WHERE assetId=?");
+
+    //statement to get assets ordered by issuance height
+    _stmtGetLastAssetIssued.prepare(_db, "SELECT assetIndex, assetId, cid, heightCreated FROM assets WHERE assetIndex <= ? ORDER BY assetIndex DESC LIMIT ?;");
+
+    //statement to get assets ordered by issuance height
+    _stmtGetAssetIDsOrderedByHeight.prepare(_db, "SELECT assetIndex, assetId, cid, heightCreated FROM assets order by heightCreated asc limit ? offset ?;");
 
     //statement to get height created
-    _stmtGetHeightAssetCreated.prepare(_db,"SELECT assetIndex,heightCreated FROM assets WHERE assetId=?");
+    _stmtGetHeightAssetCreated.prepare(_db, "SELECT assetIndex,heightCreated FROM assets WHERE assetId=?");
 
     //statement to get asset rules
-    _stmtGetAssetRules.prepare(_db,"SELECT rules FROM assets WHERE assetId=?");
+    _stmtGetAssetRules.prepare(_db, "SELECT rules FROM assets WHERE assetId=?");
 
     //statement to get asset
-    _stmtGetAsset.prepare(_db,"SELECT assetId,cid,issueAddress,rules,heightCreated,heightUpdated FROM assets WHERE assetIndex=?");
+    _stmtGetAsset.prepare(_db, "SELECT assetId,cid,issueAddress,rules,heightCreated,heightUpdated FROM assets WHERE assetIndex=?");
 
     //statement to get asset created by an address
-    _stmtGetAssetCreateByAddress.prepare(_db,"SELECT assetIndex FROM assets where issueAddress=? order by assetIndex asc;");
+    _stmtGetAssetCreateByAddress.prepare(_db, "SELECT assetIndex FROM assets where issueAddress=? order by assetIndex asc;");
 
 
     //statement for IPFS
-    _stmtGetNextIPFSJob.prepare(_db,"SELECT jobIndex,sync,cid,extra,callback,maxTime FROM ipfs WHERE pause is NULL AND lock is false ORDER BY jobIndex ASC LIMIT 1;");
+    _stmtGetNextIPFSJob.prepare(_db, "SELECT jobIndex,sync,cid,extra,callback,maxTime FROM ipfs WHERE pause is NULL AND lock is false ORDER BY jobIndex ASC LIMIT 1;");
 
-    _stmtClearNextIPFSJob_a.prepare(_db,"DELETE FROM ipfs WHERE jobIndex=?;");
-    _stmtClearNextIPFSJob_b.prepare(_db,"UPDATE ipfs set lock=false WHERE sync=?;");
+    _stmtClearNextIPFSJob_a.prepare(_db, "DELETE FROM ipfs WHERE jobIndex=?;");
+    _stmtClearNextIPFSJob_b.prepare(_db, "UPDATE ipfs set lock=false WHERE sync=?;");
 
-    _stmtInsertIPFSJob.prepare(_db,"INSERT INTO ipfs (sync, lock, cid, extra, callback, pause, maxTime) VALUES (?,false,?,?,?,?,?);");
+    _stmtInsertIPFSJob.prepare(_db, "INSERT INTO ipfs (sync, lock, cid, extra, callback, pause, maxTime) VALUES (?,false,?,?,?,?,?);");
 
-    _stmtSetIPFSPauseSync.prepare(_db,"UPDATE ipfs set pause=?, lock=false WHERE sync=?;");
+    _stmtSetIPFSPauseSync.prepare(_db, "UPDATE ipfs set pause=?, lock=false WHERE sync=?;");
 
-    _stmtClearIPFSPause.prepare(_db,"UPDATE ipfs set pause=NULL WHERE pause<?;");
+    _stmtClearIPFSPause.prepare(_db, "UPDATE ipfs set pause=NULL WHERE pause<?;");
 
-    _stmtSetIPFSLockSync.prepare(_db,"UPDATE ipfs set lock=true WHERE sync=?;");
+    _stmtSetIPFSLockSync.prepare(_db, "UPDATE ipfs set lock=true WHERE sync=?;");
 
-    _stmtSetIPFSPauseJob.prepare(_db,"UPDATE ipfs set pause=?, lock=false WHERE jobIndex=?;");
+    _stmtSetIPFSPauseJob.prepare(_db, "UPDATE ipfs set pause=?, lock=false WHERE jobIndex=?;");
 
-    _stmtSetIPFSLockJob.prepare(_db,"UPDATE ipfs set lock=true WHERE jobIndex=?;");
+    _stmtSetIPFSLockJob.prepare(_db, "UPDATE ipfs set lock=true WHERE jobIndex=?;");
 
-    _stmtNumberOfIPFSJobs.prepare(_db,"SELECT count(*) FROM ipfs;");
+    _stmtNumberOfIPFSJobs.prepare(_db, "SELECT count(*) FROM ipfs;");
 
     //DigiByte Domain statements
-    _stmtGetDomainAssetId.prepare(_db,"SELECT assetId,revoked FROM domains WHERE domain=?");
+    _stmtGetDomainAssetId.prepare(_db, "SELECT assetId,revoked FROM domains WHERE domain=?");
 
-    _stmtAddDomain.prepare(_db,"INSERT INTO domains VALUES (?,?,false);");
+    _stmtAddDomain.prepare(_db, "INSERT INTO domains VALUES (?,?,false);");
 
-    _stmtRevokeDomain.prepare(_db,"UPDATE domains SET revoked=true WHERE domain=?;");
+    _stmtRevokeDomain.prepare(_db, "UPDATE domains SET revoked=true WHERE domain=?;");
 
-    _stmtSetDomainMasterAssetId_a.prepare(_db,"UPDATE domainsMasters SET active=false WHERE assetId=?;");
-    _stmtSetDomainMasterAssetId_b.prepare(_db,"INSERT INTO domainsMasters VALUES (?,true);");
+    _stmtSetDomainMasterAssetId_a.prepare(_db, "UPDATE domainsMasters SET active=false WHERE assetId=?;");
+    _stmtSetDomainMasterAssetId_b.prepare(_db, "INSERT INTO domainsMasters VALUES (?,true);");
 
     //IPFS Permanent statements
-    _stmtInsertPermanent.prepare(_db,"INSERT OR IGNORE INTO pspFiles (cid,poolIndex) VALUES (?,?)");
+    _stmtInsertPermanent.prepare(_db, "INSERT OR IGNORE INTO pspFiles (cid,poolIndex) VALUES (?,?)");
 
-    _stmtDeletePermanent.prepare(_db,"DELETE FROM pspFiles WHERE cid=? AND poolIndex=?");
+    _stmtDeletePermanent.prepare(_db, "DELETE FROM pspFiles WHERE cid=? AND poolIndex=?");
 
-    _stmtIsInPermanent.prepare(_db,"SELECT 1 FROM pspFiles WHERE cid=?");
+    _stmtIsInPermanent.prepare(_db, "SELECT 1 FROM pspFiles WHERE cid=?");
 
-    _stmtRepinAssets.prepare(_db,"INSERT INTO ipfs (sync, lock, cid, extra, callback, pause, maxTime) SELECT 'pin', 0, cid, '', '', NULL, NULL FROM assets WHERE cid != '';");
+    _stmtRepinAssets.prepare(_db, "INSERT INTO ipfs (sync, lock, cid, extra, callback, pause, maxTime) SELECT 'pin', 0, cid, '', '', NULL, NULL FROM assets WHERE cid != '';");
 
-    _stmtRepinPermanentSpecific.prepare(_db,"INSERT INTO ipfs (sync, lock, cid, extra, callback, pause, maxTime) SELECT 'pin', 0, cid, '', '', NULL, NULL FROM pspFiles WHERE \"poolIndex\" = ?;");
+    _stmtRepinPermanentSpecific.prepare(_db, "INSERT INTO ipfs (sync, lock, cid, extra, callback, pause, maxTime) SELECT 'pin', 0, cid, '', '', NULL, NULL FROM pspFiles WHERE \"poolIndex\" = ?;");
 
-    _stmtAddAssetToPool.prepare(_db,"INSERT OR IGNORE INTO pspAssets (assetIndex,poolIndex) VALUES (?,?);");
+    _stmtAddAssetToPool.prepare(_db, "INSERT OR IGNORE INTO pspAssets (assetIndex,poolIndex) VALUES (?,?);");
 
-    _stmtIsAssetInPool.prepare(_db,"SELECT COUNT(*) FROM \"pspAssets\" WHERE \"assetIndex\" = ? AND \"poolIndex\" = ?;");
+    _stmtIsAssetInPool.prepare(_db, "SELECT 1 FROM \"pspAssets\" WHERE \"assetIndex\" = ? AND \"poolIndex\" = ?;");
 
-    _stmtIsAssetInAPool.prepare(_db,"SELECT 1 FROM \"pspAssets\" WHERE \"assetIndex\" = ?;");
+    _stmtIsAssetInAPool.prepare(_db, "SELECT poolIndex FROM \"pspAssets\" WHERE \"assetIndex\" = ?;");
 
-    _stmtPSPFindBadAsset.prepare(_db,"SELECT a.assetIndex, a.cid "
-                                     "FROM assets a "
-                                     "INNER JOIN pspAssets p ON a.assetIndex = p.assetIndex "
-                                     "WHERE a.assetId = ? AND p.poolIndex = ?;");
+    _stmtPSPFileList.prepare(_db, "SELECT cid FROM \"pspFiles\" WHERE \"poolIndex\" = ? GROUP BY cid;");
+    addPerformanceIndex("pspFiles", "poolIndex", "cid");
 
-    _stmtPSPDeleteBadAsset.prepare(_db,"DELETE FROM pspAssets "
-                                         "WHERE assetIndex IN ("
-                                         "    SELECT a.assetIndex "
-                                         "    FROM assets a "
-                                         "    INNER JOIN pspAssets p ON a.assetIndex = p.assetIndex "
-                                         "    WHERE a.assetId = ? AND p.poolIndex = ?"
-                                         ");");
+    _stmtPSPFindBadAsset.prepare(_db, "SELECT a.assetIndex, a.cid "
+                                      "FROM assets a "
+                                      "INNER JOIN pspAssets p ON a.assetIndex = p.assetIndex "
+                                      "WHERE a.assetId = ? AND p.poolIndex = ?;");
+
+    _stmtPSPDeleteBadAsset.prepare(_db, "DELETE FROM pspAssets "
+                                        "WHERE assetIndex IN ("
+                                        "    SELECT a.assetIndex "
+                                        "    FROM assets a "
+                                        "    INNER JOIN pspAssets p ON a.assetIndex = p.assetIndex "
+                                        "    WHERE a.assetId = ? AND p.poolIndex = ?"
+                                        ");");
 
 
 
@@ -670,8 +757,8 @@ uint64_t Database::addAsset(const DigiAsset& asset) {
 
             //get the assetIndex if the asset already exists
             LockedStatement getAssetIndex{_stmtGetAssetIndex};
-            getAssetIndex.bindText(1,assetId);
-            rc=getAssetIndex.executeStep();
+            getAssetIndex.bindText(1, assetId);
+            rc = getAssetIndex.executeStep();
             if (rc == SQLITE_ROW) { //if not found its new so leave assetIndex 0
                 assetIndex = getAssetIndex.getColumnInt(0);
             }
@@ -681,16 +768,16 @@ uint64_t Database::addAsset(const DigiAsset& asset) {
         if (assetIndex != 0) {
             LockedStatement getUpdateAsset{_stmtUpdateAsset};
             getUpdateAsset.bindInt(1, asset.getHeightUpdated());
-            getUpdateAsset.bindText(2,asset.getCID());
+            getUpdateAsset.bindText(2, asset.getCID());
             vector<uint8_t> serializedRules;
             serialize(serializedRules, asset.getRules());
             Blob rules{serializedRules};
-            getUpdateAsset.bindBlob(3,rules);
+            getUpdateAsset.bindBlob(3, rules);
             getUpdateAsset.bindInt64(4, asset.getExpiry());
             getUpdateAsset.bindInt64(5, assetIndex);
             rc = getUpdateAsset.executeStep();
             if (rc != SQLITE_DONE) {
-                string tempErrorMessage = sqlite3_errmsg(_db);
+                handleSpecialErrors(__LINE__);
                 throw exceptionFailedUpdate();
             }
             return assetIndex;
@@ -699,19 +786,19 @@ uint64_t Database::addAsset(const DigiAsset& asset) {
 
     //insert new asset
     LockedStatement addAsset{_stmtAddAsset};
-    addAsset.bindText(1,assetId);
-    addAsset.bindText(2,asset.getIssuer().getAddress());
-    addAsset.bindText(3,asset.getCID());
+    addAsset.bindText(1, assetId);
+    addAsset.bindText(2, asset.getIssuer().getAddress());
+    addAsset.bindText(3, asset.getCID());
     vector<uint8_t> serializedRules;
     serialize(serializedRules, asset.getRules());
     Blob rules{serializedRules};
-    addAsset.bindBlob(4,rules);
+    addAsset.bindBlob(4, rules);
     addAsset.bindInt(5, asset.getHeightCreated());
     addAsset.bindInt(6, asset.getHeightUpdated()); //will be same as created
     addAsset.bindInt64(7, asset.getExpiry());
     rc = addAsset.executeStep();
     if (rc != SQLITE_DONE) {
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        handleSpecialErrors(__LINE__);
         throw exceptionFailedInsert();
     }
     return sqlite3_last_insert_rowid(_db);
@@ -725,7 +812,7 @@ uint64_t Database::addAsset(const DigiAsset& asset) {
  */
 DigiAssetRules Database::getRules(const string& assetId) {
     LockedStatement getAssetRules{_stmtGetAssetRules};
-    getAssetRules.bindText(1,assetId);
+    getAssetRules.bindText(1, assetId);
     int rc = getAssetRules.executeStep();
     if (rc != SQLITE_ROW) return {};
 
@@ -743,7 +830,7 @@ DigiAssetRules Database::getRules(const string& assetId) {
 unsigned int
 Database::getAssetHeightCreated(const string& assetId, unsigned int backupHeight, uint64_t& assetIndex) {
     LockedStatement getHeightAssetCreated{_stmtGetHeightAssetCreated};
-    getHeightAssetCreated.bindText(1,assetId);
+    getHeightAssetCreated.bindText(1, assetId);
     int rc = getHeightAssetCreated.executeStep();
     if (rc == SQLITE_ROW) { //if not found its new so leave assetIndex 0
         assetIndex = getHeightAssetCreated.getColumnInt(0);
@@ -764,7 +851,7 @@ DigiAsset Database::getAsset(uint64_t assetIndex, uint64_t amount) {
     getAsset.bindInt64(1, assetIndex);
     int rc = getAsset.executeStep();
     if (rc != SQLITE_ROW) {
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        handleSpecialErrors();
         throw exceptionFailedSelect();
     }
     string assetId = getAsset.getColumnText(0);
@@ -789,10 +876,10 @@ uint64_t Database::getAssetIndex(const string& assetId, const string& txid, unsi
     uint64_t assetIndex;
     { //shorten life of database lock
         LockedStatement getAssetIndex{_stmtGetAssetIndex};
-        getAssetIndex.bindText(1,assetId);
+        getAssetIndex.bindText(1, assetId);
         int rc = getAssetIndex.executeStep();
         if (rc != SQLITE_ROW) {
-            throw out_of_range("assetIndex does not exist");
+            throw exceptionFailedSelect();
         }
         assetIndex = getAssetIndex.getColumnInt(0);
 
@@ -803,12 +890,12 @@ uint64_t Database::getAssetIndex(const string& assetId, const string& txid, unsi
     }
 
     //more than 1 so see if the txid and vout provided match a utxo
-    if (txid.empty()) throw out_of_range("specific utxo needed");
+    if (txid.empty()) throw exceptionFailedSelect();
     vector<uint64_t> assetIndexPossibilities;
     { //shorten life of database lock
         LockedStatement getAssetIndexOnUTXO{_stmtGetAssetIndexOnUTXO};
         Blob txidBlob(txid);
-        getAssetIndexOnUTXO.bindBlob(1,txidBlob);
+        getAssetIndexOnUTXO.bindBlob(1, txidBlob);
         getAssetIndexOnUTXO.bindInt(2, vout);
         while (getAssetIndexOnUTXO.executeStep() == SQLITE_ROW) {
             assetIndexPossibilities.push_back(getAssetIndexOnUTXO.getColumnInt(0));
@@ -820,7 +907,7 @@ uint64_t Database::getAssetIndex(const string& assetId, const string& txid, unsi
         DigiAsset asset = getAsset(assetIndexTest);
         if (asset.getAssetId() == assetId) return assetIndexTest;
     }
-    throw out_of_range("assetId not found in utxo");
+    throw exceptionFailedSelect();
 }
 
 vector<uint64_t> Database::getAssetIndexes(const std::string& assetId) {
@@ -828,7 +915,7 @@ vector<uint64_t> Database::getAssetIndexes(const std::string& assetId) {
 
     // Reset the prepared statement to its initial state and bind the assetId parameter
     LockedStatement getAssetIndex{_stmtGetAssetIndex};
-    getAssetIndex.bindText(1,assetId);
+    getAssetIndex.bindText(1, assetId);
 
     // Execute the query and collect all matching asset indexes
     while (getAssetIndex.executeStep() == SQLITE_ROW) {
@@ -837,6 +924,46 @@ vector<uint64_t> Database::getAssetIndexes(const std::string& assetId) {
     }
 
     return assetIndexes;
+}
+
+/**
+ * Returns a list of {assetIndex, assetId, cid, height} ordered by the issuance height
+ * @return
+ */
+std::vector<AssetBasics> Database::getAssetsIssued(unsigned int amount, unsigned int offset) {
+    std::vector<AssetBasics> results;
+    LockedStatement getAssetIDsOrderedByHeight{_stmtGetAssetIDsOrderedByHeight};
+    getAssetIDsOrderedByHeight.bindInt(1, amount);
+    getAssetIDsOrderedByHeight.bindInt(2, offset);
+    while (getAssetIDsOrderedByHeight.executeStep() == SQLITE_ROW) {
+        AssetBasics asset;
+        asset.assetIndex = getAssetIDsOrderedByHeight.getColumnInt(0);
+        asset.assetId = getAssetIDsOrderedByHeight.getColumnText(1);
+        asset.cid = getAssetIDsOrderedByHeight.getColumnText(2);
+        asset.height = getAssetIDsOrderedByHeight.getColumnInt(3);
+        results.push_back(asset);
+    }
+    return results;
+}
+
+/**
+ * Returns a list of {assetIndex, assetId, cid, height} ordered by the issuance height
+ * @return
+ */
+std::vector<AssetBasics> Database::getLastAssetsIssued(unsigned int amount, unsigned int firstAsset) {
+    std::vector<AssetBasics> results;
+    LockedStatement getAssetIDsOrderedByHeight{_stmtGetLastAssetIssued};
+    getAssetIDsOrderedByHeight.bindInt64(1, firstAsset);
+    getAssetIDsOrderedByHeight.bindInt(2, amount);
+    while (getAssetIDsOrderedByHeight.executeStep() == SQLITE_ROW) {
+        AssetBasics asset;
+        asset.assetIndex = getAssetIDsOrderedByHeight.getColumnInt(0);
+        asset.assetId = getAssetIDsOrderedByHeight.getColumnText(1);
+        asset.cid = getAssetIDsOrderedByHeight.getColumnText(2);
+        asset.height = getAssetIDsOrderedByHeight.getColumnInt(3);
+        results.push_back(asset);
+    }
+    return results;
 }
 
 /*
@@ -861,10 +988,10 @@ int Database::getFlagInt(const string& flag) {
 
     //get from database
     LockedStatement checkFlag{_stmtCheckFlag};
-    checkFlag.bindText(1,flag);
+    checkFlag.bindText(1, flag);
     int rc = checkFlag.executeStep();
     if (rc != SQLITE_ROW) { //there should always be one
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        handleSpecialErrors(__LINE__);
         throw exceptionFailedSelect(); //failed to check database
     }
 
@@ -911,15 +1038,19 @@ bool Database::getBeenPrunedNonAssetUTXOHistory() {
  *  exceptionFailedUpdate
  */
 void Database::setFlagInt(const std::string& flag, int state) {
-    if (getFlagInt(flag) == state) return; //no need to do anything
+    try {
+        if (getFlagInt(flag) == state) return; //no need to do anything
+    } catch (const exceptionFailedSelect& e) {
+        //not set yet
+    }
 
     //store in database
     LockedStatement setFlag{_stmtSetFlag};
-    setFlag.bindInt(1, state);
-    setFlag.bindText(2,flag);
+    setFlag.bindText(1, flag);
+    setFlag.bindInt(2, state);
     int rc = setFlag.executeStep();
     if (rc != SQLITE_DONE) { //there should always be one
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        handleSpecialErrors(__LINE__);
         throw exceptionFailedUpdate(); //failed to check database
     }
 
@@ -979,13 +1110,13 @@ void Database::insertBlock(uint height, const std::string& hash, unsigned int ti
     LockedStatement insertBlock{_stmtInsertBlock};
     insertBlock.bindInt(1, height);
     Blob hashBlob = Blob(hash);
-    insertBlock.bindBlob(2,hashBlob);
+    insertBlock.bindBlob(2, hashBlob);
     insertBlock.bindInt(3, time);
     insertBlock.bindInt(4, algo);
     insertBlock.bindDouble(5, difficulty);
     int rc = insertBlock.executeStep();
     if (rc != SQLITE_DONE) { //there should always be one
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        handleSpecialErrors(__LINE__);
         throw exceptionFailedInsert(); //failed to check database
     }
 }
@@ -1032,23 +1163,43 @@ void Database::clearBlocksAboveHeight(uint height) {
     int rc;
     char* zErrMsg = nullptr;
     string lineEnd = to_string(height) + ";";
-    const string sql = "DELETE FROM assets WHERE heightCreated>1 AND heightCreated>=" + lineEnd +
-                       "DELETE FROM exchange WHERE height>=" + lineEnd +
-                       "DELETE FROM kyc WHERE height>=" + lineEnd +
-                       "UPDATE kyc SET revoked=NULL WHERE revoked>=" + lineEnd +
-                       "DELETE FROM utxos WHERE heightCreated>=" + lineEnd +
-                       "UPDATE utxos SET heightDestroyed=NULL WHERE heightDestroyed>=" + lineEnd +
-                       "DELETE FROM votes WHERE height>=" + lineEnd +
-                       "DELETE FROM blocks WHERE height>" + lineEnd;
-
-    rc = sqlite3_exec(_db, sql.c_str(), Database::defaultCallback, nullptr, &zErrMsg);
-    if (rc != SQLITE_OK) {
-        sqlite3_free(zErrMsg);
-        throw exceptionFailedDelete();
+    string sqlCommands[] = {
+            "DELETE FROM assets WHERE heightCreated>1 AND heightCreated>=" + lineEnd,
+            "DELETE FROM exchange WHERE height>=" + lineEnd,
+            "DELETE FROM kyc WHERE height>=" + lineEnd,
+            "UPDATE kyc SET revoked=NULL WHERE revoked>=" + lineEnd,
+            "DELETE FROM utxos WHERE heightCreated>=" + lineEnd,
+            "UPDATE utxos SET heightDestroyed=NULL WHERE heightDestroyed>=" + lineEnd,
+            "DELETE FROM votes WHERE height>=" + lineEnd,
+            "DELETE FROM blocks WHERE height>" + lineEnd,
+            "UPDATE sqlite_sequence SET seq = (SELECT MAX(assetIndex) FROM assets) WHERE name = 'assets';"};
+    for (const string& sql: sqlCommands) {
+        rc = sqlite3_exec(_db, sql.c_str(), nullptr, nullptr, &zErrMsg);
+        if (rc != SQLITE_OK) {
+            sqlite3_free(zErrMsg);
+            throw exceptionFailedDelete();
+        }
     }
 }
 
-
+/**
+ * Get last blocks
+ */
+std::vector<BlockBasics> Database::getLastBlocks(unsigned int limit, unsigned int start) {
+    std::vector<BlockBasics> results;
+    LockedStatement getLastBlocks{_stmtGetLastBlocks};
+    getLastBlocks.bindInt64(1, start);
+    getLastBlocks.bindInt(2, limit);
+    while (getLastBlocks.executeStep() == SQLITE_ROW) {
+        BlockBasics block;
+        block.height = getLastBlocks.getColumnInt(0);
+        block.hash = getLastBlocks.getColumnBlob(1).toHex();
+        block.time = getLastBlocks.getColumnInt(2);
+        block.algo = getLastBlocks.getColumnInt(3);
+        results.push_back(block);
+    }
+    return results;
+}
 
 
 /*
@@ -1076,9 +1227,9 @@ void Database::createUTXO(const AssetUTXO& value, unsigned int heightCreated, bo
 
     //add the main utxo
     LockedStatement createUTXO{_stmtCreateUTXO};
-    createUTXO.bindText(1,value.address);
+    createUTXO.bindText(1, value.address);
     Blob blobTXID = Blob(value.txid);
-    createUTXO.bindBlob(2,blobTXID);
+    createUTXO.bindBlob(2, blobTXID);
     createUTXO.bindInt(3, value.vout);
     createUTXO.bindNull(4);
     createUTXO.bindInt(5, 1);
@@ -1087,27 +1238,25 @@ void Database::createUTXO(const AssetUTXO& value, unsigned int heightCreated, bo
     createUTXO.bindInt(8, 0);
     rc = createUTXO.executeStep();
     if (rc != SQLITE_DONE) {
-        string tempErrorMessage = sqlite3_errmsg(_db);  //todo have occasionally gotten no more rows error.  This eventually fixes itself but need to figure out why.  to prevent hammering of system have added a 2 second delay when this error occurs
-        chrono::milliseconds dura(2000);
-        this_thread::sleep_for(dura);
+        handleSpecialErrors(__LINE__);
         throw exceptionFailedInsert();
     }
 
     //add any assets
     for (size_t aout = 0; aout < value.assets.size(); aout++) {
         createUTXO.reset();
-        createUTXO.bindText(1,value.address);
+        createUTXO.bindText(1, value.address);
         blobTXID = Blob(value.txid);
         createUTXO.bindBlob(2, blobTXID);
         createUTXO.bindInt(3, value.vout);
-        createUTXO.bindInt(4,aout);
+        createUTXO.bindInt(4, aout);
         createUTXO.bindInt64(5, value.assets[aout].getAssetIndex());
         createUTXO.bindInt64(6, value.assets[aout].getCount());
         createUTXO.bindInt(7, heightCreated);
         createUTXO.bindInt(8, assetIssuance);
         rc = createUTXO.executeStep();
         if (rc != SQLITE_DONE) {
-            string tempErrorMessage = sqlite3_errmsg(_db);
+            handleSpecialErrors(__LINE__);
             throw exceptionFailedInsert();
         }
     }
@@ -1123,12 +1272,12 @@ void Database::spendUTXO(const std::string& txid, unsigned int vout, unsigned in
     Blob blobTXID = Blob(txid);
     Blob blobSpendingTXID = Blob(spentTXID);
     spendUTXO.bindInt(1, heightSpent);
-    spendUTXO.bindBlob(2,blobSpendingTXID);
-    spendUTXO.bindBlob(3,blobTXID);
+    spendUTXO.bindBlob(2, blobSpendingTXID);
+    spendUTXO.bindBlob(3, blobTXID);
     spendUTXO.bindInt(4, vout);
     int rc = spendUTXO.executeStep();
     if (rc != SQLITE_DONE) {
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        handleSpecialErrors(__LINE__);
         throw exceptionFailedUpdate();
     }
 }
@@ -1136,7 +1285,7 @@ void Database::spendUTXO(const std::string& txid, unsigned int vout, unsigned in
 std::string Database::getSendingAddress(const string& txid, unsigned int vout) {
     LockedStatement getSpendingAddress{_stmtGetSpendingAddress};
     Blob blobTXID = Blob(txid);
-    getSpendingAddress.bindBlob(1,blobTXID);
+    getSpendingAddress.bindBlob(1, blobTXID);
     getSpendingAddress.bindInt(2, vout);
     int rc = getSpendingAddress.executeStep();
     if (rc != SQLITE_ROW) {
@@ -1166,7 +1315,7 @@ void Database::pruneUTXO(unsigned int height) {
         pruneUTXOs.bindInt(1, height);
         int rc = pruneUTXOs.executeStep();
         if (rc != SQLITE_DONE) {
-            string tempErrorMessage = sqlite3_errmsg(_db);
+            handleSpecialErrors(__LINE__);
             throw exceptionFailedDelete();
         }
     }
@@ -1177,7 +1326,7 @@ void Database::pruneUTXO(unsigned int height) {
         removeNonReachable.bindInt(1, height);
         int rc = removeNonReachable.executeStep();
         if (rc != SQLITE_DONE) {
-            string tempErrorMessage = sqlite3_errmsg(_db);
+            handleSpecialErrors(__LINE__);
             throw exceptionFailedUpdate();
         }
     }
@@ -1192,15 +1341,16 @@ void Database::pruneUTXO(unsigned int height) {
  * not storing non digiasset utxos.
  * @param txid
  * @param vout
+ * @param height - optional used for better error handling
  * @return
  */
-AssetUTXO Database::getAssetUTXO(const string& txid, unsigned int vout) {
+AssetUTXO Database::getAssetUTXO(const string& txid, unsigned int vout, unsigned int height) {
     //try to get data from database
     AssetUTXO result;
     {
         LockedStatement getAssetUTXO{_stmtGetAssetUTXO};
         Blob blobTXID = Blob(txid);
-        getAssetUTXO.bindBlob(1,blobTXID);
+        getAssetUTXO.bindBlob(1, blobTXID);
         getAssetUTXO.bindInt(2, vout);
         result.txid = txid;
         result.vout = vout;
@@ -1220,8 +1370,9 @@ AssetUTXO Database::getAssetUTXO(const string& txid, unsigned int vout) {
     }
 
     //check if we can/should get from the wallet
+    //if (height<getBeenPrunedUTXOHistory()) means the data we want has been pruned and may contain asset data
     AppMain* main = AppMain::GetInstance();
-    if (!main->isDigiByteCoreSet() || (!getBeenPrunedNonAssetUTXOHistory())) throw exceptionDataPruned();
+    if (!main->isDigiByteCoreSet() || (static_cast<int>(height) < getBeenPrunedUTXOHistory())) throw exceptionDataPruned();
 
     //get tx data from wallet
     getrawtransaction_t txData = main->getDigiByteCore()->getRawTransaction(txid);
@@ -1242,28 +1393,27 @@ AssetUTXO Database::getAssetUTXO(const string& txid, unsigned int vout) {
 std::vector<AssetUTXO> Database::getAddressUTXOs(const string& address, unsigned int minConfirms, unsigned int maxConfirms) {
     vector<AssetUTXO> results;
     AssetUTXO entry;
-    entry.address=address;
+    entry.address = address;
 
     //find acceptable search heights
-    DigiByteCore* dgb=AppMain::GetInstance()->getDigiByteCore();
-    unsigned int currentHeight=dgb->getBlockCount();
-    unsigned int minConfirmHeight=currentHeight-minConfirms+1;
-    unsigned int maxConfirmHeight=0;
-    if (maxConfirms<currentHeight) maxConfirmHeight=currentHeight-maxConfirms+1;
+    DigiByteCore* dgb = AppMain::GetInstance()->getDigiByteCore();
+    unsigned int currentHeight = dgb->getBlockCount();
+    unsigned int minConfirmHeight = currentHeight - minConfirms + 1;
+    unsigned int maxConfirmHeight = 0;
+    if (maxConfirms < currentHeight) maxConfirmHeight = currentHeight - maxConfirms + 1;
 
     //get all utxos that include DigiAssets
     Blob lastTxid{"00"};
     {
         LockedStatement getValidUTXO{_stmtGetValidUTXO};
-        getValidUTXO.bindText(1,address);
-        getValidUTXO.bindInt(2,maxConfirmHeight);   //max confirms height will be lower bound
-        getValidUTXO.bindInt(3,minConfirmHeight);
-        int lastVout=-1;
+        getValidUTXO.bindText(1, address);
+        getValidUTXO.bindInt(2, maxConfirmHeight); //max confirms height will be lower bound
+        getValidUTXO.bindInt(3, minConfirmHeight);
+        int lastVout = -1;
         while (getValidUTXO.executeStep() == SQLITE_ROW) {
             //get next row value
             Blob txid = getValidUTXO.getColumnBlob(0);
             int vout = getValidUTXO.getColumnInt(1);
-            unsigned int aout = getValidUTXO.getColumnInt(2);
             unsigned int assetIndex = getValidUTXO.getColumnInt(3);
             uint64_t amount = getValidUTXO.getColumnInt64(4);
 
@@ -1275,14 +1425,14 @@ std::vector<AssetUTXO> Database::getAddressUTXOs(const string& address, unsigned
                 }
 
                 //reset entry to new utxo values
-                lastVout=vout;
+                lastVout = vout;
                 entry.txid = txid.toHex();
                 entry.vout = vout;
                 entry.address = address;
                 entry.digibyte = 0;
                 entry.assets = {};
             }
-            lastTxid=txid;
+            lastTxid = txid;
 
             //add current row data
             if (assetIndex == 1) {
@@ -1296,7 +1446,7 @@ std::vector<AssetUTXO> Database::getAddressUTXOs(const string& address, unsigned
     }
 
     //save last entry
-    if (lastTxid.length()!=1) {
+    if (lastTxid.length() != 1) {
         results.emplace_back(entry);
     }
 
@@ -1305,14 +1455,14 @@ std::vector<AssetUTXO> Database::getAddressUTXOs(const string& address, unsigned
         //see if we can get the rest of the data from the wallet
         vector<unspenttxout_t> walletUtxoData;
         try {
-            walletUtxoData=dgb->listUnspent(minConfirms,maxConfirms,{address});
+            walletUtxoData = dgb->listUnspent(minConfirms, maxConfirms, {address});
         } catch (...) {
             //ignore errors
         }
-        for (const auto& walletUtxo : walletUtxoData) {
+        for (const auto& walletUtxo: walletUtxoData) {
             //search to see if already in results
             bool isDuplicate = false;
-            for (const auto& resultUtxo : results) {
+            for (const auto& resultUtxo: results) {
                 if (resultUtxo.txid == walletUtxo.txid && resultUtxo.vout == walletUtxo.n) {
                     isDuplicate = true;
                     break;
@@ -1326,7 +1476,7 @@ std::vector<AssetUTXO> Database::getAddressUTXOs(const string& address, unsigned
                 newUtxo.vout = walletUtxo.n;
                 newUtxo.address = walletUtxo.address;
                 newUtxo.digibyte = static_cast<uint64_t>(walletUtxo.amount * 100000000); // Assuming amount needs to be in satoshis
-                newUtxo.assets = {}; // No assets for non-asset UTXOs
+                newUtxo.assets = {};                                                     // No assets for non-asset UTXOs
                 results.emplace_back(newUtxo);
             }
         }
@@ -1355,6 +1505,46 @@ std::vector<AssetHolder> Database::getAssetHolders(uint64_t assetIndex) {
 }
 
 /**
+ * Returns a list of asset holders for a specific assetIndex
+ * @param assetIndex
+ * @return
+ */
+std::vector<AssetHolder> Database::getAssetHolders(string assetId) {
+    //get list of asset Indexes
+    vector<uint64_t> assetIndexes = getAssetIndexes(assetId);
+
+    //handle simple cases
+    if (assetIndexes.empty()) return {};
+    if (assetIndexes.size() == 1) return getAssetHolders(assetIndexes[0]);
+
+    //get all holders
+    vector<AssetHolder> allHolders;
+    for (uint64_t assetIndex: assetIndexes) {
+        std::vector<AssetHolder> holders = getAssetHolders(assetIndex);
+        allHolders.insert(allHolders.end(), holders.begin(), holders.end());
+    }
+
+    // Merge holders by address and sum their counts
+    std::sort(allHolders.begin(), allHolders.end(), [](const AssetHolder& a, const AssetHolder& b) {
+        return a.address < b.address; // Sort by address
+    });
+    vector<AssetHolder> mergedHolders;
+    if (!allHolders.empty()) {
+        AssetHolder currentHolder = allHolders[0];
+        for (size_t i = 1; i < allHolders.size(); ++i) {
+            if (allHolders[i].address == currentHolder.address) {
+                currentHolder.count += allHolders[i].count; // Merge counts
+            } else {
+                mergedHolders.push_back(currentHolder);
+                currentHolder = allHolders[i];
+            }
+        }
+        mergedHolders.push_back(currentHolder); // Add the last holder
+    }
+    return mergedHolders;
+}
+
+/**
  * Returns the total number assets that exist of this specific type.
  * The difference between this and the other getTotalAssetCount function is that if the asset has sub types this will only give total of the sub type provided
  * @param assetIndex
@@ -1375,7 +1565,7 @@ uint64_t Database::getTotalAssetCount(uint64_t assetIndex) {
  */
 uint64_t Database::getTotalAssetCount(const string& assetId) {
     LockedStatement getTotalAssetCountb{_stmtGetTotalAssetCountb};
-    getTotalAssetCountb.bindText(1,assetId);
+    getTotalAssetCountb.bindText(1, assetId);
     if (getTotalAssetCountb.executeStep() != SQLITE_ROW) throw exceptionFailedSelect();
     return getTotalAssetCountb.getColumnInt64(0);
 }
@@ -1387,7 +1577,7 @@ uint64_t Database::getTotalAssetCount(const string& assetId) {
  * @return
  */
 uint64_t Database::getOriginalAssetCount(uint64_t assetIndex) {
-    if (getBeenPrunedUTXOHistory()>-1) throw exceptionDataPruned();
+    if (getBeenPrunedUTXOHistory() > 0) throw exceptionDataPruned();
     LockedStatement getOriginalAssetCounta{_stmtGetOriginalAssetCounta};
     getOriginalAssetCounta.bindInt64(1, assetIndex);
     if (getOriginalAssetCounta.executeStep() != SQLITE_ROW) throw exceptionFailedSelect();
@@ -1401,13 +1591,33 @@ uint64_t Database::getOriginalAssetCount(uint64_t assetIndex) {
  * @return
  */
 uint64_t Database::getOriginalAssetCount(const string& assetId) {
-    if (getBeenPrunedUTXOHistory()>-1) throw exceptionDataPruned();
+    if (getBeenPrunedUTXOHistory() > -1) throw exceptionDataPruned();
     LockedStatement getOriginalAssetCountb{_stmtGetOriginalAssetCountb};
-    getOriginalAssetCountb.bindText(1,assetId);
+    getOriginalAssetCountb.bindText(1, assetId);
     if (getOriginalAssetCountb.executeStep() != SQLITE_ROW) throw exceptionFailedSelect();
     return getOriginalAssetCountb.getColumnInt64(0);
 }
 
+/**
+ * Returns the TXIDs where the asset was created.
+ * @param assetId
+ * @return
+ */
+std::vector<IssuanceBasics> Database::getAssetIssuanceTXIDs(const string& assetId) {
+    vector<IssuanceBasics> results;
+    LockedStatement getAssetIssuanceTXIDs{_stmtGetAssetIssuanceTXIDs};
+    getAssetIssuanceTXIDs.bindText(1, assetId);
+    while (getAssetIssuanceTXIDs.executeStep() == SQLITE_ROW) {
+        IssuanceBasics issuance;
+        issuance.assetIndex = getAssetIssuanceTXIDs.getColumnInt(0);
+        issuance.txid = getAssetIssuanceTXIDs.getColumnBlob(1).toHex();
+        issuance.amount = getAssetIssuanceTXIDs.getColumnInt64(2);
+        issuance.height = getAssetIssuanceTXIDs.getColumnInt(3);
+        issuance.cid = getAssetIssuanceTXIDs.getColumnText(4);
+        results.push_back(issuance);
+    }
+    return results;
+}
 /**
  * Returns a list of TXIDs that involve this asset in order they happened
  * The difference between this and the other getAssetTxHistory function is that if the asset has sub types this will only give history for the sub type provide
@@ -1415,14 +1625,14 @@ uint64_t Database::getOriginalAssetCount(const string& assetId) {
  * @return
  */
 std::vector<std::string> Database::getAssetTxHistory(uint64_t assetIndex) {
-    if (getBeenPrunedUTXOHistory()>-1) throw exceptionDataPruned();
+    if (getBeenPrunedUTXOHistory() > -1) throw exceptionDataPruned();
     vector<string> results;
     LockedStatement getAssetTxHistorya{_stmtGetAssetTxHistorya};
     getAssetTxHistorya.bindInt64(1, assetIndex);
     getAssetTxHistorya.bindInt64(2, assetIndex);
     getAssetTxHistorya.bindInt64(3, assetIndex);
     while (getAssetTxHistorya.executeStep() == SQLITE_ROW) {
-        Blob txid=getAssetTxHistorya.getColumnBlob(0);
+        Blob txid = getAssetTxHistorya.getColumnBlob(0);
         results.push_back(txid.toHex());
     }
     return results;
@@ -1435,14 +1645,14 @@ std::vector<std::string> Database::getAssetTxHistory(uint64_t assetIndex) {
  * @return
  */
 std::vector<std::string> Database::getAssetTxHistory(const string& assetId) {
-    if (getBeenPrunedUTXOHistory()>-1) throw exceptionDataPruned();
+    if (getBeenPrunedUTXOHistory() > -1) throw exceptionDataPruned();
     vector<string> results;
     LockedStatement getAssetTxHistoryb{_stmtGetAssetTxHistoryb};
-    getAssetTxHistoryb.bindText(1,assetId);
-    getAssetTxHistoryb.bindText(2,assetId);
-    getAssetTxHistoryb.bindText(3,assetId);
+    getAssetTxHistoryb.bindText(1, assetId);
+    getAssetTxHistoryb.bindText(2, assetId);
+    getAssetTxHistoryb.bindText(3, assetId);
     while (getAssetTxHistoryb.executeStep() == SQLITE_ROW) {
-        Blob txid=getAssetTxHistoryb.getColumnBlob(0);
+        Blob txid = getAssetTxHistoryb.getColumnBlob(0);
         results.push_back(txid.toHex());
     }
     return results;
@@ -1456,20 +1666,20 @@ std::vector<std::string> Database::getAssetTxHistory(const string& assetId) {
  * @return
  */
 std::vector<std::string> Database::getAddressTxList(const string& address, unsigned int minHeight, unsigned int maxHeight, unsigned int limit) {
-    if (getBeenPrunedUTXOHistory()>-1) throw exceptionDataPruned();
+    if (getBeenPrunedUTXOHistory() > 0) throw exceptionDataPruned();
     vector<string> results;
     LockedStatement getAddressTxHistory{_stmtGetAddressTxHistory};
-    getAddressTxHistory.bindText(1,address);
+    getAddressTxHistory.bindText(1, address);
     getAddressTxHistory.bindInt64(2, minHeight);
     getAddressTxHistory.bindInt64(3, maxHeight);
-    getAddressTxHistory.bindInt64(4, limit);
-    getAddressTxHistory.bindText(5,address);
+    getAddressTxHistory.bindInt64(4, limit * 2);
+    getAddressTxHistory.bindText(5, address);
     getAddressTxHistory.bindInt64(6, minHeight);
     getAddressTxHistory.bindInt64(7, maxHeight);
-    getAddressTxHistory.bindInt64(8, limit);
+    getAddressTxHistory.bindInt64(8, limit * 2);
     getAddressTxHistory.bindInt64(9, limit);
     while (getAddressTxHistory.executeStep() == SQLITE_ROW) {
-        Blob txid=getAddressTxHistory.getColumnBlob(0);
+        Blob txid = getAddressTxHistory.getColumnBlob(0);
         results.push_back(txid.toHex());
     }
     return results;
@@ -1481,12 +1691,30 @@ std::vector<std::string> Database::getAddressTxList(const string& address, unsig
  * @return
  */
 std::vector<uint64_t> Database::getAssetsCreatedByAddress(const string& address) {
-    if (getBeenPrunedUTXOHistory()>-1) throw exceptionDataPruned();
+    if (getBeenPrunedUTXOHistory() > -1) throw exceptionDataPruned();
     vector<uint64_t> results;
     LockedStatement getAssetCreateByAddress{_stmtGetAssetCreateByAddress};
-    getAssetCreateByAddress.bindText(1,address);
+    getAssetCreateByAddress.bindText(1, address);
     while (getAssetCreateByAddress.executeStep() == SQLITE_ROW) {
         results.push_back(getAssetCreateByAddress.getColumnInt64(0));
+    }
+    return results;
+}
+
+/**
+ * Returns assetIndex and count for assets in an address.   If non asset utxo are stored also returns DigiByte as index 1
+ * @param address
+ * @return
+ */
+std::vector<AssetCount> Database::getAddressHoldings(const string& address) {
+    std::vector<AssetCount> results;
+
+    LockedStatement getAddressHoldings{_stmtGetAddressHoldings};
+    getAddressHoldings.bindText(1, address);
+    while (getAddressHoldings.executeStep() == SQLITE_ROW) {
+        results.emplace_back(AssetCount{
+                .assetIndex = static_cast<unsigned int>(getAddressHoldings.getColumnInt(0)),
+                .count = static_cast<uint64_t>(getAddressHoldings.getColumnInt64(1))});
     }
     return results;
 }
@@ -1504,7 +1732,7 @@ bool Database::isWatchAddress(const string& address) {
     //if to many watch addresses to buffer effectively use database
     if (_exchangeWatchAddresses.empty()) {
         LockedStatement isWatchAddress{_stmtIsWatchAddress};
-        isWatchAddress.bindText(1,address);
+        isWatchAddress.bindText(1, address);
         int rc = isWatchAddress.executeStep();
         return (rc == SQLITE_ROW);
     }
@@ -1522,10 +1750,10 @@ void Database::addWatchAddress(const string& address) {
 
     //add to database
     LockedStatement addWatchAddress{_stmtAddWatchAddress};
-    addWatchAddress.bindText(1,address);
+    addWatchAddress.bindText(1, address);
     int rc = addWatchAddress.executeStep();
     if (rc != SQLITE_OK) {
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        handleSpecialErrors(__LINE__);
         throw exceptionFailedInsert();
     }
 
@@ -1555,7 +1783,7 @@ void Database::addWatchAddress(const string& address) {
 vector<Database::exchangeRateHistoryValue> Database::getExchangeRatesAtHeight(unsigned int height) {
     vector<exchangeRateHistoryValue> firstEntry;
     LockedStatement exchangeRatesAyHeight{_stmtExchangeRatesAtHeight};
-    exchangeRatesAyHeight.bindInt( 1, height);
+    exchangeRatesAyHeight.bindInt(1, height);
     while (exchangeRatesAyHeight.executeStep() == SQLITE_ROW) {
         firstEntry.push_back(exchangeRateHistoryValue{
                 .height = (unsigned int) exchangeRatesAyHeight.getColumnInt(0),
@@ -1571,13 +1799,13 @@ vector<Database::exchangeRateHistoryValue> Database::getExchangeRatesAtHeight(un
  */
 void Database::addExchangeRate(const string& address, unsigned int index, unsigned int height, double exchangeRate) {
     LockedStatement addExchangeRate{_stmtAddExchangeRate};
-    addExchangeRate.bindText(1,address);
+    addExchangeRate.bindText(1, address);
     addExchangeRate.bindInt(2, index);
     addExchangeRate.bindInt(3, height);
     addExchangeRate.bindDouble(4, exchangeRate);
     int rc = addExchangeRate.executeStep();
     if (rc != SQLITE_DONE) {
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        handleSpecialErrors(__LINE__);
         throw exceptionFailedUpdate();
     }
 }
@@ -1589,7 +1817,7 @@ void Database::addExchangeRate(const string& address, unsigned int index, unsign
  */
 void Database::pruneExchange(unsigned int pruneHeight) {
     //we need to keep at least 1 value before prune height for each value so let's find the newest before prune height for each exchange rate
-    vector<exchangeRateHistoryValue> firstEntry=getExchangeRatesAtHeight(pruneHeight-1);
+    vector<exchangeRateHistoryValue> firstEntry = getExchangeRatesAtHeight(pruneHeight - 1);
 
     //delete from exchange where pruneHeight<pruneHeight;
     {
@@ -1597,7 +1825,7 @@ void Database::pruneExchange(unsigned int pruneHeight) {
         pruneExchangeRate.bindInt(1, pruneHeight);
         int rc = pruneExchangeRate.executeStep();
         if (rc != SQLITE_DONE) {
-            string tempErrorMessage = sqlite3_errmsg(_db);
+            handleSpecialErrors(__LINE__);
             throw exceptionFailedDelete();
         }
     }
@@ -1608,7 +1836,7 @@ void Database::pruneExchange(unsigned int pruneHeight) {
         removeNonReachable.bindInt(1, pruneHeight);
         int rc = removeNonReachable.executeStep();
         if (rc != SQLITE_DONE) {
-            string tempErrorMessage = sqlite3_errmsg(_db);
+            handleSpecialErrors(__LINE__);
             throw exceptionFailedUpdate();
         }
     }
@@ -1641,7 +1869,7 @@ double Database::getAcceptedExchangeRate(const ExchangeRate& rate, unsigned int 
     //look up exchange rate
     LockedStatement getValidExchangeRate{_stmtGetValidExchangeRate};
     getValidExchangeRate.bindInt(1, height);
-    getValidExchangeRate.bindText(2,rate.address);
+    getValidExchangeRate.bindText(2, rate.address);
     getValidExchangeRate.bindInt(3, rate.index);
     double min = numeric_limits<double>::infinity();
     while (getValidExchangeRate.executeStep() == SQLITE_ROW) {
@@ -1659,7 +1887,7 @@ double Database::getAcceptedExchangeRate(const ExchangeRate& rate, unsigned int 
 
 double Database::getCurrentExchangeRate(const ExchangeRate& rate) {
     LockedStatement getCurrentExchangeRate{_stmtGetCurrentExchangeRate};
-    getCurrentExchangeRate.bindText(1,rate.address);
+    getCurrentExchangeRate.bindText(1, rate.address);
     getCurrentExchangeRate.bindInt(2, rate.index);
     if (getCurrentExchangeRate.executeStep() != SQLITE_ROW) throw out_of_range("Unknown Exchange Rate");
     return getCurrentExchangeRate.getColumnDouble(0);
@@ -1678,14 +1906,14 @@ void Database::addKYC(const string& address, const string& country, const string
                       unsigned int height) {
     LockedStatement addKYC{_stmtAddKYC};
     Blob blobTXID = Blob(hash);
-    addKYC.bindText(1,address);
-    addKYC.bindText(2,country);
-    addKYC.bindText(3,name);
-    addKYC.bindBlob(4,blobTXID);
+    addKYC.bindText(1, address);
+    addKYC.bindText(2, country);
+    addKYC.bindText(3, name);
+    addKYC.bindBlob(4, blobTXID);
     addKYC.bindInt(5, height);
     int rc = addKYC.executeStep();
     if (rc != SQLITE_DONE) {
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        handleSpecialErrors(__LINE__);
         throw exceptionFailedUpdate();
     }
 }
@@ -1693,31 +1921,30 @@ void Database::addKYC(const string& address, const string& country, const string
 void Database::revokeKYC(const string& address, unsigned int height) {
     LockedStatement revokeKYC{_stmtRevokeKYC};
     revokeKYC.bindInt(1, height);
-    revokeKYC.bindText(2,address);
+    revokeKYC.bindText(2, address);
     int rc = revokeKYC.executeStep();
     if (rc != SQLITE_DONE) {
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        handleSpecialErrors(__LINE__);
         throw exceptionFailedUpdate();
     }
 }
 
 KYC Database::getAddressKYC(const string& address) {
     LockedStatement getKYC{_stmtGetKYC};
-    getKYC.bindText(1,address);
+    getKYC.bindText(1, address);
     int rc = getKYC.executeStep();
     if (rc != SQLITE_ROW) {
         return {
                 address};
     }
-    Blob hash=getKYC.getColumnBlob(2);
+    Blob hash = getKYC.getColumnBlob(2);
     return {
-        address,
-        getKYC.getColumnText(0),
-        getKYC.getColumnText(1),
-        hash.toHex(),
-        static_cast<unsigned int>(getKYC.getColumnInt(3)),
-        getKYC.getColumnInt(4)
-    };
+            address,
+            getKYC.getColumnText(0),
+            getKYC.getColumnText(1),
+            hash.toHex(),
+            static_cast<unsigned int>(getKYC.getColumnInt(3)),
+            getKYC.getColumnInt(4)};
 }
 
 /*
@@ -1735,13 +1962,13 @@ KYC Database::getAddressKYC(const string& address) {
 void Database::addVote(const string& address, unsigned int assetIndex, uint64_t count, unsigned int height) {
     LockedStatement addVote{_stmtAddVote};
     addVote.bindInt(1, assetIndex);
-    addVote.bindText(2,address);
+    addVote.bindText(2, address);
     addVote.bindInt(3, height);
     addVote.bindInt64(4, count);
     addVote.bindInt64(5, count);
     int rc = addVote.executeStep();
     if (rc != SQLITE_DONE) {
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        handleSpecialErrors(__LINE__);
         throw exceptionFailedInsert();
     }
 }
@@ -1778,7 +2005,7 @@ void Database::pruneVote(unsigned int height) {
         pruneVote.bindInt(1, height);
         int rc = pruneVote.executeStep();
         if (rc != SQLITE_DONE) {
-            string tempErrorMessage = sqlite3_errmsg(_db);
+            handleSpecialErrors(__LINE__);
             throw exceptionFailedDelete();
         }
     }
@@ -1789,7 +2016,7 @@ void Database::pruneVote(unsigned int height) {
         removeNonReachable.bindInt(1, height);
         int rc = removeNonReachable.executeStep();
         if (rc != SQLITE_DONE) {
-            string tempErrorMessage = sqlite3_errmsg(_db);
+            handleSpecialErrors(__LINE__);
             throw exceptionFailedUpdate();
         }
     }
@@ -1928,8 +2155,8 @@ void Database::getNextIPFSJob(unsigned int& jobIndex, string& cid, string& sync,
 
         //get max time
         currentTime = std::chrono::duration_cast<std::chrono::milliseconds>(
-                                       std::chrono::system_clock::now().time_since_epoch())
-                                       .count();
+                              std::chrono::system_clock::now().time_since_epoch())
+                              .count();
         maxTime = getNextIPFSJob.getColumnInt64(5);
     }
     if (maxTime == 0) {
@@ -1959,7 +2186,7 @@ void Database::getNextIPFSJob(unsigned int& jobIndex, string& cid, string& sync,
         rc = setIPFSLockJob.executeStep();
     } else {
         LockedStatement setIPFSLockSync{_stmtSetIPFSLockSync};
-        setIPFSLockSync.bindText(1,sync);
+        setIPFSLockSync.bindText(1, sync);
         rc = setIPFSLockSync.executeStep();
     }
     if (rc != SQLITE_DONE) throw exceptionFailedUpdate();
@@ -1982,14 +2209,14 @@ void Database::pauseIPFSSync(unsigned int jobIndex, const string& sync, unsigned
     } else {
         LockedStatement setIPFSPauseSync{_stmtSetIPFSPauseSync};
         setIPFSPauseSync.bindInt64(1, unpauseTime);
-        setIPFSPauseSync.bindText(2,sync);
+        setIPFSPauseSync.bindText(2, sync);
         rc = setIPFSPauseSync.executeStep();
 
         //update ram
         if (rc == SQLITE_DONE) _ipfsCurrentlyPaused.emplace_back(sync, unpauseTime);
     }
     if (rc != SQLITE_DONE) { //there should always be one
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        handleSpecialErrors(__LINE__);
         throw exceptionFailedDelete(); //failed to check database
     }
 }
@@ -2008,16 +2235,16 @@ void Database::removeIPFSJob(unsigned int jobIndex, const string& sync) {
         clearNextIPFSJob.bindInt(1, jobIndex);
         int rc = clearNextIPFSJob.executeStep();
         if (rc != SQLITE_DONE) { //there should always be one
-            string tempErrorMessage = sqlite3_errmsg(_db);
+            handleSpecialErrors(__LINE__);
             throw exceptionFailedSQLCommand(); //failed to delete or unlock
         }
     }
     {
         LockedStatement clearNextIPFSJob{_stmtClearNextIPFSJob_b};
-        clearNextIPFSJob.bindText(1,sync);
+        clearNextIPFSJob.bindText(1, sync);
         int rc = clearNextIPFSJob.executeStep();
         if (rc != SQLITE_DONE) { //there should always be one
-            string tempErrorMessage = sqlite3_errmsg(_db);
+            handleSpecialErrors(__LINE__);
             throw exceptionFailedSQLCommand(); //failed to delete or unlock
         }
     }
@@ -2056,10 +2283,10 @@ Database::addIPFSJob(const string& cid, const string& sync, const string& extra,
 
     //add type download to database
     LockedStatement insertIPFSJob{_stmtInsertIPFSJob};
-    insertIPFSJob.bindText(1,sync);
-    insertIPFSJob.bindText(2,cid);
-    insertIPFSJob.bindText(3,extra);
-    insertIPFSJob.bindText(4,callbackSymbol);
+    insertIPFSJob.bindText(1, sync);
+    insertIPFSJob.bindText(2, cid);
+    insertIPFSJob.bindText(3, extra);
+    insertIPFSJob.bindText(4, callbackSymbol);
     if (pause != 0) {
         insertIPFSJob.bindInt64(5, pause);
     } else {
@@ -2076,7 +2303,7 @@ Database::addIPFSJob(const string& cid, const string& sync, const string& extra,
 
     int rc = insertIPFSJob.executeStep();
     if (rc != SQLITE_DONE) {
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        handleSpecialErrors(__LINE__);
         throw exceptionFailedInsert();
     }
     return sqlite3_last_insert_rowid(_db);
@@ -2116,28 +2343,28 @@ promise<string> Database::addIPFSJobPromise(const string& cid, const string& syn
 
 void Database::revokeDomain(const string& domain) {
     LockedStatement revokeDomain{_stmtRevokeDomain};
-    revokeDomain.bindText(1,domain);
+    revokeDomain.bindText(1, domain);
     int rc = revokeDomain.executeStep();
     if (rc != SQLITE_DONE) {
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        handleSpecialErrors(__LINE__);
         throw exceptionFailedUpdate();
     }
 }
 
 void Database::addDomain(const string& domain, const string& assetId) {
     LockedStatement addDomain{_stmtAddDomain};
-    addDomain.bindText(1,domain);
-    addDomain.bindText(2,assetId);
+    addDomain.bindText(1, domain);
+    addDomain.bindText(2, assetId);
     int rc = addDomain.executeStep();
     if (rc != SQLITE_DONE) {
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        handleSpecialErrors(__LINE__);
         throw exceptionFailedUpdate();
     }
 }
 
 string Database::getDomainAssetId(const std::string& domain, bool returnErrorIfRevoked) {
     LockedStatement getDomainAssetId{_stmtGetDomainAssetId};
-    getDomainAssetId.bindText(1,domain);
+    getDomainAssetId.bindText(1, domain);
     int rc = getDomainAssetId.executeStep();
 
     if (rc != SQLITE_ROW) throw DigiByteDomain::exceptionUnknownDomain();
@@ -2162,18 +2389,18 @@ void Database::setMasterDomainAssetId(const string& assetId) {
     {
         LockedStatement setDomainMasterAssetId{_stmtSetDomainMasterAssetId_a};
         string lastDomain = _masterDomainAssetId.back();
-        setDomainMasterAssetId.bindText(1,lastDomain);
+        setDomainMasterAssetId.bindText(1, lastDomain);
         int rc = setDomainMasterAssetId.executeStep();
         if (rc != SQLITE_DONE) {
-            string tempErrorMessage = sqlite3_errmsg(_db);
+            handleSpecialErrors(__LINE__);
             throw exceptionFailedUpdate();
         }
     }
     LockedStatement setDomainMasterAssetId{_stmtSetDomainMasterAssetId_b};
-    setDomainMasterAssetId.bindText(1,assetId);
+    setDomainMasterAssetId.bindText(1, assetId);
     int rc = setDomainMasterAssetId.executeStep();
     if (rc != SQLITE_DONE) {
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        handleSpecialErrors(__LINE__);
         throw exceptionFailedInsert();
     }
     _masterDomainAssetId.push_back(assetId);
@@ -2223,7 +2450,7 @@ void Database::repinPermanent(unsigned int poolIndex) {
         LockedStatement repinAssets{_stmtRepinAssets};
         int rc = repinAssets.executeStep();
         if (rc != SQLITE_DONE) {
-            string tempErrorMessage = sqlite3_errmsg(_db);
+            handleSpecialErrors(__LINE__);
             throw exceptionFailedInsert();
         }
     }
@@ -2233,7 +2460,7 @@ void Database::repinPermanent(unsigned int poolIndex) {
     repinPermanentSpecific.bindInt(1, poolIndex);
     int rc = repinPermanentSpecific.executeStep();
     if (rc != SQLITE_DONE) {
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        handleSpecialErrors(__LINE__);
         throw exceptionFailedInsert();
     }
 }
@@ -2268,7 +2495,7 @@ void Database::unpinPermanent(unsigned int poolIndex) {
 
     int rc = sqlite3_exec(_db, sql.c_str(), Database::defaultCallback, nullptr, nullptr);
     if (rc != SQLITE_DONE) {
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        handleSpecialErrors(__LINE__);
         throw exceptionFailedInsert();
     }
 }
@@ -2280,11 +2507,11 @@ void Database::unpinPermanent(unsigned int poolIndex) {
 void Database::addToPermanent(unsigned int poolIndex, const string& cid) {
     if (cid.empty()) return;
     LockedStatement insertPermanent{_stmtInsertPermanent};
-    insertPermanent.bindText(1,cid);
+    insertPermanent.bindText(1, cid);
     insertPermanent.bindInt(2, poolIndex);
     int rc = insertPermanent.executeStep();
     if (rc != SQLITE_DONE) {
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        handleSpecialErrors(__LINE__);
         throw exceptionFailedInsert();
     }
 }
@@ -2293,7 +2520,7 @@ void Database::removeFromPermanent(unsigned int poolIndex, const std::string& ci
     //remove from database
     {
         LockedStatement deletePermanent{_stmtDeletePermanent};
-        deletePermanent.bindText(1,cid);
+        deletePermanent.bindText(1, cid);
         deletePermanent.bindInt(2, poolIndex);
         deletePermanent.executeStep();
     }
@@ -2303,7 +2530,7 @@ void Database::removeFromPermanent(unsigned int poolIndex, const std::string& ci
 
     //see if asset still present
     LockedStatement isInPermanent{_stmtIsInPermanent};
-    isInPermanent.bindText(1,cid);
+    isInPermanent.bindText(1, cid);
     if (isInPermanent.executeStep() == SQLITE_ROW) return;
 
     //add asset to be unpinned
@@ -2325,7 +2552,7 @@ void Database::removeAssetFromPool(unsigned int poolIndex, const std::string& as
     vector<pair<unsigned int, string>> toDelete;
     {
         LockedStatement pspFindBadAsset{_stmtPSPFindBadAsset};
-        pspFindBadAsset.bindText(1,assetId);
+        pspFindBadAsset.bindText(1, assetId);
         pspFindBadAsset.bindInt(2, poolIndex);
         while (pspFindBadAsset.executeStep() == SQLITE_ROW) {
             unsigned int assetIndex = pspFindBadAsset.getColumnInt(0);
@@ -2337,7 +2564,7 @@ void Database::removeAssetFromPool(unsigned int poolIndex, const std::string& as
     //remove from database
     {
         LockedStatement pspDeleteBadAsset{_stmtPSPDeleteBadAsset};
-        pspDeleteBadAsset.bindText(1,assetId);
+        pspDeleteBadAsset.bindText(1, assetId);
         pspDeleteBadAsset.bindInt(2, poolIndex);
         pspDeleteBadAsset.executeStep();
     }
@@ -2361,11 +2588,32 @@ bool Database::isAssetInPool(unsigned int poolIndex, unsigned int assetIndex) {
     isAssetInPool.bindInt(1, assetIndex);
     isAssetInPool.bindInt(2, poolIndex);
 
-    if (isAssetInPool.executeStep() == SQLITE_ROW) {
-        return isAssetInPool.getColumnInt(0) > 0;
-    } else {
-        throw exceptionFailedSelect();
+    return (isAssetInPool.executeStep() == SQLITE_ROW);
+}
+bool Database::isAssetInPool(unsigned int assetIndex) {
+    LockedStatement isAssetInPool{_stmtIsAssetInAPool};
+    isAssetInPool.bindInt(1, assetIndex);
+
+    return (isAssetInPool.executeStep() == SQLITE_ROW);
+}
+std::vector<int> Database::listPoolsAssetIsIn(unsigned int assetIndex) {
+    vector<int> pools;
+    LockedStatement isAssetInPool{_stmtIsAssetInAPool};
+    isAssetInPool.bindInt(1, assetIndex);
+
+    while (isAssetInPool.executeStep() == SQLITE_ROW) {
+        pools.emplace_back(isAssetInPool.getColumnInt(0));
     }
+    return pools;
+}
+std::vector<std::string> Database::getPSPFileList(unsigned int poolIndex) {
+    LockedStatement fileLister{_stmtPSPFileList};
+    fileLister.bindInt(1, poolIndex);
+    vector<string> results;
+    while (fileLister.executeStep() == SQLITE_ROW) {
+        results.push_back(fileLister.getColumnText(0));
+    }
+    return results;
 }
 
 /*
@@ -2390,9 +2638,200 @@ bool Database::canGetAddressStats() {
             (getBeenPrunedUTXOHistory() > -1) ||
             (getBeenPrunedNonAssetUTXOHistory()));
 }
+
+/**
+ * This function loops through chain data stored in database and computes stats on it 1 time frame at a time until it catches up with todays date
+ * If there is not at least 10 block past the next time frame it will not process the stats for this period
+ * @param timeFrame
+ */
 void Database::updateStats(unsigned int timeFrame) {
+    //make sure can't be run twice at the same time
+    std::lock_guard<std::mutex> lock(_mutexGetNextIPFSJob);
+
     //return if stats are not possible do to pruning being on(no stats are possible if algo stats are not possible)
     if (!canGetAlgoStats()) return;
+
+    Log* log = Log::GetInstance();
+    const string flag = "statsBlockHeightEnd_" + to_string(timeFrame);
+
+    //make sure indexes we need exist
+    addStatsPerformanceIndexes();
+
+    //get start block height
+    unsigned int startHeight = 1;
+    try {
+        startHeight = getFlagInt(flag) + 1;
+    } catch (const exceptionFailedSelect& e) {
+        //first run so use height=1
+    }
+
+    //get end time of first block
+    unsigned int endTime = getStatsEndTime(timeFrame, startHeight);
+
+    //repair database in case there was a partial run
+    //repairStats(timeFrame, endTime);
+
+    //loop through database until up to current date
+    unsigned int endHeight;
+    while ((endHeight = getStatsEndBlockHeight(timeFrame, endTime)) != 0) {
+        //write out what we are doing to debug log
+        log->addMessage("Database::updateStats creating stats for blocks " + to_string(startHeight) + " to " + to_string(endHeight), Log::DEBUG);
+
+        //update algo stats
+        updateAlgoStats(timeFrame, endTime, startHeight, endHeight);
+
+        //update if can do address stats
+        if (canGetAddressStats()) updateAddressStats(timeFrame, endTime, startHeight, endHeight);
+
+        //update where we left off
+        setFlagInt(flag, endHeight);
+        endTime += timeFrame;
+        startHeight = endHeight + 1;
+    }
+    log->addMessage("Database::updateStats complete", Log::DEBUG);
+}
+/**
+ * To speed up stats calculation this adds some indexes to the database if they don't already exist
+ */
+void Database::addStatsPerformanceIndexes() {
+    ChainAnalyzer* analyzer = AppMain::GetInstance()->getChainAnalyzer();
+    addPerformanceIndex("blocks", "height");
+    addPerformanceIndex("blocks", "time");
+    if (canGetAddressStats()) {
+        addPerformanceIndex("utxos", "assetIndex", "heightCreated");
+        addPerformanceIndex("utxos", "assetIndex", "heightDestroyed");
+    }
+    while (!_performanceIndexes.empty()) {
+        executePerformanceIndex(analyzer->_state);
+        waitForSync(analyzer);
+    }
+}
+
+/**
+ * Figures out when the end time is of the current requested stat window.
+ * @param timeFrame
+ * @param beginHeight
+ * @return
+ */
+unsigned int Database::getStatsEndTime(unsigned int timeFrame, unsigned int beginHeight) {
+    //prep key variables
+    string sql;
+    sqlite3_stmt* stmt;
+    int rc;
+
+    //find what time, time frame ends at
+    sql = "SELECT time FROM blocks WHERE height = " + to_string(beginHeight) + ";";
+    rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
+    if (rc != SQLITE_OK) {
+        sqlite3_finalize(stmt);
+        throw exceptionCreatingStatement();
+    }
+    rc = executeSqliteStepWithRetry(stmt);
+    if (rc != SQLITE_ROW) {
+        sqlite3_finalize(stmt);
+        throw exceptionFailedSelect();
+    }
+    unsigned int startTime = sqlite3_column_int(stmt, 0);
+    sqlite3_finalize(stmt);
+
+    return ((startTime / timeFrame) + 1) * timeFrame;
+}
+
+/**
+ * Returns the end height of the current stat window.
+ * Will return 0 if there is not at least 10 blocks past this window.  This is to make sure the window is complete and unlikely to change
+ * @param timeFrame
+ * @param endTime
+ * @return
+ */
+unsigned int Database::getStatsEndBlockHeight(unsigned int timeFrame, unsigned int endTime) {
+    //prep key variables
+    string sql;
+    string timeStr = to_string(timeFrame);
+    sqlite3_stmt* stmt;
+    int rc;
+
+    //find what height time frame ends at
+    // clang-format off
+    sql = "WITH MaxHeight AS ( "
+            "SELECT MAX(height) AS max_height "
+            "FROM blocks "
+            "WHERE time < " + to_string(endTime) + " "
+        ") "
+        "SELECT "
+            "CASE "
+                "WHEN EXISTS (SELECT 1 FROM blocks WHERE height = (SELECT max_height FROM MaxHeight) + 10) "
+                "THEN (SELECT max_height FROM MaxHeight) "
+                "ELSE 0 "
+            "END;";
+    // clang-format on
+
+    rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
+    if (rc != SQLITE_OK) {
+        sqlite3_finalize(stmt);
+        throw exceptionCreatingStatement();
+    }
+    rc = executeSqliteStepWithRetry(stmt);
+    if (rc != SQLITE_ROW) {
+        sqlite3_finalize(stmt);
+        throw exceptionFailedSelect();
+    }
+    unsigned int endHeight = sqlite3_column_int(stmt, 0);
+
+    sqlite3_finalize(stmt);
+
+    return endHeight;
+}
+
+/**
+ * Generates algo stats table if not already existing and adds the time window to it
+ * @param timeFrame
+ * @param endTime
+ * @param startHeight
+ * @param endHeight
+ */
+void Database::updateAlgoStats(unsigned int timeFrame, unsigned int endTime, unsigned int startHeight, unsigned int endHeight) {
+    //prep key variables
+    string sql;
+    string timeStr = to_string(timeFrame);
+
+    //create Stats Algo Table
+    if (startHeight == 1) {
+        executeSQLStatement(
+                "CREATE TABLE StatsAlgo_" + timeStr + " (end_time INTEGER NOT NULL,algo INTEGER NOT NULL,min_difficulty REAL NOT NULL, max_difficulty REAL NOT NULL, avg_difficulty REAL NOT NULL, num_blocks INTEGER NOT NULL, PRIMARY KEY(end_time, algo));",
+                exceptionFailedToCreateTable());
+    }
+
+    //populate stats algo table
+    // clang-format off
+    executeSQLStatement(
+        "INSERT INTO StatsAlgo_" + timeStr + " (end_time, algo, min_difficulty, max_difficulty, avg_difficulty, num_blocks) "
+        "SELECT "
+            "" + to_string(endTime) + ", "
+            "b.algo, "
+            "MIN(b.difficulty) AS min_difficulty, "
+            "MAX(b.difficulty) AS max_difficulty, "
+            "AVG(b.difficulty) AS avg_difficulty, "
+            "COUNT(*) AS num_blocks "
+        "FROM blocks b "
+        "WHERE height BETWEEN " + to_string(startHeight) + " AND " + to_string(endHeight) + " "
+        "GROUP BY b.algo "
+        "HAVING COUNT(*) >0 "
+        "ORDER BY algo ASC;",
+        exceptionFailedInsert()
+    );
+    // clang-format on
+}
+
+void Database::updateAddressStats(unsigned int timeFrame, unsigned int endTime, unsigned int startHeight, unsigned int endHeight) {
+    struct Change {
+        string address;
+        int64_t digibyteChange;
+        int64_t assetChange;
+        bool spent;
+
+        Change(const string& addr, uint64_t dChange, uint64_t aChange, bool s) : address(addr), digibyteChange(dChange), assetChange(aChange), spent(s) {}
+    };
 
     int rc;
 
@@ -2401,230 +2840,206 @@ void Database::updateStats(unsigned int timeFrame) {
     string timeStr = to_string(timeFrame);
     sqlite3_stmt* stmt;
 
-    //find what height we need to start update from
-    unsigned int startTime = 0;
-    unsigned int beginHeight = 1;
-    sql = "SELECT end_time,begin_height FROM StatsCutOffHeights_" + timeStr + " ORDER BY end_time DESC LIMIT 1;";
+    //create address stats table if it does not exist
+    if (startHeight == 1) {
+        executeSQLStatement(
+                "CREATE TABLE StatsAddress_" + timeStr + " ( end_time INTEGER NOT NULL, total INTEGER, Count_Over_0 INTEGER, Count_Over_1 INTEGER, Count_Over_1k INTEGER, Count_Over_1m INTEGER, num_addresses_with_assets INTEGER, num_addresses_created INTEGER, num_addresses_used INTEGER, num_quantum_unsafe INTEGER, PRIMARY KEY(end_time));",
+                exceptionFailedToCreateTable());
+        executeSQLStatement(
+                "CREATE TABLE StatsAddressSum_" + timeStr + " ( address TEXT NOT NULL, digibyte INTEGER NOT NULL, assets INTEGER NOT NULL, spent BOOL NOT NULL, PRIMARY KEY (address) );",
+                exceptionFailedToCreateTable());
+    }
+
+    //get list of all addresses that have changed since previous time frame
+    vector<Change> changes;
+    {
+        LockedStatement addressChanges{_stmtGetAddressChangesDuringPeriod};
+        addressChanges.bindInt(1, startHeight);
+        addressChanges.bindInt(2, endHeight);
+        addressChanges.bindInt(3, startHeight);
+        addressChanges.bindInt(4, endHeight);
+
+        addressChanges.bindInt(5, startHeight);
+        addressChanges.bindInt(6, endHeight);
+        addressChanges.bindInt(7, startHeight);
+        addressChanges.bindInt(8, endHeight);
+
+        addressChanges.bindInt(9, startHeight);
+        addressChanges.bindInt(10, endHeight);
+
+        addressChanges.bindInt(11, startHeight);
+        addressChanges.bindInt(12, endHeight);
+        addressChanges.bindInt(13, startHeight);
+        addressChanges.bindInt(14, endHeight);
+
+        while (addressChanges.executeStep() == SQLITE_ROW) {
+            changes.emplace_back(
+                    addressChanges.getColumnText(0),
+                    addressChanges.getColumnInt64(1),
+                    addressChanges.getColumnInt64(2),
+                    static_cast<bool>(addressChanges.getColumnInt(3)));
+        }
+    }
+
+
+
+    //get number of addresses used
+    unsigned int addressesUsed = count_if(changes.begin(), changes.end(), [](const Change& ch) { return ch.spent; });
+
+    //get number of addresses there were
+    sql = "SELECT COUNT(*) FROM StatsAddressSum_" + timeStr + " WHERE 1";
     rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
-    if (rc == SQLITE_OK) {
-        //table exists so get the highest value
-        rc = executeSqliteStepWithRetry(stmt);
-        if (rc != SQLITE_ROW) throw exceptionFailedSelect();
-        startTime = sqlite3_column_int(stmt, 0);
-        beginHeight = sqlite3_column_int(stmt, 1);
+    if (rc != SQLITE_OK) {
+        sqlite3_finalize(stmt);
+        throw exceptionCreatingStatement();
+    }
+    rc = executeSqliteStepWithRetry(stmt);
+    if (rc != SQLITE_ROW) {
+        sqlite3_finalize(stmt);
+        throw exceptionFailedSelect();
+    }
+    unsigned int previousAddressCount = sqlite3_column_int(stmt, 0);
+    sqlite3_finalize(stmt);
+
+    //combine the changes with the previous address sums
+    sql = "INSERT INTO StatsAddressSum_" + timeStr + " (address, digibyte, assets, spent)\n"
+                                                     "VALUES (?, ?, ?, ?)\n"
+                                                     "ON CONFLICT(address) DO UPDATE SET\n"
+                                                     "    digibyte = digibyte + (excluded.digibyte),\n"
+                                                     "    assets = assets + (excluded.assets),\n"
+                                                     "    spent = MAX(spent, excluded.spent);";
+    rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
+    if (rc != SQLITE_OK) {
+        sqlite3_finalize(stmt);
+        throw exceptionCreatingStatement();
+    }
+    for (auto change: changes) {
+        sqlite3_bind_text(stmt, 1, change.address.c_str(), -1, SQLITE_STATIC);
+        sqlite3_bind_int64(stmt, 2, change.digibyteChange);
+        sqlite3_bind_int64(stmt, 3, change.assetChange);
+        sqlite3_bind_int(stmt, 4, change.spent);
+        if (sqlite3_step(stmt) != SQLITE_DONE) {
+            sqlite3_finalize(stmt);
+            throw exceptionFailedUpdate();
+        }
+        sqlite3_reset(stmt);
     }
     sqlite3_finalize(stmt);
 
-    //create fresh new cutoff table
-    if (startTime > 0) {
-        executeSQLStatement(
-                "DELETE FROM StatsCutOffHeights_" + timeStr,
-                exceptionFailedDelete());
-    } else {
-        executeSQLStatement(
-                "CREATE TABLE StatsCutOffHeights_" + timeStr + " (end_time INTEGER NOT NULL,begin_height INTEGER NOT NULL,end_height INTEGER NOT NULL,PRIMARY KEY(end_time));",
-                exceptionFailedToCreateTable());
+    //get total number of addresses
+    sql = "SELECT COUNT(*) FROM StatsAddressSum_" + timeStr + " WHERE 1";
+    rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
+    if (rc != SQLITE_OK) {
+        sqlite3_finalize(stmt);
+        throw exceptionCreatingStatement();
     }
-
-    //populate cutoff table
-    // clang-format off
-executeSQLStatement(
-"INSERT INTO StatsCutOffHeights_" + timeStr + " (end_time, begin_height, end_height) "
-"SELECT "
-    "end_time, "
-    "MIN(begin_height) AS begin_height, "
-    "MAX(end_height) AS end_height "
-"FROM ("
-    "SELECT "
-        "CEIL(time / " + timeStr + ".0) * " + timeStr + " AS end_time, "
-        "LEAD(height, 1, height) OVER (ORDER BY time ASC) - 2 AS end_height, "
-        "LAG(height, 1, 1) OVER (ORDER BY time ASC) AS begin_height "
-    "FROM blocks "
-    "WHERE height >= " + to_string(beginHeight) + " "
-") AS subquery "
-"GROUP BY end_time "
-"HAVING MIN(begin_height) >= " + to_string(beginHeight) + " "
-"ORDER BY end_time ASC;",
-exceptionFailedInsert()
-);
-    // clang-format on
-
-    //create Stats Algo Table
-    if (startTime == 0) {
-        executeSQLStatement(
-                "CREATE TABLE StatsAlgo_" + timeStr + " (end_time INTEGER NOT NULL,algo INTEGER NOT NULL,min_difficulty REAL NOT NULL, max_difficulty REAL NOT NULL, avg_difficulty REAL NOT NULL, num_blocks INTEGER NOT NULL, PRIMARY KEY(end_time, algo));",
-                exceptionFailedToCreateTable());
-    } else {
-        //table exists delete anything that may have been partial info
-        executeSQLStatement(
-                "DELETE FROM StatsAlgo_" + timeStr + " WHERE end_time >= " + to_string(startTime),
-                exceptionFailedToCreateTable());
+    rc = executeSqliteStepWithRetry(stmt);
+    if (rc != SQLITE_ROW) {
+        sqlite3_finalize(stmt);
+        throw exceptionFailedSelect();
     }
+    unsigned int addressesTotal = sqlite3_column_int(stmt, 0);
+    sqlite3_finalize(stmt);
 
-    //populate stats algo table
-    // clang-format off
-executeSQLStatement(
-"INSERT INTO StatsAlgo_" + timeStr + " (end_time, algo, min_difficulty, max_difficulty, avg_difficulty, num_blocks) "
-"SELECT "
-    "tch.end_time, "
-    "b.algo, "
-    "MIN(b.difficulty) AS min_difficulty, "
-    "MAX(b.difficulty) AS max_difficulty, "
-    "AVG(b.difficulty) AS avg_difficulty, "
-    "COUNT(*) AS num_blocks "
-"FROM blocks b "
-"JOIN StatsCutOffHeights_" + timeStr + " tch ON b.height >= tch.begin_height AND b.height <= tch.end_height "
-"GROUP BY tch.end_time, b.algo "
-"HAVING COUNT(*) >0 "
-"ORDER BY tch.end_time ASC, b.algo ASC;",
-exceptionFailedInsert()
-);
-    // clang-format on
+    //get number of addresses created
+    unsigned int addressesCreated = addressesTotal - previousAddressCount;
 
-    //update if can do address stats
-    if (canGetAddressStats()) {
-
-        //create address stats
-        if (startTime == 0) {
-            executeSQLStatement(
-                    "CREATE TABLE StatsAddress_" + timeStr + " ( end_time INTEGER NOT NULL, total INTEGER, Count_Over_0 INTEGER, Count_Over_1 INTEGER, Count_Over_1k INTEGER, Count_Over_1m INTEGER, num_addresses_with_assets INTEGER, num_addresses_created INTEGER, num_addresses_used INTEGER, num_quantum_unsafe INTEGER, PRIMARY KEY(end_time));",
-                    exceptionFailedToCreateTable());
-        } else {
-            //table exists delete anything that may have been partial info
-            executeSQLStatement(
-                    "DELETE FROM StatsAddress_" + timeStr + " WHERE end_time >= " + to_string(startTime),
-                    exceptionFailedToCreateTable());
-        }
-
-        //populate stats address table with funded counts
-        // clang-format off
-executeSQLStatement(
-    "INSERT INTO StatsAddress_" + timeStr + " (end_time, Count_Over_0, Count_Over_1, Count_Over_1k, Count_Over_1m) "
-        "SELECT "
-            "sub.end_time, "
-            "COUNT(CASE WHEN sub.total_amount > 0 THEN 1 ELSE NULL END) AS Count_Over_0, "
-            "COUNT(CASE WHEN sub.total_amount > 100000000 THEN 1 ELSE NULL END) AS Count_Over_1, "
-            "COUNT(CASE WHEN sub.total_amount > 100000000000 THEN 1 ELSE NULL END) AS Count_Over_1k, "
-            "COUNT(CASE WHEN sub.total_amount > 100000000000000 THEN 1 ELSE NULL END) AS Count_Over_1m "
-        "FROM ("
-            "SELECT "
-                "tch.end_time, "
-                "u.address, "
-                "SUM(u.amount) AS total_amount "
-            "FROM utxos u "
-            "JOIN StatsCutOffHeights_" + timeStr + " tch ON u.heightCreated <= tch.end_height AND (u.heightDestroyed IS NULL OR u.heightDestroyed > tch.end_height) "
-            "WHERE u.assetIndex = 1 "
-            "GROUP BY tch.end_time, u.address"
-        ") AS sub "
-        "GROUP BY sub.end_time;",
-    exceptionFailedInsert()
-);
-        // clang-format on
-
-        //populate stats address table with asset counts
-        // clang-format off
-executeSQLStatement(
-    "UPDATE StatsAddress_" + timeStr + " "
-    "SET num_addresses_with_assets = COALESCE(sub.num_addresses_with_assets, 0) "
-    "FROM ( "
-        "SELECT "
-            "tch.end_time, "
-            "COUNT(DISPERSED u.address) AS num_addresses_with_assets "
-        "FROM utxos u "
-        "JOIN StatsCutOffHeights_" + timeStr + " tch ON u.heightCreated <= tch.end_height AND (u.heightDestroyed IS NULL OR u.heightDestroyed > tch.end_height) "
-        "WHERE u.assetIndex > 1 "
-        "GROUP BY tch.end_time "
-    ") AS sub "
-    "WHERE StatsAddress_" + timeStr + ".end_time = sub.end_time;",
-    exceptionFailedUpdate()
-);
-        // clang-format on
-
-        //populate StatsAddress table with address created counts
-        // clang-format off
-executeSQLStatement(
-    "UPDATE StatsAddress_" + timeStr + " "
-    "SET num_addresses_created = COALESCE(sub.num_addresses_created, 0) "
-    "FROM ( "
-        "SELECT "
-            "tch.end_time, "
-            "COUNT(DISPERSED u.address) AS num_addresses_created "
-        "FROM StatsCutOffHeights_" + timeStr + " tch "
-        "LEFT JOIN ( "
-            "SELECT "
-                "address, "
-                "MIN(heightCreated) AS first_utxo_created "
-            "FROM utxos "
-            "GROUP BY address "
-        ") AS u ON u.first_utxo_created >= tch.begin_height AND u.first_utxo_created <= tch.end_height "
-        "GROUP BY tch.end_time "
-    ") AS sub "
-    "WHERE StatsAddress_" + timeStr + ".end_time = sub.end_time;",
-    exceptionFailedUpdate()
-);
-        // clang-format on
-
-        //populate StatsAddress table with number of addresses used
-        // clang-format off
-executeSQLStatement(
-    "UPDATE StatsAddress_" + timeStr + " "
-    "SET num_addresses_used = COALESCE(sub.num_addresses_used, 0) "
-    "FROM ( "
-        "SELECT "
-            "tch.end_time, "
-            "COUNT(DISPERSED u.address) AS num_addresses_used "
-        "FROM StatsCutOffHeights_" + timeStr + " tch "
-        "LEFT JOIN utxos u ON u.heightDestroyed >= tch.begin_height AND u.heightDestroyed <= tch.end_height "
-        "GROUP BY tch.end_time "
-    ") AS sub "
-    "WHERE StatsAddress_" + timeStr + ".end_time = sub.end_time;",
-    exceptionFailedUpdate()
-);
-        // clang-format on
-
-        //populate StatsAddress table with number of addresses used
-        // clang-format off
-executeSQLStatement(
-    "UPDATE StatsAddress_" + timeStr + " "
-    "SET total = COALESCE(sub.total_addresses, 0) "
-    "FROM ( "
-        "SELECT "
-            "tch.end_time, "
-            "COUNT(DISPERSED u.address) AS total_addresses "
-        "FROM StatsCutOffHeights_" + timeStr + " tch "
-        "LEFT JOIN utxos u ON u.heightCreated <= tch.end_height "
-        "GROUP BY tch.end_time "
-    ") AS sub "
-    "WHERE StatsAddress_" + timeStr + ".end_time = sub.end_time;",
-    exceptionFailedUpdate()
-);
-        // clang-format on
-
-        //populate StatsAddress table with number of quantum unsafe addresses
-        // clang-format off
-executeSQLStatement(
-    "UPDATE StatsAddress_" + timeStr + " "
-    "SET num_quantum_unsafe = COALESCE(sub.num_quantum_unsafe, 0) "
-    "FROM ( "
-        "SELECT "
-            "tch.end_time, "
-            "COUNT(DISPERSED u.address) AS num_quantum_unsafe "
-        "FROM StatsCutOffHeights_" + timeStr + " tch "
-        "LEFT JOIN ("
-            "SELECT u.address, tch_inner.end_height "
-            "FROM utxos u "
-            "JOIN StatsCutOffHeights_" + timeStr + " tch_inner ON TRUE "
-            "GROUP BY u.address, tch_inner.end_height "
-            "HAVING SUM(CASE WHEN heightDestroyed <= tch_inner.end_height THEN 1 ELSE 0 END) > 0 "
-            "AND SUM(CASE WHEN heightCreated <= tch_inner.end_height AND (heightDestroyed IS NULL OR heightDestroyed > tch_inner.end_height) THEN 1 ELSE 0 END) > 0 "
-        ") AS u ON tch.end_height = u.end_height "
-        "GROUP BY tch.end_time "
-    ") AS sub "
-    "WHERE StatsAddress_" + timeStr + ".end_time = sub.end_time;",
-    exceptionFailedUpdate()
-);
-        // clang-format on
+    //get number of quantum unsafe
+    sql = "SELECT COUNT(*) FROM StatsAddressSum_" + timeStr + " WHERE spent=1 AND digibyte>0"; //assets must be 0 if digibyte is 0 since it takes 600 to store an asset so don't need to check asset count
+    rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
+    if (rc != SQLITE_OK) {
+        sqlite3_finalize(stmt);
+        throw exceptionCreatingStatement();
     }
+    rc = executeSqliteStepWithRetry(stmt);
+    if (rc != SQLITE_ROW) {
+        sqlite3_finalize(stmt);
+        throw exceptionFailedSelect();
+    }
+    unsigned int quantumUnsafeAddresses = sqlite3_column_int(stmt, 0);
+    sqlite3_finalize(stmt);
+
+    //get number of addresses with assets
+    sql = "SELECT COUNT(*) FROM StatsAddressSum_" + timeStr + " WHERE assets>0"; //assets must be 0 if digibyte is 0 since it takes 600 to store an asset so don't need to check asset count
+    rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
+    if (rc != SQLITE_OK) {
+        sqlite3_finalize(stmt);
+        throw exceptionCreatingStatement();
+    }
+    rc = executeSqliteStepWithRetry(stmt);
+    if (rc != SQLITE_ROW) {
+        sqlite3_finalize(stmt);
+        throw exceptionFailedSelect();
+    }
+    unsigned int addressesWithAssets = sqlite3_column_int(stmt, 0);
+    sqlite3_finalize(stmt);
+
+    //get funded addresses over 0
+    sql = "SELECT COUNT(*) FROM StatsAddressSum_" + timeStr + " WHERE digibyte>0"; //assets must be 0 if digibyte is 0 since it takes 600 to store an asset so don't need to check asset count
+    rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
+    if (rc != SQLITE_OK) {
+        sqlite3_finalize(stmt);
+        throw exceptionCreatingStatement();
+    }
+    rc = executeSqliteStepWithRetry(stmt);
+    if (rc != SQLITE_ROW) {
+        sqlite3_finalize(stmt);
+        throw exceptionFailedSelect();
+    }
+    unsigned int fundedAddressesOver0 = sqlite3_column_int(stmt, 0);
+    sqlite3_finalize(stmt);
+
+    //get funded addresses with at least 1 digibyte
+    sql = "SELECT COUNT(*) FROM StatsAddressSum_" + timeStr + " WHERE digibyte>=100000000"; //assets must be 0 if digibyte is 0 since it takes 600 to store an asset so don't need to check asset count
+    rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
+    if (rc != SQLITE_OK) {
+        sqlite3_finalize(stmt);
+        throw exceptionCreatingStatement();
+    }
+    rc = executeSqliteStepWithRetry(stmt);
+    if (rc != SQLITE_ROW) {
+        sqlite3_finalize(stmt);
+        throw exceptionFailedSelect();
+    }
+    unsigned int fundedAddressesOver1 = sqlite3_column_int(stmt, 0);
+    sqlite3_finalize(stmt);
+
+    //get funded addresses with at least 1k digibyte
+    sql = "SELECT COUNT(*) FROM StatsAddressSum_" + timeStr + " WHERE digibyte>=100000000000"; //assets must be 0 if digibyte is 0 since it takes 600 to store an asset so don't need to check asset count
+    rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
+    if (rc != SQLITE_OK) {
+        sqlite3_finalize(stmt);
+        throw exceptionCreatingStatement();
+    }
+    rc = executeSqliteStepWithRetry(stmt);
+    if (rc != SQLITE_ROW) {
+        sqlite3_finalize(stmt);
+        throw exceptionFailedSelect();
+    }
+    unsigned int fundedAddressesOver1k = sqlite3_column_int(stmt, 0);
+    sqlite3_finalize(stmt);
+
+    //get funded addresses with at least 1m digibyte
+    sql = "SELECT COUNT(*) FROM StatsAddressSum_" + timeStr + " WHERE digibyte>=100000000000000"; //assets must be 0 if digibyte is 0 since it takes 600 to store an asset so don't need to check asset count
+    rc = sqlite3_prepare_v2(_db, sql.c_str(), -1, &stmt, nullptr);
+    if (rc != SQLITE_OK) {
+        sqlite3_finalize(stmt);
+        throw exceptionCreatingStatement();
+    }
+    rc = executeSqliteStepWithRetry(stmt);
+    if (rc != SQLITE_ROW) {
+        sqlite3_finalize(stmt);
+        throw exceptionFailedSelect();
+    }
+    unsigned int fundedAddressesOver1m = sqlite3_column_int(stmt, 0);
+    sqlite3_finalize(stmt);
+
+    //insert row based on calculated values
+    executeSQLStatement(
+            "INSERT INTO StatsAddress_" + timeStr + " (end_time, total, Count_Over_0, Count_Over_1, Count_Over_1k, Count_Over_1m, num_addresses_with_assets, num_addresses_created, num_addresses_used, num_quantum_unsafe) "
+                                                    "VALUES (" +
+                    to_string(endTime) + ", " + to_string(addressesTotal) + ", " + to_string(fundedAddressesOver0) + ", " + to_string(fundedAddressesOver1) + ", " + to_string(fundedAddressesOver1k) + ", " + to_string(fundedAddressesOver1m) + ", " + to_string(addressesWithAssets) + ", " + to_string(addressesCreated) + ", " + to_string(addressesUsed) + ", " + to_string(quantumUnsafeAddresses) + ");",
+            exceptionFailedInsert());
 }
 
 std::vector<AlgoStats> Database::getAlgoStats(unsigned int start, unsigned int end, unsigned int timeFrame) {
@@ -2723,17 +3138,34 @@ void Database::executeSQLStatement(const string& query, const std::exception& er
     sqlite3_stmt* stmt;
     rc = sqlite3_prepare_v2(_db, query.c_str(), -1, &stmt, nullptr);
     if (rc != SQLITE_OK) {
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        handleSpecialErrors(__LINE__);
         sqlite3_finalize(stmt);
         throw exceptionCreatingStatement();
     }
     rc = executeSqliteStepWithRetry(stmt);
     if (rc != SQLITE_DONE) {
-        string tempErrorMessage = sqlite3_errmsg(_db);
+        handleSpecialErrors(__LINE__);
         sqlite3_finalize(stmt);
         throw errorToThrowOnFail;
     }
     sqlite3_finalize(stmt);
+}
+
+/**
+ * Helper function that handles special errors
+ * If errors are not expected call using  handleSpecialErrors(__LINE__)
+ * If errors are expected call using handleSpecialErrors()
+ */
+void Database::handleSpecialErrors(unsigned int lineNumber) {
+    string tempErrorMessage = sqlite3_errmsg(_db);
+    if (tempErrorMessage == "no more rows available") {
+        Log::GetInstance()->addMessage("Known Unrecoverable Database Error: " + tempErrorMessage, Log::CRITICAL);
+        std::abort();                                  //crash the program
+        throw runtime_error("no more rows available"); //backup in case above does not work
+    }
+    if (lineNumber!=0) {
+        Log::GetInstance()->addMessage("Error thrown in database.cpp on line " + to_string(lineNumber) + ": " + tempErrorMessage, Log::DEBUG);
+    }
 }
 
 /**
@@ -2765,17 +3197,17 @@ void Database::executePerformanceIndex(int& state) {
     PerformanceIndex index;
     do {
         if (_performanceIndexes.empty()) return; //check if we have emptied the array
-        state=ChainAnalyzer::OPTIMIZING;
+        state = ChainAnalyzer::BUSY;
         index = _performanceIndexes.back(); //get last element
-        _performanceIndexes.pop_back(); //remove it
+        _performanceIndexes.pop_back();     //remove it
     } while (indexExists(index.name));
 
     //add the index
-    Log* log=Log::GetInstance();
-    log->addMessage("Creating performance index "+index.name);
-    int rc=sqlite3_exec(_db, index.command.c_str(), nullptr, nullptr, nullptr);
+    Log* log = Log::GetInstance();
+    log->addMessage("Creating performance index " + index.name);
+    int rc = sqlite3_exec(_db, index.command.c_str(), nullptr, nullptr, nullptr);
     if (rc != SQLITE_OK) {
-        _performanceIndexes.emplace_back(index);    //couldn't execute so push it back on to be done later
+        _performanceIndexes.emplace_back(index); //couldn't execute so push it back on to be done later
     }
-    log->addMessage("Finished creating performance index "+ index.name);
+    log->addMessage("Finished creating performance index " + index.name);
 }

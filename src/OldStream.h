@@ -6,10 +6,10 @@
 #define DIGIASSET_CORE_OLDSTREAM_H
 
 
+#include "RPC/Response.h"
 #include <jsoncpp/json/value.h>
 namespace OldStream {
-    Json::Value getKey(unsigned int key);
-    Json::Value getKey(const std::string& key);
+    RPC::Response getKey(const std::string& key);
 }
 
 #endif //DIGIASSET_CORE_OLDSTREAM_H

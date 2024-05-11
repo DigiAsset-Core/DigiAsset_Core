@@ -12,6 +12,21 @@
 
 class DigiAsset; //forward declaration
 
+struct AssetBasics {
+    std::string assetId;
+    uint64_t assetIndex;
+    std::string cid;
+    unsigned int height;
+};
+
+struct IssuanceBasics {
+    uint64_t assetIndex;
+    std::string txid;
+    uint64_t amount;
+    unsigned int height;
+    std::string cid;
+};
+
 struct AssetHolder {
     std::string address;
     uint64_t count; //in sats

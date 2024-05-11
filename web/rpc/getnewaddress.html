@@ -1,0 +1,63 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="getnewaddress">
+<h1 class="title">getnewaddress</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">getnewaddress ( &quot;label&quot; &quot;address_type&quot; )</tt></p>
+<p>Returns a new Bitcoin address for receiving payments.</p>
+<p>If 'label' is specified, it is added to the address book
+so payments received with the address will be associated with 'label'.</p>
+<div class="section" id="argument-1-label">
+<h1>Argument #1 - label</h1>
+<p><strong>Type:</strong> string, optional, default=&quot;&quot;</p>
+<p>The label name for the address to be linked to. It can also be set to the empty string &quot;&quot; to represent the default label. The label does not need to exist, it will be created if there is no label by the given name.</p>
+</div>
+<div class="section" id="argument-2-address-type">
+<h1>Argument #2 - address_type</h1>
+<p><strong>Type:</strong> string, optional, default=set by -addresstype</p>
+<p>The address type to use. Options are &quot;legacy&quot;, &quot;p2sh-segwit&quot;, and &quot;bech32&quot;.</p>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<table border="1" class="docutils">
+<colgroup>
+<col width="33%" />
+<col width="33%" />
+<col width="33%" />
+</colgroup>
+<thead valign="bottom">
+<tr><th class="head">Name</th>
+<th class="head">Type</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr><td>str</td>
+<td>string</td>
+<td>The new bitcoin address</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digibyte-cli getnewaddress
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;getnewaddress&quot;, &quot;params&quot;: []}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
+</body>
+</html>

@@ -61,7 +61,7 @@ public:
     static std::string _lastErrorMessage;
 
     explicit DigiByteTransaction();
-    DigiByteTransaction(const std::string& txid, unsigned int height = 0);
+    DigiByteTransaction(const std::string& txid, unsigned int height = 0, bool dontBotherIfNotSpecial = false);
 
     void addToDatabase();
     void lookupAssetIndexes();

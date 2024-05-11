@@ -28,6 +28,7 @@ public:
     void setFileName(const std::string& fileName);
     void saveConfig();
     void loadConfig();
+    void loadFake(unsigned int databaseHeight, int syncLevel);
 
     //set config values
     void setPruneAge(int age); //-1 disable pruning
@@ -44,11 +45,43 @@ public:
     static const int STOPPED = 1;
     static const int INITIALIZING = 2;
     static const int REWINDING = 3;
-    static const int OPTIMIZING = 4;
+    static const int BUSY = 4;
 
     //get state
     int getSync() const;
     unsigned int getSyncHeight() const;
+
+    std::string printProfilingInfo() {
+        long long totalDuration = _processTransactionRunTime;
+        unsigned int transactions = _processTransactionRunCount;
+        long long avgDuration = transactions > 0 ? totalDuration / transactions : 0;
+
+        std::ostringstream oss;
+        oss << std::right << std::setw(30) << "ChainAnalyzer Tx Process"
+            << std::setw(20) << totalDuration
+            << std::setw(20) << avgDuration
+            << std::setw(20) << transactions << std::endl;
+
+        totalDuration = _saveTransactionRunTime;
+        transactions = _saveTransactionRunCount;
+        avgDuration = transactions > 0 ? totalDuration / transactions : 0;
+
+        oss << std::right << std::setw(30) << "ChainAnalyzer Tx Save"
+            << std::setw(20) << totalDuration
+            << std::setw(20) << avgDuration
+            << std::setw(20) << transactions << std::endl;
+
+        totalDuration = _clearAddressCacheRunTime;
+        transactions = _clearAddressCacheRunCount;
+        avgDuration = transactions > 0 ? totalDuration / transactions : 0;
+
+        oss << std::right << std::setw(30) << "ChainAnalyzer Cache Clean"
+            << std::setw(20) << totalDuration
+            << std::setw(20) << avgDuration
+            << std::setw(20) << transactions << std::endl;
+
+        return oss.str();
+    }
 
 private:
     std::string _configFileName = "config.cfg";
@@ -79,6 +112,7 @@ private:
     bool _pruneVoteHistory;     //if true prune "votes
     bool _storeNonAssetUTXOs;   //if false won't bother storing NonAsset UTXOS
     bool _verifyDatabaseWrite;  //if set to false will write without checking
+    bool _showAllBlockSyncTime; //if true will not collapse blocks of 100 together when behind
 
     //config variable(meta data) - need to be static or make entire thing singleton.  decided to make static
     static unsigned int _pinAssetIcon;
@@ -86,6 +120,14 @@ private:
     static unsigned int _pinAssetExtra;
     static unsigned int _pinAssetPermanent;
     static std::map<std::string, int> _pinAssetExtraMimeTypes;
+
+    //time stats
+    long long _processTransactionRunTime = 0;
+    unsigned int _processTransactionRunCount = 0;
+    long long _saveTransactionRunTime = 0;
+    unsigned int _saveTransactionRunCount = 0;
+    long long _clearAddressCacheRunTime = 0;
+    unsigned int _clearAddressCacheRunCount = 0;
 
     //phases functions
     void phaseRewind();
@@ -99,6 +141,7 @@ private:
     static unsigned int configSizeToInt(unsigned int value);
     static unsigned int extraFileLengthByMimeType(const std::string& mimeType);
 
+    friend class Database; //so database can modify state
 public:
     /*
    ███████╗██████╗ ██████╗  ██████╗ ██████╗ ███████╗

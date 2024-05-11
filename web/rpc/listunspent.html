@@ -1,0 +1,108 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="listunspent">
+<h1 class="title">listunspent</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">listunspent ( minconf maxconf <span class="pre">[&quot;address&quot;,...]</span> include_unsafe query_options )</tt></p>
+<p>Returns array of unspent transaction outputs
+with between minconf and maxconf (inclusive) confirmations.</p>
+<p>Optionally filter to only include txouts paid to specified addresses.</p>
+<div class="section" id="argument-1-minconf">
+<h1>Argument #1 - minconf</h1>
+<p><strong>Type:</strong> numeric, optional, default=1</p>
+<p>The minimum confirmations to filter</p>
+</div>
+<div class="section" id="argument-2-maxconf">
+<h1>Argument #2 - maxconf</h1>
+<p><strong>Type:</strong> numeric, optional, default=9999999</p>
+<p>The maximum confirmations to filter</p>
+</div>
+<div class="section" id="argument-3-addresses">
+<h1>Argument #3 - addresses</h1>
+<p><strong>Type:</strong> json array, optional, default=empty array</p>
+<p>The bitcoin addresses to filter</p>
+<pre class="literal-block">
+[
+  &quot;address&quot;,                     (string) bitcoin address
+  ...
+]
+</pre>
+</div>
+<div class="section" id="argument-4-include-unsafe">
+<h1>Argument #4 - include_unsafe</h1>
+<p><strong>Type:</strong> boolean, optional, default=true</p>
+<dl class="docutils">
+<dt>Include outputs that are not safe to spend</dt>
+<dd>See description of &quot;safe&quot; attribute below.</dd>
+</dl>
+</div>
+<div class="section" id="argument-5-query-options">
+<h1>Argument #5 - query_options</h1>
+<p><strong>Type:</strong> json object, optional</p>
+<p>JSON with query options</p>
+<pre class="literal-block">
+{
+  &quot;minimumAmount&quot;: amount,       (numeric or string, optional, default=0) Minimum value of each UTXO in DGB
+  &quot;maximumAmount&quot;: amount,       (numeric or string, optional, default=unlimited) Maximum value of each UTXO in DGB
+  &quot;maximumCount&quot;: n,             (numeric, optional, default=unlimited) Maximum number of UTXOs
+  &quot;minimumSumAmount&quot;: amount,    (numeric or string, optional, default=unlimited) Minimum sum value of all UTXOs in DGB
+}
+</pre>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+[                                (json array)
+  {                              (json object)
+    &quot;txid&quot; : &quot;hex&quot;,              (string) the transaction id
+    &quot;vout&quot; : n,                  (numeric) the vout value
+    &quot;address&quot; : &quot;str&quot;,           (string) the bitcoin address
+    &quot;label&quot; : &quot;str&quot;,             (string) The associated label, or &quot;&quot; for the default label
+    &quot;scriptPubKey&quot; : &quot;str&quot;,      (string) the script key
+    &quot;amount&quot; : n,                (numeric) the transaction output amount in DGB
+    &quot;confirmations&quot; : n,         (numeric) The number of confirmations
+    &quot;redeemScript&quot; : &quot;hex&quot;,      (string) The redeemScript if scriptPubKey is P2SH
+    &quot;witnessScript&quot; : &quot;str&quot;,     (string) witnessScript if the scriptPubKey is P2WSH or P2SH-P2WSH
+    &quot;spendable&quot; : true|false,    (boolean) Whether we have the private keys to spend this output
+    &quot;solvable&quot; : true|false,     (boolean) Whether we know how to spend this output, ignoring the lack of keys
+    &quot;reused&quot; : true|false,       (boolean) (only present if avoid_reuse is set) Whether this output is reused/dirty (sent to an address that was previously spent from)
+    &quot;desc&quot; : &quot;str&quot;,              (string) (only when solvable) A descriptor for spending this output
+    &quot;safe&quot; : true|false          (boolean) Whether this output is considered safe to spend. Unconfirmed transactions
+                                 from outside keys and unconfirmed replacement transactions are considered unsafe
+                                 and are not eligible for spending by fundrawtransaction and sendtoaddress.
+  },
+  ...
+]
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<pre class="literal-block">
+digibyte-cli listunspent
+</pre>
+<pre class="literal-block">
+digibyte-cli listunspent 6 9999999 &quot;[\&quot;SXXgn4BX1wTXrCxAtwtiB2r3DPg7nnhjYA\&quot;,\&quot;SdUzSYHyKdc2kZtM3DBkQeqc5MdeDXLjFi\&quot;]&quot;
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;listunspent&quot;, &quot;params&quot;: [6, 9999999 &quot;[\&quot;SXXgn4BX1wTXrCxAtwtiB2r3DPg7nnhjYA\&quot;,\&quot;SdUzSYHyKdc2kZtM3DBkQeqc5MdeDXLjFi\&quot;]&quot;]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+<pre class="literal-block">
+digibyte-cli listunspent 6 9999999 '[]' true '{ &quot;minimumAmount&quot;: 0.005 }'
+</pre>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;listunspent&quot;, &quot;params&quot;: [6, 9999999, [] , true, { &quot;minimumAmount&quot;: 0.005 } ]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
+</body>
+</html>

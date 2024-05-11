@@ -6,7 +6,7 @@
 #include "Database_LockedStatement.h"
 
 LockedStatement::LockedStatement(Statement& statement)
-    : _creator(&statement), _lock(statement._mutex), _creationTime(std::chrono::steady_clock::now()) {
+    : _lock(statement._mutex), _creator(&statement), _creationTime(std::chrono::steady_clock::now()) {
     _stmt = statement._stmt;
     // The lock is acquired as soon as an object of this class is created
     reset();

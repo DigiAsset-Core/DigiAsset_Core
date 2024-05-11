@@ -1,0 +1,71 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="addmultisigaddress">
+<h1 class="title">addmultisigaddress</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">addmultisigaddress nrequired <span class="pre">[&quot;key&quot;,...]</span> ( &quot;label&quot; &quot;address_type&quot; )</tt></p>
+<p>Add an nrequired-to-sign multisignature address to the wallet. Requires a new wallet backup.</p>
+<p>Each key is a Bitcoin address or hex-encoded public key.</p>
+<p>This functionality is only intended for use with non-watchonly addresses.</p>
+<p>See <cite>importaddress</cite> for watchonly p2sh address support.</p>
+<p>If 'label' is specified, assign address to that label.</p>
+<div class="section" id="argument-1-nrequired">
+<h1>Argument #1 - nrequired</h1>
+<p><strong>Type:</strong> numeric, required</p>
+<p>The number of required signatures out of the n keys or addresses.</p>
+</div>
+<div class="section" id="argument-2-keys">
+<h1>Argument #2 - keys</h1>
+<p><strong>Type:</strong> json array, required</p>
+<p>The bitcoin addresses or hex-encoded public keys</p>
+<pre class="literal-block">
+[
+  &quot;key&quot;,      (string) bitcoin address or hex-encoded public key
+  ...
+]
+</pre>
+</div>
+<div class="section" id="argument-3-label">
+<h1>Argument #3 - label</h1>
+<p><strong>Type:</strong> string, optional</p>
+<p>A label to assign the addresses to.</p>
+</div>
+<div class="section" id="argument-4-address-type">
+<h1>Argument #4 - address_type</h1>
+<p><strong>Type:</strong> string, optional, default=set by -addresstype</p>
+<p>The address type to use. Options are &quot;legacy&quot;, &quot;p2sh-segwit&quot;, and &quot;bech32&quot;.</p>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<pre class="literal-block">
+{                            (json object)
+  &quot;address&quot; : &quot;str&quot;,         (string) The value of the new multisig address
+  &quot;redeemScript&quot; : &quot;hex&quot;,    (string) The string value of the hex-encoded redemption script
+  &quot;descriptor&quot; : &quot;str&quot;       (string) The descriptor for this multisig
+}
+</pre>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<p>Add a multisig address from 2 addresses:</p>
+<pre class="literal-block">
+digibyte-cli addmultisigaddress 2 &quot;[\&quot;SXXgn4BX1wTXrCxAtwtiB2r3DPg7nnhjYA\&quot;,\&quot;SdUzSYHyKdc2kZtM3DBkQeqc5MdeDXLjFi\&quot;]&quot;
+</pre>
+<p>As a JSON-RPC call:</p>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;addmultisigaddress&quot;, &quot;params&quot;: [2, &quot;[\&quot;SXXgn4BX1wTXrCxAtwtiB2r3DPg7nnhjYA\&quot;,\&quot;SdUzSYHyKdc2kZtM3DBkQeqc5MdeDXLjFi\&quot;]&quot;]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
+</body>
+</html>

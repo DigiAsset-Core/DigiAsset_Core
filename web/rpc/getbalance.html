@@ -1,0 +1,79 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+</head>
+<body>
+<div class="document" id="getbalance">
+<h1 class="title">getbalance</h1>
+<!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+<p><tt class="docutils literal">getbalance ( &quot;dummy&quot; minconf include_watchonly avoid_reuse )</tt></p>
+<p>Returns the total available balance.</p>
+<p>The available balance is what the wallet considers currently spendable, and is
+thus affected by options which limit spendability such as -spendzeroconfchange.</p>
+<div class="section" id="argument-1-dummy">
+<h1>Argument #1 - dummy</h1>
+<p><strong>Type:</strong> string, optional</p>
+<p>Remains for backward compatibility. Must be excluded or set to &quot;*&quot;.</p>
+</div>
+<div class="section" id="argument-2-minconf">
+<h1>Argument #2 - minconf</h1>
+<p><strong>Type:</strong> numeric, optional, default=0</p>
+<p>Only include transactions confirmed at least this many times.</p>
+</div>
+<div class="section" id="argument-3-include-watchonly">
+<h1>Argument #3 - include_watchonly</h1>
+<p><strong>Type:</strong> boolean, optional, default=true for watch-only wallets, otherwise false</p>
+<p>Also include balance in watch-only addresses (see 'importaddress')</p>
+</div>
+<div class="section" id="argument-4-avoid-reuse">
+<h1>Argument #4 - avoid_reuse</h1>
+<p><strong>Type:</strong> boolean, optional, default=true</p>
+<p>(only available if avoid_reuse wallet flag is set) Do not include balance in dirty outputs; addresses are considered dirty if they have previously been used in a transaction.</p>
+</div>
+<div class="section" id="result">
+<h1>Result</h1>
+<table border="1" class="docutils">
+<colgroup>
+<col width="33%" />
+<col width="33%" />
+<col width="33%" />
+</colgroup>
+<thead valign="bottom">
+<tr><th class="head">Name</th>
+<th class="head">Type</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr><td>n</td>
+<td>numeric</td>
+<td>The total amount in DGB received for this wallet.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="examples">
+<h1>Examples</h1>
+<p>The total amount in the wallet with 0 or more confirmations:</p>
+<pre class="literal-block">
+digibyte-cli getbalance
+</pre>
+<p>The total amount in the wallet with at least 6 confirmations:</p>
+<pre class="literal-block">
+digibyte-cli getbalance &quot;*&quot; 6
+</pre>
+<p>As a JSON-RPC call:</p>
+<pre class="literal-block">
+curl --user myusername --data-binary '{&quot;jsonrpc&quot;: &quot;1.0&quot;, &quot;id&quot;: &quot;curltest&quot;, &quot;method&quot;: &quot;getbalance&quot;, &quot;params&quot;: [&quot;*&quot;, 6]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+</pre>
+</div>
+</div>
+
+<script src="/js/main.js"></script>
+<footer class='fixed-bottom'><p class='copyright'>© Copyright DigiByte Project 2024</p></footer>
+</body>
+</html>
