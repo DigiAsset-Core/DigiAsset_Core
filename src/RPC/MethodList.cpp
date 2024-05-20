@@ -21,6 +21,7 @@ namespace RPC {
         {"getipfscount", Methods::getipfscount},
         {"getoldstreamkey", Methods::getoldstreamkey},
         {"getpsp", Methods::getpsp},
+        {"getrandom", Methods::getrandom},
         {"getrawtransaction", Methods::getrawtransaction},
         {"gettxout", Methods::gettxout},
         {"listaddresshistory", Methods::listaddresshistory},

@@ -1,0 +1,60 @@
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link rel="stylesheet" type="text/css" href="/css/style.css" />
+    </head>
+    <body>
+        <div class="document" id="getrandom">
+            <h1 class="title">getrandom</h1>
+            <!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+            <tt class="docutils literal">getrandom</tt>
+            <p>
+                This command provides a psudo random value for a given transaction output or block.  It is designed to
+                be unpredictable but at the same time provable after the fact that the value was not altered by the site
+                operator.
+            </p>
+            <div class="section" id="input">
+                <h2>Input Parameters</h2>
+
+                <p>Two possible usages:</p>
+                <ul>
+                    <li>Usage 1 (transaction output):
+                        <ul>
+                            <li><tt>txid</tt> (string): The txid of the transaction(it must have already been mined with at least 2 confirms)</li>
+                            <li><tt>vout</tt> (unsigned int): output number</li>
+                            <li><tt>outOf</tt> (unsigned int 64bit, optional): Will return a number from 0 to 1 less than this value.  2^64 used if undefined</li>
+                        </ul>
+                    </li>
+                    <li>Usage 2:
+                        <ul>
+                            <li><tt>blockHeight</tt> (unsigned integer): The height of the block in question(it must have already been mined with at least 2 confirms)</li>
+                            <li><tt>outOf</tt> (unsigned int 64bit, optional): Will return a number from 0 to 1 less than this value.  2^64 used if undefined</li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+            <div class="section" id="output">
+                <h2>Output Format</h2>
+                64bit unsigned integer
+            </div>
+            <div class="section" id="examples">
+                <h2>Examples</h2>
+                <pre class="literal-block">
+digiasset_core-cli getrandom 19000000 256
+</pre
+                >
+                <pre class="literal-block">
+curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "getrandom", "params": [19000000,256]}' -H 'content-type: text/plain;' http://127.0.0.1:14024/
+</pre
+                >
+            </div>
+        </div>
+
+        <script src="/js/main.js"></script>
+        <footer class="fixed-bottom">
+            <p class="copyright">© Copyright DigiByte Project 2024</p>
+        </footer>
+    </body>
+</html>

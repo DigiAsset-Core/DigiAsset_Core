@@ -224,6 +224,9 @@ void Database::initializeClassValues() {
     //statement to spend UTXO
     _stmtSpendUTXO.prepare(_db, "UPDATE utxos SET heightDestroyed=?, spentTXID=? WHERE txid=? AND vout=?;");
 
+    //statement to get heights for a UTXO
+    _stmtGetUTXOHeight.prepare(_db, "SELECT heightCreated, heightDestroyed FROM utxos WHERE txid=? AND vout=? LIMIT 1;");
+
     //statement to get spending address from UTXO
     _stmtGetSpendingAddress.prepare(_db, "SELECT address FROM utxos WHERE txid=? AND vout=?");
 
@@ -1280,6 +1283,27 @@ void Database::spendUTXO(const std::string& txid, unsigned int vout, unsigned in
         handleSpecialErrors(__LINE__);
         throw exceptionFailedUpdate();
     }
+}
+
+/**
+ * Returns the height a utxo was created and destroyed
+ * @param txid
+ * @param vout
+ * @return
+ */
+pair<unsigned int,unsigned int> Database::getUTXOHeight(const std::string& txid, unsigned int vout) {
+    LockedStatement getHeight{_stmtGetUTXOHeight};
+    Blob blobTXID = Blob(txid);
+    getHeight.bindBlob(1, blobTXID);
+    getHeight.bindInt(2, vout);
+    int rc = getHeight.executeStep();
+    if (rc != SQLITE_ROW) {
+        handleSpecialErrors();
+        throw exceptionFailedSelect();
+    }
+    return {
+        getHeight.getColumnInt(0),getHeight.getColumnInt(1)
+    };
 }
 
 std::string Database::getSendingAddress(const string& txid, unsigned int vout) {

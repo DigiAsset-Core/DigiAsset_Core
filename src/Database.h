@@ -91,6 +91,7 @@ private:
     Statement _stmtGetBlockHash;
     Statement _stmtCreateUTXO;
     Statement _stmtSpendUTXO;
+    Statement _stmtGetUTXOHeight;
     Statement _stmtIsWatchAddress;
     Statement _stmtAddWatchAddress;
     Statement _stmtGetSpendingAddress;
@@ -179,6 +180,7 @@ public:
         result += printStatementInfo("_stmtGetBlockHash", _stmtGetBlockHash);
         result += printStatementInfo("_stmtCreateUTXO", _stmtCreateUTXO);
         result += printStatementInfo("_stmtSpendUTXO", _stmtSpendUTXO);
+        result += printStatementInfo("_stmtGetUTXOHeight",_stmtGetUTXOHeight);
         result += printStatementInfo("_stmtIsWatchAddress", _stmtIsWatchAddress);
         result += printStatementInfo("_stmtAddWatchAddress", _stmtAddWatchAddress);
         result += printStatementInfo("_stmtGetSpendingAddress", _stmtGetSpendingAddress);
@@ -424,6 +426,7 @@ public:
     //utxos table
     void createUTXO(const AssetUTXO& value, unsigned int heightCreated, bool assetIssuance);
     void spendUTXO(const std::string& txid, unsigned int vout, unsigned int heightSpent, const std::string& spentTXID);
+    std::pair<unsigned int,unsigned int> getUTXOHeight(const std::string& txid, unsigned int vout);
     std::string getSendingAddress(const std::string& txid, unsigned int vout);
     void pruneUTXO(unsigned int height);
 
