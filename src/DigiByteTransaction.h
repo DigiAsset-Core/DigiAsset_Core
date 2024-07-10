@@ -24,6 +24,7 @@ class DigiByteTransaction {
     const static unsigned int KYC_ISSUANCE = 10;
     const static unsigned int KYC_REVOKE = 11;
     const static unsigned int EXCHANGE_PUBLISH = 20;
+    const static unsigned int ENCRYPTED_KEY = 30;
 
 
     std::vector<AssetUTXO> _inputs;
@@ -40,6 +41,9 @@ class DigiByteTransaction {
     //type KYC_* Only
     KYC _kycData;
 
+    //type ENCRYPTED_KEY and STANDARD only
+    std::string _opReturnHex;
+
     //type Exchange_PUBLISH Only
     std::vector<double> _exchangeRate;
 
@@ -48,9 +52,11 @@ class DigiByteTransaction {
 
 
     //tx process TestHelpers
-    void decodeAssetTX(const getrawtransaction_t& txData);
-    bool decodeExchangeRate(const getrawtransaction_t& txData);
-    bool decodeKYC(const getrawtransaction_t& txData);
+    bool decodeAssetTX(const getrawtransaction_t& txData, int dataIndex);
+    bool decodeExchangeRate(const getrawtransaction_t& txData, int dataIndex);
+    bool decodeKYC(const getrawtransaction_t& txData, int dataIndex);
+    bool decodeEncryptedKeyTx(const getrawtransaction_t& txData, int dataIndex);
+    void storeUnknown(const getrawtransaction_t& txData, int dataIndex); //todo need to store locally and then add to database when called
 
     //asset process TestHelpers
     void decodeAssetTransfer(BitIO& dataStream, const std::vector<AssetUTXO>& inputAssets, uint8_t type);
@@ -58,8 +64,6 @@ class DigiByteTransaction {
     void addAssetToOutput(size_t output, const DigiAsset& asset);
 
 public:
-    static std::string _lastErrorMessage;
-
     explicit DigiByteTransaction();
     DigiByteTransaction(const std::string& txid, unsigned int height = 0, bool dontBotherIfNotSpecial = false);
 
@@ -109,19 +113,23 @@ public:
      */
 
     class exception : public std::exception {
+    protected:
+        std::string _lastErrorMessage;
+        mutable std::string _fullErrorMessage;
+
     public:
-        char* what() {
-            _lastErrorMessage = "Something went wrong with DigiByte Transaction";
-            return const_cast<char*>(_lastErrorMessage.c_str());
+        explicit exception(const std::string& message = "Unknown") : _lastErrorMessage(message) {}
+
+        virtual const char* what() const noexcept override {
+            _fullErrorMessage = "DigiByte Transaction Exception: " + _lastErrorMessage;
+            return _fullErrorMessage.c_str();
         }
     };
 
     class exceptionNotEnoughFunds : public exception {
     public:
-        char* what() {
-            _lastErrorMessage = "There where not enough funds to add the output and still pay needed fees";
-            return const_cast<char*>(_lastErrorMessage.c_str());
-        }
+        explicit exceptionNotEnoughFunds()
+            : exception("Not enough funds") {}
     };
 };
 

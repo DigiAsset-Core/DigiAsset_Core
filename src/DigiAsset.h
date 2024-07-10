@@ -20,7 +20,6 @@
 #include <string>
 
 class DigiAsset {
-    static std::string _lastErrorMessage;
 
     bool _existingAsset = false; //set to true if an existing asset
     bool _enableWrite = true;    //set to false if existing asset.  can be turned back to true if unlocked asset
@@ -48,7 +47,7 @@ class DigiAsset {
     int64_t _initialCount = -1;
 
     //array of PSP that asset is a member of.  [-1] means we have not looked it up yet
-    std::vector<int> _pspMembership={-1};
+    std::vector<int> _pspMembership = {-1};
 
     //functions to help process chain data
     bool
@@ -104,7 +103,7 @@ public:
     uint64_t getInitialCount();
     std::vector<int> getPspMembership();
 
-    uint64_t getAssetIndex(bool allowUnknownAssetIndex=false) const;
+    uint64_t getAssetIndex(bool allowUnknownAssetIndex = false) const;
     bool isAssetIndexSet() const;
     void lookupAssetIndex(const std::string& txid, unsigned int vout);
     void setAssetIndex(uint64_t assetIndex);
@@ -142,70 +141,54 @@ public:
    ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝
     */
     class exception : public std::exception {
-    public:
-        exception() = default;
+    protected:
+        std::string _lastErrorMessage;
+        mutable std::string _fullErrorMessage;
 
-        char* what() {
-            _lastErrorMessage = "There was an unknown error involving DigiAsset object";
-            return const_cast<char*>(_lastErrorMessage.c_str());
+    public:
+        explicit exception(const std::string& message = "Unknown") : _lastErrorMessage(message) {}
+
+        virtual const char* what() const noexcept override {
+            _fullErrorMessage = "DigiAsset Exception: " + _lastErrorMessage;
+            return _fullErrorMessage.c_str();
         }
     };
 
     class exceptionInvalidIssuance : public exception {
     public:
-        char* what() {
-            _lastErrorMessage = "Invalid Issuance";
-            return const_cast<char*>(_lastErrorMessage.c_str());
-        }
+        explicit exceptionInvalidIssuance()
+            : exception("Invalid Issuance") {}
     };
 
     class exceptionInvalidTransfer : public exception {
     public:
-        char* what() {
-            _lastErrorMessage = "Invalid Transfer";
-            return const_cast<char*>(_lastErrorMessage.c_str());
-        }
+        explicit exceptionInvalidTransfer(const std::string& error = "Invalid Transfer")
+            : exception(error) {}
     };
 
     class exceptionWriteProtected : public exception {
     public:
-        char* what() {
-            _lastErrorMessage = "Asset value is write protected"; //running setOwned may fix problem if it doesn't value can not be changed
-            return const_cast<char*>(_lastErrorMessage.c_str());
-        }
+        explicit exceptionWriteProtected()
+            : exception("IAsset value is write protected") {} //running setOwned may fix problem if it doesn't value can not be changed
     };
 
     class exceptionUnknownAssetIndex : public exception {
     public:
-        char* what() {
-            _lastErrorMessage = "The asset has either not been added to database yet or have not looked it up yet"; //running setOwned may fix problem if it doesn't value can not be changed
-            return const_cast<char*>(_lastErrorMessage.c_str());
-        }
+        explicit exceptionUnknownAssetIndex()
+            : exception("The asset has either not been added to database yet or have not looked it up yet") {}
     };
 
     class exceptionInvalidMetaData : public exception {
     public:
-        char* what() {
-            _lastErrorMessage = "MetaData Invalid";
-            return const_cast<char*>(_lastErrorMessage.c_str());
-        }
+        explicit exceptionInvalidMetaData()
+            : exception("MetaData Invalid") {}
     };
 
     class exceptionRuleFailed : public exceptionInvalidTransfer {
-    private:
-        std::string _message;
-
     public:
-        exceptionRuleFailed(const std::string& rule) {
-            _message = "Transaction failed because " + rule + " rule failed";
-        }
-
-        char* what() {
-            _lastErrorMessage = _message;
-            return const_cast<char*>(_lastErrorMessage.c_str());
-        }
+        explicit exceptionRuleFailed(const std::string& rule)
+            : exceptionInvalidTransfer("Transaction failed because " + rule + " rule failed") {}
     };
 };
-
 
 #endif //DIGIASSET_CORE_DIGIASSET_H

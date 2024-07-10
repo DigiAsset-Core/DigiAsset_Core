@@ -28,8 +28,6 @@ protected:
 
 
 public:
-    static std::string _lastErrorMessage;
-
     //called by PoolList
     void setPoolIndexAndInitialize(unsigned int index, const Config& config);
 
@@ -71,38 +69,37 @@ public:
      */
 
     class exception : public std::exception {
+    protected:
+        std::string _lastErrorMessage;
+        mutable std::string _fullErrorMessage;
+
     public:
-        char* what() {
-            _lastErrorMessage = "Something went wrong with psp";
-            return const_cast<char*>(_lastErrorMessage.c_str());
+        explicit exception(const std::string& message = "Unknown") : _lastErrorMessage(message) {}
+
+        virtual const char* what() const noexcept override {
+            _fullErrorMessage = "Permanent Storage Pool Exception: " + _lastErrorMessage;
+            return _fullErrorMessage.c_str();
         }
     };
 
     class exceptionCantEnablePSP : public exception {
     public:
-        char* what() {
-            _lastErrorMessage = "Tried to enable PSP on a transaction that wasn't possible to enable";
-            return const_cast<char*>(_lastErrorMessage.c_str());
-        }
+        explicit exceptionCantEnablePSP()
+            : exception("Tried to enable PSP on a transaction that wasn't possible to enable") {}
     };
 
     class exceptionCantLoadPSP : public exception {
     public:
-        char* what() {
-            _lastErrorMessage = "Couldn't load the PSP";
-            return const_cast<char*>(_lastErrorMessage.c_str());
-        }
+        explicit exceptionCantLoadPSP()
+            : exception("Couldn't load the PSP") {}
     };
 
     class exceptionCouldntReport : public exception {
     public:
-        char* what() {
-            _lastErrorMessage = "Couldn't report to PSP";
-            return const_cast<char*>(_lastErrorMessage.c_str());
-        }
+        explicit exceptionCouldntReport()
+            : exception("Couldn't report to PSP") {}
     };
 };
-
 
 
 

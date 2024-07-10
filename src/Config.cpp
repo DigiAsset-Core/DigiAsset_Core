@@ -2,9 +2,9 @@
 // Created by mctrivia on 05/09/23.
 //
 
+#include "Config.h"
 #include <fstream>
 #include <sstream>
-#include "Config.h"
 
 Config::Config(const string& fileName) {
     _fileName = fileName;
@@ -25,13 +25,13 @@ void Config::refresh() {
     //load config file if exists
     ifstream myfile;
     myfile.open(_fileName);
-    if (myfile.fail()) throw exceptionConfigFileMissing();    //does not exist
+    if (myfile.fail()) throw exceptionConfigFileMissing(); //does not exist
 
     //check lines and save to correct value
     string line;
     while (getline(myfile, line)) {
         istringstream is_line(line);
-        if (line.empty()) continue; //ignore blank lines
+        if (line.empty()) continue;   //ignore blank lines
         if (line[0] == '#') continue; //ignore notes
         string key;
         if (getline(is_line, key, '=')) {
@@ -106,8 +106,7 @@ bool Config::isKey(const string& key, unsigned char type) const {
             return true;
 
         default:
-            return false;   //invalid type
-
+            return false; //invalid type
     }
 }
 
@@ -115,7 +114,7 @@ string Config::getString(const string& key) const {
     try {
         return _values.at(key);
     } catch (const out_of_range& e) {
-        throw exceptionCorruptConfigFile_Missing();
+        throw exceptionCorruptConfigFile_Missing("Missing " + key);
     }
 }
 
@@ -130,17 +129,17 @@ string Config::getString(const string& key, const string& defaultValue) const {
 int Config::getInteger(const string& key) const {
     try {
         string value = _values.at(key);
-        if (!isInteger(value)) throw exceptionCorruptConfigFile_WrongType();
+        if (!isInteger(value)) throw exceptionCorruptConfigFile_WrongType(key + " is not an integer");
         return stoi(value);
     } catch (const out_of_range& e) {
-        throw exceptionCorruptConfigFile_Missing();
+        throw exceptionCorruptConfigFile_Missing("Missing " + key);
     }
 }
 
 int Config::getInteger(const string& key, int defaultValue) const {
     try {
         string value = _values.at(key);
-        if (!isInteger(value)) throw exceptionCorruptConfigFile_WrongType();
+        if (!isInteger(value)) throw exceptionCorruptConfigFile_WrongType(key + " is not an integer");
         return stoi(value);
     } catch (const out_of_range& e) {
         return defaultValue;
@@ -150,19 +149,19 @@ int Config::getInteger(const string& key, int defaultValue) const {
 bool Config::getBool(const string& key) const {
     try {
         string value = _values.at(key);
-        if (!isBool(value)) throw exceptionCorruptConfigFile_WrongType();
+        if (!isBool(value)) throw exceptionCorruptConfigFile_WrongType(key + " is not an boolean");
         if (value == "true") return true;
         if (value == "false") return false;
         return stoi(value);
     } catch (const out_of_range& e) {
-        throw exceptionCorruptConfigFile_Missing();
+        throw exceptionCorruptConfigFile_Missing("Missing " + key);
     }
 }
 
 bool Config::getBool(const string& key, bool defaultValue) const {
     try {
         string value = _values.at(key);
-        if (!isBool(value)) throw exceptionCorruptConfigFile_WrongType();
+        if (!isBool(value)) throw exceptionCorruptConfigFile_WrongType(key + " is not an boolean");
         if (value == "true") return true;
         if (value == "false") return false;
         return stoi(value);
@@ -188,7 +187,7 @@ map<string, int> Config::getIntegerMap(const string& keyPrefix) const {
     for (const auto& kv: _values) {
         const std::string& key = kv.first;
         if (key.compare(0, keyPrefix.length(), keyPrefix) == 0) {
-            if (!isInteger(kv.second)) continue;    //ignore if bad value
+            if (!isInteger(kv.second)) continue; //ignore if bad value
             string newKey = key.substr(keyPrefix.length());
             result[newKey] = stoi(kv.second);
         }
@@ -201,7 +200,7 @@ map<string, bool> Config::getBoolMap(const string& keyPrefix) const {
     for (const auto& kv: _values) {
         const std::string& key = kv.first;
         if (key.compare(0, keyPrefix.length(), keyPrefix) == 0) {
-            if (!isBool(kv.second)) continue;    //ignore if bad value
+            if (!isBool(kv.second)) continue; //ignore if bad value
             string newKey = key.substr(keyPrefix.length());
             if (kv.second == "true") {
                 result[newKey] = true;

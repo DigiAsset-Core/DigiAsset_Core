@@ -10,8 +10,6 @@
 #include <functional>
 
 class KYC {
-    static std::string _lastErrorMessage;
-
     std::string _address;
     std::string _name;
     std::string _country;
@@ -58,12 +56,24 @@ public:
     ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝
      */
 
-    class exceptionUnknownValue : public std::exception {
+    class exception : public std::exception {
+    protected:
+        std::string _lastErrorMessage;
+        mutable std::string _fullErrorMessage;
+
     public:
-        char* what() {
-            _lastErrorMessage = "Tried to get a value that is unknown";
-            return const_cast<char*>(_lastErrorMessage.c_str());
+        explicit exception(const std::string& message = "Unknown") : _lastErrorMessage(message) {}
+
+        virtual const char* what() const noexcept override {
+            _fullErrorMessage = "KYC Exception: " + _lastErrorMessage;
+            return _fullErrorMessage.c_str();
         }
+    };
+
+    class exceptionUnknownValue : public exception {
+    public:
+        explicit exceptionUnknownValue()
+            : exception("value unknown") {}
     };
 };
 

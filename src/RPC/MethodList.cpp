@@ -17,6 +17,7 @@ namespace RPC {
         {"getassetindexes", Methods::getassetindexes},
         {"getdgbequivalent", Methods::getdgbequivalent},
         {"getdomainaddress", Methods::getdomainaddress},
+        {"getencryptedkey", Methods::getencryptedkey},
         {"getexchangerates", Methods::getexchangerates},
         {"getipfscount", Methods::getipfscount},
         {"getoldstreamkey", Methods::getoldstreamkey},

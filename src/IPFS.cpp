@@ -216,6 +216,9 @@ string IPFS::_command(const string& command, const map<string, string>& data, un
     } catch (const CurlHandler::exceptionTimeout& e) {
         //replace CurlHandler error with IPFS error
         throw exceptionTimeout();
+    } catch (const std::exception& e) {
+        if (string(e.what()) == "Couldn't connect to server") throw exceptionNoConnection();
+        throw;
     }
     return "";
 }
@@ -371,7 +374,7 @@ promise<string> IPFS::callOnDownloadPromise(const string& cid, const string& syn
     //check if a known lost CID
     if (!isValidCID(cid)) {
         promise<string> result;
-        result.set_exception(std::make_exception_ptr(exceptionInvalidCID()));
+        result.set_exception(std::make_exception_ptr(exceptionInvalidCID(cid)));
         return result;
     }
     if (isLostCID(cid)) {
@@ -430,7 +433,7 @@ void IPFS::pin(const string& cid, unsigned int maxSize) {
 
 void IPFS::unpin(const string& cid) {
     //check if no cid
-    if (!isValidCID(cid)) return;                 //just ignore bad cids for pin requests
+    if (!isValidCID(cid)) return; //just ignore bad cids for pin requests
 
     //add type download to database
     Database* db = AppMain::GetInstance()->getDatabase();
@@ -445,7 +448,7 @@ bool IPFS::isPinned(const string& cid) const {
 }
 
 unsigned int IPFS::getSize(const string& cid) const {
-    if (!isValidCID(cid)) throw exceptionInvalidCID();
+    if (!isValidCID(cid)) throw exceptionInvalidCID(cid);
     if (isLostCID(cid)) throw exceptionTimeout(); //well it would have timed out if we had let it
     string stats = _command("object/stat?arg=" + cid);
     Json::Value json;
@@ -469,7 +472,7 @@ unsigned int IPFS::getSize(const string& cid) const {
  * @param pinAlso - defaults false.  Set to true for downloading startup files that must be present for program to run
  */
 void IPFS::downloadFile(const string& cid, const string& filePath, bool pinAlso) {
-    if (!isValidCID(cid)) throw exceptionInvalidCID();
+    if (!isValidCID(cid)) throw exceptionInvalidCID(cid);
     if (isLostCID(cid)) throw exceptionTimeout(); //well it would have timed out if we had let it
     if (pinAlso) _command("pin/add/" + cid);
     _command("cat?arg=" + cid, {}, 0, filePath);

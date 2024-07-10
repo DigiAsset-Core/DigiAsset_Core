@@ -5,18 +5,18 @@
 #ifndef DIGIASSET_CORE_CONFIG_H
 #define DIGIASSET_CORE_CONFIG_H
 
+#include <map>
 #include <string>
 #include <vector>
-#include <map>
 
 using namespace std;
 
 class Config {
-    static string _lastErrorMessage;
     map<string, string> _values;
     string _fileName;
     static bool isInteger(const string& value);
     static bool isBool(const string& value);
+
 public:
     static const unsigned char UNKNOWN = 0;
     static const unsigned char STRING = 1;
@@ -50,7 +50,7 @@ public:
     void refresh();
     void write(string fileName = "") const;
 
-/*
+    /*
     ███████╗██████╗ ██████╗  ██████╗ ██████╗ ███████╗
     ██╔════╝██╔══██╗██╔══██╗██╔═══██╗██╔══██╗██╔════╝
     █████╗  ██████╔╝██████╔╝██║   ██║██████╔╝███████╗
@@ -58,26 +58,25 @@ public:
     ███████╗██║  ██║██║  ██║╚██████╔╝██║  ██║███████║
     ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝
      */
-    class exception : public std::exception {
-    private:
-        string _message;
-    public:
-        exception(const string& message = "unknown error") {
-            _message = "Something went wrong with DigiByte Core: " + message;
-        }
 
-        char* what() {
-            _lastErrorMessage = _message;
-            return const_cast<char*>(_lastErrorMessage.c_str());
+    class exception : public std::exception {
+    protected:
+        std::string _lastErrorMessage;
+        mutable std::string _fullErrorMessage;
+
+    public:
+        explicit exception(const std::string& message = "Unknown") : _lastErrorMessage(message) {}
+
+        virtual const char* what() const noexcept override {
+            _fullErrorMessage = "Config Exception: " + _lastErrorMessage;
+            return _fullErrorMessage.c_str();
         }
     };
 
     class exceptionConfigFileMissing : public exception {
     public:
-        char* what() {
-            _lastErrorMessage = "The config file could not be found";
-            return const_cast<char*>(_lastErrorMessage.c_str());
-        }
+        explicit exceptionConfigFileMissing()
+            : exception("File missing") {}
     };
 
     /**
@@ -85,10 +84,8 @@ public:
      */
     class exceptionCorruptConfigFile : public exception {
     public:
-        char* what() {
-            _lastErrorMessage = "The config file is corrupt";
-            return const_cast<char*>(_lastErrorMessage.c_str());
-        }
+        explicit exceptionCorruptConfigFile(const std::string& error = "File corrupt")
+            : exception(error) {}
     };
 
     /**
@@ -96,10 +93,8 @@ public:
      */
     class exceptionCorruptConfigFile_Missing : public exceptionCorruptConfigFile {
     public:
-        char* what() {
-            _lastErrorMessage = "The config file is corrupt";
-            return const_cast<char*>(_lastErrorMessage.c_str());
-        }
+        explicit exceptionCorruptConfigFile_Missing(const std::string& error = "Missing value")
+            : exceptionCorruptConfigFile(error) {}
     };
 
     /**
@@ -107,18 +102,14 @@ public:
      */
     class exceptionCorruptConfigFile_WrongType : public exceptionCorruptConfigFile {
     public:
-        char* what() {
-            _lastErrorMessage = "The config file is corrupt";
-            return const_cast<char*>(_lastErrorMessage.c_str());
-        }
+        explicit exceptionCorruptConfigFile_WrongType(const std::string& error = "Value wrong type")
+            : exceptionCorruptConfigFile(error) {}
     };
 
     class exceptionConfigFileCouldNotBeWritten : public exception {
     public:
-        char* what() {
-            _lastErrorMessage = "Saving config settings faile";
-            return const_cast<char*>(_lastErrorMessage.c_str());
-        }
+        explicit exceptionConfigFileCouldNotBeWritten()
+            : exception("Couldn't Write") {}
     };
 
     /**
@@ -126,10 +117,8 @@ public:
      */
     class exceptionConfigFileInvalid : public exception {
     public:
-        char* what() {
-            _lastErrorMessage = "Values in the config file are not correct";
-            return const_cast<char*>(_lastErrorMessage.c_str());
-        }
+        explicit exceptionConfigFileInvalid(const std::string& error = "Values in the config file are not correct")
+            : exception(error) {}
     };
 };
 

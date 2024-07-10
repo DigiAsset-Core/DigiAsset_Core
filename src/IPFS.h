@@ -38,7 +38,7 @@ private:
     void mainFunction() override;
     static std::string getIP();
     static std::string findPublicAddress(const std::vector<std::string>& addresses, const std::string& ip);
-    static std::vector<std::string> extractAddresses(const std::string& idString) ;
+    static std::vector<std::string> extractAddresses(const std::string& idString);
 
     //TestHelpers
     std::string
@@ -47,7 +47,6 @@ private:
 
 public:
     IPFS(const std::string& configFile, bool runStart = true);
-    static std::string _lastErrorMessage;
 
     //helpers
     static std::string sha256ToCID(BitIO& hash);
@@ -85,35 +84,35 @@ public:
     ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝
      */
     class exception : public std::exception {
+    protected:
+        std::string _lastErrorMessage;
+        mutable std::string _fullErrorMessage;
+
     public:
-        char* what() {
-            _lastErrorMessage = "Something went wrong with IPFS controller";
-            return const_cast<char*>(_lastErrorMessage.c_str());
+        explicit exception(const std::string& message = "Unknown") : _lastErrorMessage(message) {}
+
+        virtual const char* what() const noexcept override {
+            _fullErrorMessage = "IPFS Exception: " + _lastErrorMessage;
+            return _fullErrorMessage.c_str();
         }
     };
 
     class exceptionTimeout : public exception {
     public:
-        char* what() {
-            _lastErrorMessage = "IPFS Command Timed";
-            return const_cast<char*>(_lastErrorMessage.c_str());
-        }
+        explicit exceptionTimeout()
+            : exception("Timeout") {}
     };
 
     class exceptionInvalidCID : public exception {
     public:
-        char* what() {
-            _lastErrorMessage = "Invalid CID provided";
-            return const_cast<char*>(_lastErrorMessage.c_str());
-        }
+        explicit exceptionInvalidCID(const std::string& cid = "")
+            : exception(cid.empty() ? "Invalid CID Provided" : cid + " is not a valid CID") {}
     };
 
     class exceptionNoConnection : public exception {
     public:
-        char* what() {
-            _lastErrorMessage = "IPFS Node Likely Down";
-            return const_cast<char*>(_lastErrorMessage.c_str());
-        }
+        explicit exceptionNoConnection()
+            : exception("IPFS Node Likely Down") {}
     };
 };
 
