@@ -84,7 +84,7 @@ void Database::buildTables(unsigned int dbVersionNumber) {
                         "INSERT INTO \"flags\" VALUES (\"wasPrunedUTXOHistory\",-1);"
                         "INSERT INTO \"flags\" VALUES (\"wasPrunedVoteHistory\",-1);"
                         "INSERT INTO \"flags\" VALUES (\"wasPrunedNonAssetUTXOHistory\",0);"
-                        "INSERT INTO \"flags\" VALUES (\"dbVersion\",5);"
+                        "INSERT INTO \"flags\" VALUES (\"dbVersion\",6);"
 
                         "CREATE TABLE \"kyc\" (\"address\" TEXT NOT NULL, \"country\" TEXT NOT NULL, \"name\" TEXT NOT NULL, \"hash\" BLOB NOT NULL, \"height\" INTEGER NOT NULL, \"revoked\" INTEGER, PRIMARY KEY(\"address\"));"
 
@@ -112,7 +112,7 @@ void Database::buildTables(unsigned int dbVersionNumber) {
                         "CREATE TABLE \"unknown\" (\"txid\" BLOB NOT NULL, \"data\" BLOB NOT NULL);"
 
                         //Encrypted keys table
-                        "CREATE TABLE \"encryptedkeys\" (\"address\" TEXT NOT NULL, \"data\" BLOB NOT NULL);"
+                        "CREATE TABLE \"encryptedkeys\" (\"address\" TEXT NOT NULL, \"data\" BLOB NOT NULL, PRIMARY KEY(\"address\"));"
 
                         "COMMIT;";
                 rc = sqlite3_exec(_db, sql, Database::defaultCallback, nullptr, &zErrMsg);
@@ -164,7 +164,7 @@ void Database::buildTables(unsigned int dbVersionNumber) {
 
                 const char* sql = "BEGIN TRANSACTION;"
                                   "CREATE TABLE \"unknown\" (\"txid\" BLOB NOT NULL, \"data\" BLOB NOT NULL);"
-                                  "CREATE TABLE \"encryptedkeys\" (\"address\" TEXT NOT NULL, \"data\" BLOB NOT NULL);"
+                                  "CREATE TABLE \"encryptedkeys\" (\"address\" TEXT NOT NULL, \"data\" BLOB NOT NULL, PRIMARY KEY(\"address\"));"
                                   "UPDATE \"flags\" set \"value\"=6 WHERE \"key\"=\"dbVersion\";"
                                   "COMMIT;";
                 rc = sqlite3_exec(_db, sql, Database::defaultCallback, nullptr, &zErrMsg);
