@@ -158,7 +158,6 @@ void Database::buildTables(unsigned int dbVersionNumber) {
 
             //Define what is changed from version 5 to version 6
             [&]() {
-                Log* log = Log::GetInstance();
                 char* zErrMsg = nullptr;
                 int rc;
 

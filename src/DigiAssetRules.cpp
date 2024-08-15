@@ -189,6 +189,7 @@ void DigiAssetRules::decodeRoyaltyUnits(const getrawtransaction_t& txData, BitIO
 void DigiAssetRules::decodeRoyalties(const getrawtransaction_t& txData, BitIO& dataStream) {
     unsigned int start = dataStream.getFixedPrecision();
     unsigned int length = dataStream.getFixedPrecision();
+    if (start+length>txData.vout.size()) throw out_of_range("start plus length greater then total");
     for (unsigned int outputNum = start; outputNum < start + length; outputNum++) {
         _royalties.emplace_back(Royalty{
                 .address = txData.vout[outputNum].scriptPubKey.addresses[0],
