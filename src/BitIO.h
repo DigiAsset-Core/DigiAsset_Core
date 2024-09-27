@@ -159,6 +159,8 @@ public:
     std::string getHexString(size_t length);
     static BitIO make3B40String(const std::string& message);
     std::string get3B40String(size_t length);
+    static BitIO makePlainOldAsciiString(const std::string& message);
+    std::string getPlainOldAsciiString(size_t length=-1);
 
     //numbers
     static BitIO makeFixedPrecision(uint64_t value);

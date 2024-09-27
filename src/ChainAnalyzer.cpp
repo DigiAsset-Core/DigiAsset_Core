@@ -443,22 +443,43 @@ void ChainAnalyzer::processTX(const string& txid, unsigned int height) {
     _processTransactionRunCount++;
 
     //add transaction to database
-    startTime = std::chrono::steady_clock::now();
-    tx.addToDatabase();
+    startTime=std::chrono::steady_clock::now();
+    std::exception_ptr eptr;
+    try {
+        tx.addToDatabase();
+    } catch (...) {
+        eptr = std::current_exception(); // capture
+        try {
+            std::rethrow_exception(eptr);
+        } catch(const std::exception& e) {
+            std::cout << "Unexpected error while trying to add to database: " << e.what() << "\n";
+        }
+        throw;  //rethrow error so it can be handled.
+    }
     duration = std::chrono::steady_clock::now() - startTime;
     _saveTransactionRunTime += std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
     _saveTransactionRunCount++;
 
     //get list of addresses that have been changed
     startTime = std::chrono::steady_clock::now();
+    vector<string> assetsChanged;
     vector<string> addresses;
     size_t inputCount = tx.getInputCount();
     for (size_t i = 0; i < inputCount; i++) {
-        addresses.emplace_back(tx.getInput(i).address);
+        auto input = tx.getInput(i);
+        addresses.emplace_back(input.address);
+        for (const auto& asset: input.assets) {
+            assetsChanged.emplace_back(asset.getAssetId());
+        }
     }
     size_t outputCount = tx.getOutputCount();
     for (size_t i = 0; i < outputCount; i++) {
-        addresses.emplace_back(tx.getOutput(i).address);
+        auto output = tx.getOutput(i);
+        addresses.emplace_back(output.address);
+        outputAddresses.emplace_back(output.address);
+        for (const auto& asset: output.assets) {
+            assetsChanged.emplace_back(asset.getAssetId());
+        }
     }
 
     // Remove duplicates from addresses
@@ -471,9 +492,51 @@ void ChainAnalyzer::processTX(const string& txid, unsigned int height) {
     for (auto address: addresses) {
         cache->addressChanged(address);
     }
+
+    //remove duplicates from assets
+    std::sort(assetsChanged.begin(), assetsChanged.end()); // Sort the vector
+    last = std::unique(assetsChanged.begin(), assetsChanged.end()); // Remove consecutive duplicates
+    assetsChanged.erase(last, assetsChanged.end()); // Erase the non-unique elements
+
+    //invalidate rpc caches based on assets that have changed
+    for (auto assetId: assetsChanged) {
+        cache->assetChanged(assetId);
+    }
+
+    //finish timing cach handling
     duration = std::chrono::steady_clock::now() - startTime;
     _clearAddressCacheRunTime += std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
     _clearAddressCacheRunCount++;
+
+
+    //stop if SmartContractList are not loaded
+    if (!_storeNonAssetUTXOs) return; //plugins don't work if not storing non asset utxo.
+    SmartContractList* smartContracts=AppMain::GetInstance()->getSmartContracts();
+    if (smartContracts->empty()) return;
+
+    // Remove duplicates from output addresses
+    std::sort(outputAddresses.begin(), outputAddresses.end()); // Sort the vector
+    last = std::unique(outputAddresses.begin(), outputAddresses.end()); // Remove consecutive duplicates
+    outputAddresses.erase(last, outputAddresses.end()); // Erase the non-unique elements
+
+    //execute any contracts that exist
+    for (auto& contractPair: *smartContracts) {
+        auto contract=contractPair.second;
+        vector<string> contractAddresses=contract->getContractAddresses();
+        for (const auto& outputAddress: outputAddresses) {
+            if (std::find(contractAddresses.begin(), contractAddresses.end(), outputAddress) == contractAddresses.end()) continue;   //output is not a contract
+
+            //transaction triggering contract so generate the trigger data
+            Json::Value outputs=Json::arrayValue;
+            for (size_t i=0; i<outputCount; i++) {
+                outputs.append(tx.getOutput(i).toJSON());
+            }
+            string strOutput=outputs.toStyledString();
+
+            //execute contract
+            contract->executeContract(strOutput);
+        }
+    }
 }
 
 

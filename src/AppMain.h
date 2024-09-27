@@ -12,6 +12,7 @@
 #include "PermanentStoragePool/PermanentStoragePoolList.h"
 #include "RPC/Cache.h"
 #include "RPC/Server.h"
+#include "SmartContract/SmartContractList.h"
 #include <mutex>
 class AppMain {
     /**
@@ -43,6 +44,7 @@ private:
     ChainAnalyzer* _analyzer = nullptr;
     RPC::Cache* _rpcCache = nullptr;
     RPC::Server* _rpcServer = nullptr;
+    SmartContractList* _smartContracts = nullptr;
 
 public:
     void setDatabase(Database* db);
@@ -66,6 +68,9 @@ public:
 
     void setRpcServer(RPC::Server* server);
     RPC::Server* getRpcServer();
+
+    void setSmartContracts(SmartContractList* smartContracts);
+    SmartContractList* getSmartContracts();
 
     void reset();
 };

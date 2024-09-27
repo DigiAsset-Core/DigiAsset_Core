@@ -70,6 +70,11 @@ Blob LockedStatement::getColumnBlob(int index) {
     return Blob(data, length);
 }
 
+bool LockedStatement::isNull(int index) {
+    return sqlite3_column_type(_stmt, index) == SQLITE_NULL;
+}
+
+
 // Execute step
 int LockedStatement::executeStep() {
     return sqlite3_step(_stmt);

@@ -25,6 +25,20 @@ Json::Value AssetUTXO::toJSON(bool simplified) const {
 
     return jsonUTXO;
 }
+AssetUTXO AssetUTXO::fromJSON(const Value& json) {
+    AssetUTXO utxo;
+    utxo.txid = json["txid"].asString();
+    utxo.vout = json["vout"].asUInt();
+    utxo.address = json["address"].asString();
+    utxo.digibyte = json["digibyte"].asUInt64();
+
+    const Json::Value jsonAssets = json["assets"];
+    for (const auto& jsonAsset : jsonAssets) {
+        utxo.assets.push_back(DigiAsset::fromJSON(jsonAsset));
+    }
+
+    return utxo;
+}
 
 void serialize(vector<uint8_t>& serializedData, const Signer& input) {
     serialize(serializedData, input.address);

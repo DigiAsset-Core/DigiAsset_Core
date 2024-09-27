@@ -32,17 +32,8 @@ namespace RPC {
             Database* db = AppMain::GetInstance()->getDatabase();
             KYC data = db->getAddressKYC(address);
 
-            Value result=Json::objectValue;
-            result["address"]=address;
-            if (data.valid()) {
-                result["country"]=data.getCountry();
-                string name=data.getName();
-                if (!name.empty()) {
-                    result["name"]=name;
-                } else {
-                    result["hash"]=data.getHash();
-                }
-            }
+            Json::Value result=data.toJSON();
+
 
             //return response
             Response response;

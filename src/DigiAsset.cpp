@@ -1047,6 +1047,16 @@ Value DigiAsset::toJSON(bool simplified, bool ignoreIPFS) const {
 }
 
 /**
+ * Returns an asset object based on json input
+ * @param json
+ * @return
+ */
+DigiAsset DigiAsset::fromJSON(const Value& json) {
+    if (!json.isMember("assetIndex") || !json.isMember("count")) throw out_of_range("missing required fields");
+    return AppMain::GetInstance()->getDatabase()->getAsset(json["assetIndex"].asUInt64(),json["count"].asUInt64());
+}
+
+/**
  * when loading already existing assets use this command to lookup assetIndex.
  * Will do nothing if already known
  */

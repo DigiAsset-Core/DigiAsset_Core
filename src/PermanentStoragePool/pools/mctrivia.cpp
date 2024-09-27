@@ -80,7 +80,7 @@ uint64_t mctrivia::getCost(const DigiByteTransaction& tx) {
 
     //get current DGB cost
     Database* db = AppMain::GetInstance()->getDatabase();
-    double exchangeRate = db->getCurrentExchangeRate(DigiAsset::standardExchangeRates[1]); //USD
+    double exchangeRate = db->getExchangeRate(DigiAsset::standardExchangeRates[1]); //USD
     return usdCost * exchangeRate;
 }
 

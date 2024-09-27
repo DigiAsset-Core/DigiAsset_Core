@@ -123,3 +123,14 @@ RPC::Server* AppMain::getRpcServer() {
     }
     return _rpcServer;
 }
+void AppMain::setSmartContracts(SmartContractList* smartContracts) {
+    _smartContracts = smartContracts;
+}
+SmartContractList* AppMain::getSmartContracts() {
+    if (_smartContracts == nullptr) {
+        Log* log = Log::GetInstance();
+        log->addMessage("Tried to get SmartContractList without first loading", Log::CRITICAL);
+        throw runtime_error("Not available");
+    }
+    return _smartContracts;
+}

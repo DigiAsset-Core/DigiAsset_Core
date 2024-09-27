@@ -212,6 +212,7 @@ void PermanentStoragePoolList::_callbackNewMetadata(const string& cid, const str
     }
 }
 void PermanentStoragePoolList::processNewMetaData(const DigiByteTransaction& tx, unsigned int assetIndex, const string& cid) {
+    cout <<__LINE__ <<"\n";
     //compute the decoding instructions
     string extra = "a:" + to_string(assetIndex);
     for (auto& pool: *this) {

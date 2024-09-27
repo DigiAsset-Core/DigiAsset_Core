@@ -25,6 +25,14 @@ namespace RPC {
             _size += address.size();
         }
     }
+    void Response::addInvalidateOnAssetChange(const std::string& assetId) {
+        // Check if the assetId already exists in the vector
+        if (std::find(_invalidateOnAssetChange.begin(), _invalidateOnAssetChange.end(), assetId) == _invalidateOnAssetChange.end()) {
+            // Address not found, so add it to the vector
+            _invalidateOnAssetChange.emplace_back(assetId);
+            _size += assetId.size();
+        }
+    }
     void Response::setBlocksGoodFor(int blocks) {
         _blocksGoodFor = blocks;
     }
@@ -40,6 +48,18 @@ namespace RPC {
 
         // If the address is found, return the size of the Response object
         if (it != _invalidateOnAddressChange.end()) {
+            return _size;
+        }
+
+        // If the address is not found, return 0
+        return 0;
+    }
+    size_t Response::assetChanged(const std::string& assetId) const {
+        // Check if the address is in the _invalidateOnAddressChange vector
+        auto it = std::find(_invalidateOnAssetChange.begin(), _invalidateOnAssetChange.end(), assetId);
+
+        // If the address is found, return the size of the Response object
+        if (it != _invalidateOnAssetChange.end()) {
             return _size;
         }
 

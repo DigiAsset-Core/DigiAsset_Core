@@ -32,7 +32,7 @@ namespace RPC {
 
             //get desired exchange rates
             Database* db = main->getDatabase();
-            double rate = db->getCurrentExchangeRate({address,index});
+            double rate = db->getExchangeRate({address, index});
 
             //calculate number of DGB sats
             Json::Value result= static_cast<Json::Int64>(ceil(amount*rate/100000000));

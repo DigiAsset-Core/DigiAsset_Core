@@ -28,9 +28,21 @@ namespace utils {
     size_t estimateJsonMemoryUsage(const Json::Value& value);
     uint64_t mod256by64(const std::array<uint8_t, 32>& numerator, uint64_t divisor);
 
+    Json::Value fromJSON(const std::string& str);
+
     bool getAnswerBool();
     int getAnswerInt(int min=std::numeric_limits<int>::min(), int max=std::numeric_limits<int>::max());
     std::string getAnswerString(const std::string& regexPattern = "");
+
+
+    bool isValidAddress(const std::string& address);
+
+    template<typename T>
+    std::vector<T> concatenate(const std::vector<T>& v1, const std::vector<T>& v2) {
+        std::vector<T> result = v1;                        // Copy the first vector
+        result.insert(result.end(), v2.begin(), v2.end()); // Append the second vector
+        return result;
+    }
 } // namespace utils
 
 #endif //DIGIASSET_CORE_UTILS_H

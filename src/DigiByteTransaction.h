@@ -5,10 +5,17 @@
 #ifndef DIGIASSET_CORE_DIGIBYTETRANSACTION_H
 #define DIGIASSET_CORE_DIGIBYTETRANSACTION_H
 
+//amount of fees to pay for a transaction part(usually max number of bytes it can be)
+#define DIGIBYTE_TRANSACTION_COST_HEADERS   44
+#define DIGIBYTE_TRANSACTION_COST_INPUT    180
+#define DIGIBYTE_TRANSACTION_COST_OUTPUT    34
+#define DIGIBYTE_TRANSACTION_COST_DATA      90
+
 
 #include "Database.h"
 #include "DigiAsset.h"
 #include "DigiAssetTypes.h"
+#include "SmartContract/SmartContractList.h"
 #include <jsonrpccpp/server.h>
 
 struct UTXO {
@@ -25,6 +32,9 @@ class DigiByteTransaction {
     const static unsigned int KYC_REVOKE = 11;
     const static unsigned int EXCHANGE_PUBLISH = 20;
     const static unsigned int ENCRYPTED_KEY = 30;
+    const static unsigned int SMARTCONTRACT_DEACTIVATE = 40;
+    const static unsigned int SMARTCONTRACT_ACTIVATE = 41;
+    const static unsigned int SMARTCONTRACT_PUBLISH = 42;
 
 
     std::vector<AssetUTXO> _inputs;
@@ -44,6 +54,9 @@ class DigiByteTransaction {
     //type ENCRYPTED_KEY and STANDARD only
     std::string _opReturnHex;
 
+    //type SmartContract Only
+    ContractChainData _smartContractData;
+
     //type Exchange_PUBLISH Only
     std::vector<double> _exchangeRate;
 
@@ -57,6 +70,7 @@ class DigiByteTransaction {
     bool decodeKYC(const getrawtransaction_t& txData, int dataIndex);
     bool decodeEncryptedKeyTx(const getrawtransaction_t& txData, int dataIndex);
     void storeUnknown(const getrawtransaction_t& txData, int dataIndex); //todo need to store locally and then add to database when called
+    bool decodeSmartContract(const getrawtransaction_t& txData);
 
     //asset process TestHelpers
     void decodeAssetTransfer(BitIO& dataStream, const std::vector<AssetUTXO>& inputAssets, uint8_t type);
@@ -68,6 +82,7 @@ public:
     DigiByteTransaction(const std::string& txid, unsigned int height = 0, bool dontBotherIfNotSpecial = false);
 
     void addToDatabase();
+    void updateDatabase();  //only to be used by Database.cpp upgradeDatabaseContent
     void lookupAssetIndexes();
 
     bool isStandardTransaction() const;
@@ -88,6 +103,10 @@ public:
     size_t getExchangeRateCount() const;
     double getExchangeRate(uint8_t i) const;
     ExchangeRate getExchangeRateName(uint8_t i) const;
+
+    int isSmartContractStateChange() const; //-1= no, 0=yes disabled, 1=yes enabled
+    bool isSmartContractPublishing() const; //true=maybe they published to chain but it is only valid if ipfs data is correct should try to load using db->getSmartContract
+    std::string getSmartContractAddress() const; //returns address so you can load from database.
 
 
     AssetUTXO getInput(size_t n) const;

@@ -4,6 +4,7 @@
 
 #include "CurlHandler.h"
 #include "static_block.hpp"
+#include <jsoncpp/json/reader.h>
 #include <map>
 #include <stdexcept>
 
@@ -156,5 +157,66 @@ namespace CurlHandler {
         fclose(fp);
     }
 
+    // Helper function for curl callbacks
+    static size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* s) {
+        size_t newLength = size * nmemb;
+        try {
+            s->append((char*)contents, newLength);
+        } catch (std::bad_alloc& e) {
+            // handle memory problem
+            return 0;
+        }
+        return newLength;
+    }
+
+    // Perform a DNS TXT lookup with fallback mechanism
+    std::string dnsTxtLookup(const std::string& domain) {
+        std::vector<std::string> services = {
+                "https://dns.google/resolve?name=" + domain + "&type=TXT",
+                "https://cloudflare-dns.com/dns-query?name=" + domain + "&type=TXT&ct=application/dns-json"
+        };
+
+        CURL* curl = curl_easy_init();
+        if (!curl) {
+            throw std::runtime_error("Failed to initialize CURL");
+        }
+
+        std::string readBuffer;
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
+        curl_easy_setopt(curl, CURLOPT_USERAGENT, "libcurl-agent/1.0");
+
+        for (const auto& service : services) {
+            readBuffer.clear();
+            curl_easy_setopt(curl, CURLOPT_URL, service.c_str());
+
+            CURLcode res = curl_easy_perform(curl);
+            if (res == CURLE_OK) {
+                // Parse JSON response
+                Json::Reader reader;
+                Json::Value obj;
+                if (reader.parse(readBuffer, obj)) {
+                    const Json::Value& answers = obj["Answer"];
+                    std::string result;
+                    for (const auto& answer : answers) {
+                        if (answer.isMember("data")) {
+                            result += answer["data"].asString() + "\n";
+                        }
+                    }
+                    if (!result.empty()) {
+                        curl_easy_cleanup(curl);
+                        // Remove the trailing newline character if present
+                        if (result.back() == '\n') {
+                            result.pop_back();
+                        }
+                        return result;
+                    }
+                }
+            }
+        }
+
+        curl_easy_cleanup(curl);
+        throw std::runtime_error("Failed to retrieve DNS TXT record");
+    }
 
 } // namespace CurlHandler

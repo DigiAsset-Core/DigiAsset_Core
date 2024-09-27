@@ -1,0 +1,49 @@
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" type="text/css" href="/css/style.css" />
+</head>
+<body>
+<div class="document" id="getcontract">
+  <h1 class="title">getcontract</h1>
+  <!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+  <tt class="docutils literal">getcontract</tt>
+  <p>
+    Gets the chain encoded data for a smart contract.
+  </p>
+  <div class="section" id="input">
+    <h2>Input Parameters</h2>
+    <ul>
+      <li><tt>contractAddress</tt> (string): Contract address you want to disable</li>
+    </ul>
+  </div>
+  <div class="section" id="output">
+    <h2>Output Format</h2>
+    <pre class="literal-block">
+{
+   publisher: {
+      address: string - publishing address,
+      country: string - if kyc enabled country of creator,
+      name:    string - if kyc enabled will have name or hash,
+      hash:    string - if kyc enabled will have hash or name,
+      alias:   string - if an alias is defined and verified will be included
+   },
+   contractAddress: string - contract address,
+   cid:     string - cid of where to find the metadata for the contract,
+   version: integer - version number the metadata complies to,
+   state:   bool - if contract is currently usable
+}
+</pre
+>
+  </div>
+
+</div>
+
+<script src="/js/main.js"></script>
+<footer class="fixed-bottom">
+  <p class="copyright">© Copyright DigiByte Project 2024</p>
+</footer>
+</body>
+</html>

@@ -18,9 +18,9 @@ class KYC {
     int _heightRevoked = -1;
 
     bool processKYCVerify(const getrawtransaction_t& txData, unsigned int height,
-                          std::function<std::string(std::string, unsigned int)>& addressGetterFunction);
+                          const std::function<std::string(const std::string&, unsigned int)>& addressGetterFunction);
     bool processKYCRevoke(const getrawtransaction_t& txData, unsigned int height,
-                          std::function<std::string(std::string, unsigned int)>& addressGetterFunction);
+                          const std::function<std::string(const std::string&, unsigned int)>& addressGetterFunction);
     static bool isKYCVerifier(const std::string& address, unsigned int height);
 
 public:
@@ -32,15 +32,16 @@ public:
         std::function<std::string(std::string, unsigned int)> addressGetterFunction);
 
     unsigned int processTX(const getrawtransaction_t& txData, unsigned int height,
-                           std::function<std::string(std::string, unsigned int)> addressGetterFunction);
+                           const std::function<std::string(const std::string&, unsigned int)> addressGetterFunction);
     std::string getAddress() const;
     std::string getName() const;
     std::string getHash() const;
     std::string getCountry() const;
     unsigned int getHeightCreated() const;
     int getHeightRevoked() const;      //-1 not yet revoked or haven't yet processed
-    bool valid(int height = -1) const; //-1 highest scanned(returns false if empty also)
+    bool valid(unsigned int height = 0) const; //0 highest scanned(returns false if empty also)
     bool empty() const;
+    Json::Value toJSON() const;
 
     const static unsigned int NA = 0;
     const static unsigned int VERIFY = 1;

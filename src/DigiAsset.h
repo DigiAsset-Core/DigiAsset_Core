@@ -129,7 +129,8 @@ public:
     checkRulesPass(const std::vector<AssetUTXO>& inputs, const std::vector<AssetUTXO>& outputs, unsigned int height,
                    uint64_t time) const;
 
-    Value toJSON(bool simplified = false, bool ignoreIPFS = false) const;
+    Json::Value toJSON(bool simplified = false, bool ignoreIPFS = false) const;
+    static DigiAsset fromJSON(const Json::Value& json);
 
 
     /*

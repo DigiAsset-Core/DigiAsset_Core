@@ -2,11 +2,11 @@
 // Created by mctrivia on 10/04/23.
 //
 
-#include <stdexcept>
-#include <random>
+#include "BitIO.h"
 #include <cmath>
 #include <iostream>
-#include "BitIO.h"
+#include <random>
+#include <stdexcept>
 
 
 
@@ -19,12 +19,12 @@ BitIO::BitIO(std::vector<uint8_t> data, size_t length) {
     //error checking
     if (length != 0) {
         //if length provided then check it is possible for data provided
-        size_t byteCount = length / 8;                          //gets number of whole bytes in data
+        size_t byteCount = length / 8; //gets number of whole bytes in data
         if (length % 8 != 0) {
-            byteCount++;                       //if a partial byte add 1 to byteCount
+            byteCount++; //if a partial byte add 1 to byteCount
             if ((data.back() & makeRightMask(8 - length % 8)) > 0) {
                 invalidLength();
-            }   //if any right bits that won't be saved are set
+            } //if any right bits that won't be saved are set
         }
         if (data.size() != byteCount) throw std::out_of_range("incorrect length provided");
     } else {
@@ -35,24 +35,24 @@ BitIO::BitIO(std::vector<uint8_t> data, size_t length) {
     //initialize key values
     _length = length;
     _bits.reserve(length / BITIO_SIZEOF_LONG +
-                  1);                  //pre reserve the space we need to store the data(+1 to prevent needing extra checks)
+                  1); //pre reserve the space we need to store the data(+1 to prevent needing extra checks)
 
     //convert byte data to longs
     uint64_t temp = 0;
-    size_t offset = BITIO_SIZEOF_LONG;                            //start offset with full size of long because first thing we do is subtract 8 bits from it
+    size_t offset = BITIO_SIZEOF_LONG; //start offset with full size of long because first thing we do is subtract 8 bits from it
     for (unsigned char BI: data) {
-        offset -= 8;                                              //shift to next bit
+        offset -= 8; //shift to next bit
         temp = temp | ((uint64_t) BI
-                << offset);                             //shift to correct spot and or the data to the temp long
-        if (offset == 0) {                                        //if we finish the long
-            _bits.push_back(temp);                              //store the long
-            temp = 0;                                             //clear temp
-            offset = BITIO_SIZEOF_LONG;                           //start offset with full size of long because first thing we do is subtract 8 bits from it
+                       << offset);      //shift to correct spot and or the data to the temp long
+        if (offset == 0) {              //if we finish the long
+            _bits.push_back(temp);      //store the long
+            temp = 0;                   //clear temp
+            offset = BITIO_SIZEOF_LONG; //start offset with full size of long because first thing we do is subtract 8 bits from it
         }
     }
     if (offset != BITIO_SIZEOF_LONG) {
         _bits.push_back(temp);
-    }                       //store any leftover data
+    } //store any leftover data
 }
 
 
@@ -151,7 +151,7 @@ void BitIO::checkValueRange(uint64_t value, uint64_t min, uint64_t max) {
     if (value < min) {
         throw std::out_of_range(
                 "value is to small");
-    }   //never used since current code always sets min to 0.  here for possible future versions
+    } //never used since current code always sets min to 0.  here for possible future versions
     if (value > max)
         throw std::out_of_range("value is to large");
 }
@@ -186,7 +186,7 @@ void BitIO::invalidEncoder() {
 uint64_t BitIO::makeRightMask(size_t length) {
     if (length == 64) {
         return 0xffffffffffffffff;
-    }   //below formula would fail for 64
+    } //below formula would fail for 64
     return ((uint64_t) 1 << length) - (uint64_t) 1;
 }
 
@@ -199,9 +199,9 @@ uint64_t BitIO::makeLeftMask(size_t length) {
 }
 
 uint64_t BitIO::getRandomLong() {
-    std::random_device rd;                                      //get system random source
-    std::mt19937_64 eng(rd());                                  //use 64bit mersenne twister
-    std::uniform_int_distribution<uint64_t> distribution;       //distribute results over 64bit number space
+    std::random_device rd;                                //get system random source
+    std::mt19937_64 eng(rd());                            //use 64bit mersenne twister
+    std::uniform_int_distribution<uint64_t> distribution; //distribute results over 64bit number space
     return distribution(eng);
 }
 
@@ -215,7 +215,7 @@ size_t BitIO::stringLength(const std::string& message) {
     for (uint8_t byte: message) {
         if ((byte & 0xc0) != 0x80) {
             length++;
-        }    //don't count non header bytes
+        } //don't count non header bytes
     }
     return length;
 }
@@ -232,8 +232,7 @@ uint64_t BitIO::pow10(uint64_t exponent) {
             {1, 10, 100, 1000, 10000,
              100000, 1000000, 10000000, 100000000, 1000000000,
              10000000000, 100000000000, 1000000000000, 10000000000000, 100000000000000,
-             1000000000000000, 10000000000000000, 100000000000000000, 1000000000000000000
-            };
+             1000000000000000, 10000000000000000, 100000000000000000, 1000000000000000000};
     return powers[exponent];
 }
 
@@ -249,8 +248,8 @@ uint64_t BitIO::getBits(size_t length) {
     checkAvailableBits(length);
 
     //find current position
-    size_t lI = getLongIndex();                                   //find which long position is in
-    size_t numberOfBitsLeftInLong = BITIO_SIZEOF_LONG - getBitIndex();  //find which bit in the long we are in
+    size_t lI = getLongIndex();                                        //find which long position is in
+    size_t numberOfBitsLeftInLong = BITIO_SIZEOF_LONG - getBitIndex(); //find which bit in the long we are in
 
     //move pointer to end position
     _position += length;
@@ -258,22 +257,21 @@ uint64_t BitIO::getBits(size_t length) {
     //get data from first long
     size_t captureLength = std::min(numberOfBitsLeftInLong, length); //find how many bits we can take from this long
     size_t shift = numberOfBitsLeftInLong -
-                   captureLength;       //number of bits we need to shift the data by to get the part we want at lsb
+                   captureLength; //number of bits we need to shift the data by to get the part we want at lsb
     uint64_t result = (_bits[lI] >> shift) & makeRightMask(
-            captureLength);  //shift bits to the right so the desired data is at the LSB then apply mask to remove unwanted data
+                                                     captureLength); //shift bits to the right so the desired data is at the LSB then apply mask to remove unwanted data
     if (captureLength == length) {
         return result;
-    }                   //if all data was in 1 long then return
+    } //if all data was in 1 long then return
 
     //get data from next long(if data spanned 2 longs)
-    lI++;                                                       //move long index ahead
-    captureLength = length - captureLength;                         //get number of bits that remain to be collected
+    lI++;                                   //move long index ahead
+    captureLength = length - captureLength; //get number of bits that remain to be collected
     result = result
-            << captureLength;                               //shift result to the left so there is room for the rest
+             << captureLength; //shift result to the left so there is room for the rest
     shift = BITIO_SIZEOF_LONG -
-            captureLength;                        //get number of bits we need to shift the data to get the part we want to lsb
-    return result | (_bits[lI]
-            >> shift);                          //or the data from the first and second parts together and return
+            captureLength;                //get number of bits we need to shift the data to get the part we want to lsb
+    return result | (_bits[lI] >> shift); //or the data from the first and second parts together and return
 }
 
 /**
@@ -287,11 +285,11 @@ uint64_t BitIO::getBits(size_t length) {
 bool BitIO::checkBits(uint64_t value, size_t length) {
     if (getNumberOfBitLeft() < length) {
         return false;
-    }  //not enough bits so can't be a match
+    } //not enough bits so can't be a match
 
     //get the next bits without moving pointer
     uint64_t nextBits = getBits(length);
-    _position -= length;  //put pointer back
+    _position -= length; //put pointer back
 
     //check if match
     return (nextBits == value);
@@ -308,12 +306,12 @@ void BitIO::setBits(uint64_t value, size_t length) {
     checkValueSize(value, length);
 
     //find current position
-    size_t lI = getLongIndex();                                   //find which long position is in
+    size_t lI = getLongIndex();                                        //find which long position is in
     size_t numberOfBitsLeftInLong = BITIO_SIZEOF_LONG - getBitIndex(); //find which bit in the long we are in
 
     //make sure pointers values will be correct
     _length = std::max(_length, _position +
-                                length);                 //if we write more bits than currently in object then we need to extend length of object
+                                        length); //if we write more bits than currently in object then we need to extend length of object
     _position += length;
 
     //if data aligns with long do the easy way
@@ -325,24 +323,23 @@ void BitIO::setBits(uint64_t value, size_t length) {
     //set data in first long
     if (_bits.size() == lI) {
         _bits.push_back(0);
-    }                   //if bits was full add a 0 to end
-    size_t setLength = std::min(numberOfBitsLeftInLong, length);  //find how many bits we can set in this long
+    }                                                            //if bits was full add a 0 to end
+    size_t setLength = std::min(numberOfBitsLeftInLong, length); //find how many bits we can set in this long
     uint64_t mask = ~makeCenterMask(setLength, numberOfBitsLeftInLong -
-                                               setLength);//mask for which bits we want to keep from the original data
-    uint64_t valueShifted = (setLength == length) ? (value << (numberOfBitsLeftInLong - setLength)) : (value
-            >> (length - setLength));
+                                                       setLength); //mask for which bits we want to keep from the original data
+    uint64_t valueShifted = (setLength == length) ? (value << (numberOfBitsLeftInLong - setLength)) : (value >> (length - setLength));
     _bits[lI] = (_bits[lI] & mask) |
-                valueShifted;       //keep the bits we won't write.  shift the bits from input to correct spot and or together
+                valueShifted; //keep the bits we won't write.  shift the bits from input to correct spot and or together
     if (setLength == length)
-        return;                              //if all data was in 1 long then return
+        return; //if all data was in 1 long then return
 
     //set data for next long(if data spanned 2 longs)
-    lI++;                                                       //move long index ahead
+    lI++; //move long index ahead
     if (_bits.size() == lI)
-        _bits.push_back(0);                   //if bits was full add a 0 to end
-    setLength = length - setLength;                                 //get number of bits that remain to be set
+        _bits.push_back(0);         //if bits was full add a 0 to end
+    setLength = length - setLength; //get number of bits that remain to be set
     mask = ~makeCenterMask(setLength,
-                           BITIO_SIZEOF_LONG - setLength);  //mask for which bits we want to keep from the original data
+                           BITIO_SIZEOF_LONG - setLength); //mask for which bits we want to keep from the original data
     _bits[lI] = (_bits[lI] & mask) | (value << (BITIO_SIZEOF_LONG -
                                                 setLength)); //keep the bits we won't write.  shift the bits from input to correct spot and or together
 }
@@ -362,16 +359,16 @@ void BitIO::setBits(BitIO& value) {
     }
 
     //set the bits
-    value.movePositionTo(0);                                    //move pointer to beginning
-    size_t length = BITIO_SIZEOF_LONG - getEndBitIndex();           //fill long first
-    while (size_t remaining = value.getNumberOfBitLeft()) {  //loop until run out of data
-        length = std::min(remaining, length);                      //make sure number of bits requested is possible
-        setBits(value.getBits(length), length);                  //get a block of data and set it
-        length = BITIO_SIZEOF_LONG;                               //all future blocks should be full long if possible
+    value.movePositionTo(0);                                //move pointer to beginning
+    size_t length = BITIO_SIZEOF_LONG - getEndBitIndex();   //fill long first
+    while (size_t remaining = value.getNumberOfBitLeft()) { //loop until run out of data
+        length = std::min(remaining, length);               //make sure number of bits requested is possible
+        setBits(value.getBits(length), length);             //get a block of data and set it
+        length = BITIO_SIZEOF_LONG;                         //all future blocks should be full long if possible
     }
 
     //return pointer
-    value.movePositionTo(valuePointerStartPosition);            //return pointer back to where it was
+    value.movePositionTo(valuePointerStartPosition); //return pointer back to where it was
 }
 
 /**
@@ -385,15 +382,15 @@ void BitIO::appendBits(uint64_t value, size_t length) {
     checkValueSize(value, length);
 
     //find current end position
-    size_t lI = getEndLongIndex();                                //find which long position is in
+    size_t lI = getEndLongIndex();                                        //find which long position is in
     size_t numberOfBitsLeftInLong = BITIO_SIZEOF_LONG - getEndBitIndex(); //find which bit in the long we are in
 
     //make sure pointers values will be correct
-    _length += length;                                            //increase size by added bits
+    _length += length; //increase size by added bits
 
     //if write at end of last long simple add
     if (numberOfBitsLeftInLong == BITIO_SIZEOF_LONG) {
-        _bits.push_back(value << (BITIO_SIZEOF_LONG - length));     //shift to correct spot and add
+        _bits.push_back(value << (BITIO_SIZEOF_LONG - length)); //shift to correct spot and add
         return;
     }
 
@@ -433,15 +430,15 @@ BitIO BitIO::copyBits(size_t length) {
  * @param value
  */
 void BitIO::appendBits(BitIO& value) {
-    size_t valuePointerStartPosition = value.getPosition();       //save pointer
-    value.movePositionTo(0);                                    //move pointer to beginning
-    size_t length = BITIO_SIZEOF_LONG - getEndBitIndex();           //fill long first
-    while (size_t remaining = value.getNumberOfBitLeft()) {           //loop until run out of data
-        length = std::min(remaining, length);                      //make sure number of bits requested is possible
-        appendBits(value.getBits(length), length);               //get a block of data and set it
-        length = BITIO_SIZEOF_LONG;                               //all future blocks should be full long if possible
+    size_t valuePointerStartPosition = value.getPosition(); //save pointer
+    value.movePositionTo(0);                                //move pointer to beginning
+    size_t length = BITIO_SIZEOF_LONG - getEndBitIndex();   //fill long first
+    while (size_t remaining = value.getNumberOfBitLeft()) { //loop until run out of data
+        length = std::min(remaining, length);               //make sure number of bits requested is possible
+        appendBits(value.getBits(length), length);          //get a block of data and set it
+        length = BITIO_SIZEOF_LONG;                         //all future blocks should be full long if possible
     }
-    value.movePositionTo(valuePointerStartPosition);            //return pointer back to where it was
+    value.movePositionTo(valuePointerStartPosition); //return pointer back to where it was
 }
 
 /**
@@ -472,17 +469,14 @@ void BitIO::insertBits(uint64_t value, size_t length) {
         //length not exactly one long so we need to shift bits for all longs after the current
         for (size_t lI = getEndLongIndex(); lI > lIEnd; lI--) {
             _bits[lI] = (_bits[lI] >> length) |
-                        (_bits[lI - 1] << (BITIO_SIZEOF_LONG - length));//move the bits over length bits
+                        (_bits[lI - 1] << (BITIO_SIZEOF_LONG - length)); //move the bits over length bits
         }
 
         //long where data is to be inserted needs to be handled special
         size_t bI = getBitIndex();
-        uint64_t notMovingPart = (bI == 0) ? 0 : _bits[lIEnd] & makeLeftMask(
-                bI);        //part of long to left of position that will not move
-        uint64_t movedPart = (BITIO_SIZEOF_LONG - bI < length) ? 0 : (_bits[lIEnd] >> length) & makeRightMask(
-                BITIO_SIZEOF_LONG - bI - length);    //part of long that was moved
-        _bits[lIEnd] = notMovingPart | movedPart;                //put the 2 parts together
-
+        uint64_t notMovingPart = (bI == 0) ? 0 : _bits[lIEnd] & makeLeftMask(bI);                                                               //part of long to left of position that will not move
+        uint64_t movedPart = (BITIO_SIZEOF_LONG - bI < length) ? 0 : (_bits[lIEnd] >> length) & makeRightMask(BITIO_SIZEOF_LONG - bI - length); //part of long that was moved
+        _bits[lIEnd] = notMovingPart | movedPart;                                                                                               //put the 2 parts together
     }
 
     //write data
@@ -494,8 +488,8 @@ void BitIO::insertBits(uint64_t value, size_t length) {
  * moves the pointer to the next unwritten bit.
  */
 void BitIO::insertBits(BitIO& value) {
-    size_t valuePointerStartPosition = value.getPosition();       //save pointer
-    value.movePositionTo(0);                                    //move pointer to beginning
+    size_t valuePointerStartPosition = value.getPosition(); //save pointer
+    value.movePositionTo(0);                                //move pointer to beginning
 
     //resize if needed
     _length += value.getLength();
@@ -506,10 +500,11 @@ void BitIO::insertBits(BitIO& value) {
     size_t offsetAmount = value.getLength() / BITIO_SIZEOF_LONG;
     if (offsetAmount > 0) {
         for (size_t lI = getEndLongIndex(); lI - offsetAmount + 1 >
-                                            lIEnd; lI--) {            //since >=0 will never evaluate false add 1 from left side so >0 has same meaning
+                                            lIEnd;
+             lI--) { //since >=0 will never evaluate false add 1 from left side so >0 has same meaning
             _bits[lI] = _bits[lI - offsetAmount];
         }
-        lIEnd += offsetAmount;                                    //already moved these longs so let's not move again
+        lIEnd += offsetAmount; //already moved these longs so let's not move again
     }
 
     //if not an exact multiple of long then move by leftover
@@ -519,57 +514,52 @@ void BitIO::insertBits(BitIO& value) {
         size_t length = value.getLength() % BITIO_SIZEOF_LONG;
         for (size_t lI = getEndLongIndex(); lI > lIEnd; lI--) {
             _bits[lI] = (_bits[lI] >> length) |
-                        (_bits[lI - 1] << (BITIO_SIZEOF_LONG - length));//move the bits over length bits
+                        (_bits[lI - 1] << (BITIO_SIZEOF_LONG - length)); //move the bits over length bits
         }
 
         if (offsetAmount == 0) {
             //long where data is to be inserted needs to be handled special(not moving more than 1 long)
             size_t bI = getBitIndex();
-            uint64_t notMovingPart = (bI == 0) ? 0 : _bits[lIEnd] & makeLeftMask(
-                    bI);        //part of long to left of position that will not move
-            uint64_t movedPart = (bI + length > BITIO_SIZEOF_LONG) ? 0 : (_bits[lIEnd] >> length) & makeRightMask(
-                    BITIO_SIZEOF_LONG - (bI + length));    //part of long that was moved
-            _bits[lIEnd] = notMovingPart | movedPart;                //put the 2 parts together
+            uint64_t notMovingPart = (bI == 0) ? 0 : _bits[lIEnd] & makeLeftMask(bI);                                                                 //part of long to left of position that will not move
+            uint64_t movedPart = (bI + length > BITIO_SIZEOF_LONG) ? 0 : (_bits[lIEnd] >> length) & makeRightMask(BITIO_SIZEOF_LONG - (bI + length)); //part of long that was moved
+            _bits[lIEnd] = notMovingPart | movedPart;                                                                                                 //put the 2 parts together
         } else {
             //moved by more than 1 long
             size_t bI = getBitIndex();
-            _bits[lIEnd - offsetAmount] = (bI == 0) ? 0 : _bits[lIEnd] & makeLeftMask(
-                    bI);        //part of long to left of position that will not move
-            _bits[lIEnd] = (bI + length > BITIO_SIZEOF_LONG) ? 0 : (_bits[lIEnd] >> length) & makeRightMask(
-                    BITIO_SIZEOF_LONG - (bI + length));    //part of long that was moved
+            _bits[lIEnd - offsetAmount] = (bI == 0) ? 0 : _bits[lIEnd] & makeLeftMask(bI);                                                      //part of long to left of position that will not move
+            _bits[lIEnd] = (bI + length > BITIO_SIZEOF_LONG) ? 0 : (_bits[lIEnd] >> length) & makeRightMask(BITIO_SIZEOF_LONG - (bI + length)); //part of long that was moved
         }
-
     }
 
     //write data
     setBits(value);
-    value.movePositionTo(valuePointerStartPosition);            //return pointer back to where it was
+    value.movePositionTo(valuePointerStartPosition); //return pointer back to where it was
 }
 
 void BitIO::padWidth(size_t multiple, unsigned char fillStyle) {
     //check if padding needed
     if (multiple <= 1) {
         return;
-    }                                    //multiples of 0 are not possible and 1 will always be correct so stop processing
+    } //multiples of 0 are not possible and 1 will always be correct so stop processing
     size_t bitsPastMultiple = _length % multiple;
     if (bitsPastMultiple == 0)
-        return;                            //already correct length so return
+        return; //already correct length so return
 
     //adjust size
-    size_t neededExtraBits = multiple - bitsPastMultiple;           //compute number of bits needed
-    _length += neededExtraBits;                                   //update bits length to new length
+    size_t neededExtraBits = multiple - bitsPastMultiple; //compute number of bits needed
+    _length += neededExtraBits;                           //update bits length to new length
     resizeIfNeeded();
     if (fillStyle == BITIO_FILL_ZEROS)
-        return;                    //already padded with 0s to desired length so return
+        return; //already padded with 0s to desired length so return
 
     //fill bits in first long
     uint64_t fillMask = (fillStyle == BITIO_FILL_RANDOM) ? getRandomLong()
-                                                         : ~0;    //value used to either fill with 1s or random bits
-    size_t position = _length - neededExtraBits;                //compute first bit to change to a 1
-    size_t lI = position / BITIO_SIZEOF_LONG;                   //get the first long to process
+                                                         : ~0; //value used to either fill with 1s or random bits
+    size_t position = _length - neededExtraBits;               //compute first bit to change to a 1
+    size_t lI = position / BITIO_SIZEOF_LONG;                  //get the first long to process
     size_t bitsLeftInLong =
-            BITIO_SIZEOF_LONG - (position % BITIO_SIZEOF_LONG);//get number of bits left in long that can be changed
-    size_t bitsToChange = std::min(neededExtraBits, bitsLeftInLong);//number of bits to write now
+            BITIO_SIZEOF_LONG - (position % BITIO_SIZEOF_LONG);      //get number of bits left in long that can be changed
+    size_t bitsToChange = std::min(neededExtraBits, bitsLeftInLong); //number of bits to write now
     _bits[lI] = _bits[lI] | (makeCenterMask(bitsToChange, bitsLeftInLong - bitsToChange) & fillMask);
     neededExtraBits -= bitsToChange;
 
@@ -579,7 +569,7 @@ void BitIO::padWidth(size_t multiple, unsigned char fillStyle) {
         if (fillStyle == BITIO_FILL_RANDOM)
             fillMask = getRandomLong();
         if (neededExtraBits >= BITIO_SIZEOF_LONG) {
-            _bits[lI] = fillMask;                                 //set all bits to 1
+            _bits[lI] = fillMask; //set all bits to 1
             neededExtraBits -= BITIO_SIZEOF_LONG;
         } else {
             _bits[lI] = makeLeftMask(neededExtraBits) & fillMask; //set left most bits to 1s
@@ -589,13 +579,13 @@ void BitIO::padWidth(size_t multiple, unsigned char fillStyle) {
 }
 
 void BitIO::appendZeros(size_t count) {
-    _length += count;                                   //update bits length to new length
+    _length += count; //update bits length to new length
     resizeIfNeeded();
 }
 
 void BitIO::movePositionTo(size_t bitIndex) {
-    checkPosition(bitIndex);                            //initial error checking
-    _position = bitIndex;                                         //move position pointer
+    checkPosition(bitIndex); //initial error checking
+    _position = bitIndex;    //move position pointer
 }
 
 void BitIO::movePositionBy(int amount) {
@@ -651,7 +641,7 @@ BitIO BitIO::makeBestString(const std::string& message, size_t lengthBits,
 
     //try each encoder type
     for (const stringHeaderOption& headerOption: headerOptions) {
-        bool invalidEncoderDetected = false;  //because of catch can't just throw error direct so need to watch for flag
+        bool invalidEncoderDetected = false; //because of catch can't just throw error direct so need to watch for flag
         try {
             //try encoding in the current format
             BitIO temp;
@@ -678,7 +668,7 @@ BitIO BitIO::makeBestString(const std::string& message, size_t lengthBits,
             //see if best
             if (result.getLength() < bestLength) {
                 best = result;
-                bestLength = result.getLength();  //needed because bests length is 0 before one is set as best.
+                bestLength = result.getLength(); //needed because bests length is 0 before one is set as best.
             }
 
         } catch (const std::exception& e) {
@@ -725,7 +715,7 @@ std::string BitIO::getBestString(size_t lengthBits, const std::vector<stringHead
         default:
             invalidEncoder();
     }
-    return "";   //unreachable but makes clang happy
+    return ""; //unreachable but makes clang happy
 }
 
 /**
@@ -787,7 +777,7 @@ std::string BitIO::getAlphaString(size_t length) {
 
 BitIO BitIO::makeUTF8String(const std::string& message) {
     BitIO result;
-    uint8_t remainingBytes = 0;  //not a truly accurate name
+    uint8_t remainingBytes = 0; //not a truly accurate name
     size_t bitLength;
     uint64_t block;
     for (uint8_t byte: message) {
@@ -795,8 +785,8 @@ BitIO BitIO::makeUTF8String(const std::string& message) {
         if ((byte & 0x80) == 0) {
             if (remainingBytes != 0) {
                 invalidCharacter();
-            }    //each byte in a multibyte sequences always start with a 1
-            result.appendBits(byte, 8);      //header 0+7bit ascii
+            }                           //each byte in a multibyte sequences always start with a 1
+            result.appendBits(byte, 8); //header 0+7bit ascii
             continue;
         }
 
@@ -806,7 +796,7 @@ BitIO BitIO::makeUTF8String(const std::string& message) {
             if (byte < 0xdf) {
                 remainingBytes = 2;
                 bitLength = 13;
-                block = byte & 0x7f;    //remove first 1 from header so now 10
+                block = byte & 0x7f; //remove first 1 from header so now 10
                 continue;
             }
 
@@ -814,7 +804,7 @@ BitIO BitIO::makeUTF8String(const std::string& message) {
             if (byte < 0xef) {
                 remainingBytes = 3;
                 bitLength = 19;
-                block = byte & 0x7f;    //remove first 1 from header so now 110
+                block = byte & 0x7f; //remove first 1 from header so now 110
                 continue;
             }
 
@@ -968,9 +958,27 @@ std::string BitIO::get3B40String(size_t length) {
     return result;
 }
 
+BitIO BitIO::makePlainOldAsciiString(const std::string& message) {
+    BitIO result;
+    for (char c: message) {
+        result.appendBits(static_cast<uint8_t>(c), 8);
+    }
+    return result;
+}
+
+std::string BitIO::getPlainOldAsciiString(size_t length) {
+    std::string result;
+    if (length == -1) length = getNumberOfBitLeft() / 8;
+    for (size_t i = 0; i < length; i++) {
+        result.push_back(static_cast<char>(getBits(8)));
+    }
+    return result;
+}
+
+
 BitIO BitIO::makeFixedPrecision(uint64_t value) {
     checkValueRange(value, (uint64_t) 0,
-                    (uint64_t) 18014398509481983);                 //make sure value can be encoded in this encoding method
+                    (uint64_t) 18014398509481983); //make sure value can be encoded in this encoding method
     BitIO result;
 
     //check if the simple case of 1 byte value
@@ -985,36 +993,36 @@ BitIO BitIO::makeFixedPrecision(uint64_t value) {
         exponent++;
         value /= 10;
     }
-    if (value > 4398046511103) {                  //with large values we can't compress the value using exponent bits
+    if (value > 4398046511103) { //with large values we can't compress the value using exponent bits
         value *= pow10(exponent);
         exponent = 0;
     }
-    if ((exponent > 7) && (value > 33554431)) {       //max encodable exponent value is 7(3 bits)
+    if ((exponent > 7) && (value > 33554431)) { //max encodable exponent value is 7(3 bits)
         value *= pow10(exponent - 7);
         exponent = 7;
     }
 
     //return binary value
-    if (value > 4398046511103) {          //7 bytes
+    if (value > 4398046511103) { //7 bytes
         result.appendBits(3, 2);
         result.appendBits(value, 54);
-    } else if (value > 17179869183) {     //6 bytes
+    } else if (value > 17179869183) { //6 bytes
         result.appendBits(5, 3);
         result.appendBits(value, 42);
         result.appendBits(exponent, 3);
-    } else if (value > 33554431) {        //5 bytes
+    } else if (value > 33554431) { //5 bytes
         result.appendBits(4, 3);
         result.appendBits(value, 34);
         result.appendBits(exponent, 3);
-    } else if (value > 131071) {          //4 bytes
+    } else if (value > 131071) { //4 bytes
         result.appendBits(3, 3);
         result.appendBits(value, 25);
         result.appendBits(exponent, 4);
-    } else if (value > 511) {             //3 bytes
+    } else if (value > 511) { //3 bytes
         result.appendBits(2, 3);
         result.appendBits(value, 17);
         result.appendBits(exponent, 4);
-    } else {                            //2 bytes
+    } else { //2 bytes
         result.appendBits(1, 3);
         result.appendBits(value, 9);
         result.appendBits(exponent, 4);
@@ -1034,15 +1042,15 @@ uint64_t BitIO::getFixedPrecision() {
     //split into parts
     uint64_t mantissa = 0;
     uint64_t exponent = 0;
-    if (length == 1) {                                           //1 byte number
+    if (length == 1) { //1 byte number
         mantissa = getBits(5);
-    } else if (length < 5) {                                      //2 to 4 byte number
+    } else if (length < 5) { //2 to 4 byte number
         mantissa = getBits(length * 8 - 7);
         exponent = getBits(4);
-    } else if (length < 7) {                                      //5 to 6 byte number
+    } else if (length < 7) { //5 to 6 byte number
         mantissa = getBits(length * 8 - 6);
         exponent = getBits(3);
-    } else {                                                    //7 byte number
+    } else { //7 byte number
         mantissa = getBits(54);
     }
 
@@ -1060,19 +1068,19 @@ BitIO BitIO::makeDouble(double value, bool isLE) {
     /** adapted from nodejs ieee754. BSD-3-Clause License. Feross Aboukhadijeh <https://feross.org/opensource> */
     uint8_t buffer[8];
     size_t nBytes = 8;
-    int mLen = 52;       //mantissa length
+    int mLen = 52; //mantissa length
     size_t offset = 0;
 
     uint64_t m;
     int e;
     double c;
-    int eLen = (nBytes * 8) - mLen - 1;  //exponent length
+    int eLen = (nBytes * 8) - mLen - 1; //exponent length
     uint64_t eMax = makeRightMask(eLen);
     uint64_t eBias = eMax >> 1;
     double rt = (mLen == 23 ? pow(2, -24) - pow(2, -77) : 0);
-    size_t i = isLE ? 0 : (nBytes - 1); //start byte
-    int d = isLE ? 1 : -1;       //direction
-    int s = value < 0 || (value == 0 && 1 / value < 0) ? 1 : 0;//sign
+    size_t i = isLE ? 0 : (nBytes - 1);                         //start byte
+    int d = isLE ? 1 : -1;                                      //direction
+    int s = value < 0 || (value == 0 && 1 / value < 0) ? 1 : 0; //sign
 
     if (value < 0) {
         value = 0 - value;
@@ -1085,7 +1093,7 @@ BitIO BitIO::makeDouble(double value, bool isLE) {
         m = 0;
         e = 0;
     } else {
-        e = floor(log2(value));  //floor(log(value) / Math.LN2)
+        e = floor(log2(value)); //floor(log(value) / Math.LN2)
         c = pow(2, -e);
         if (value * c < 1) {
             //todo tests do not execute.  find test value that does
@@ -1136,7 +1144,7 @@ BitIO BitIO::makeDouble(double value, bool isLE) {
 double BitIO::getDouble(bool isLE) {
     /** adapted from nodejs ieee754. BSD-3-Clause License. Feross Aboukhadijeh <https://feross.org/opensource> */
     size_t nBytes = 8;
-    int mLen = 52;//mantissa length
+    int mLen = 52; //mantissa length
     size_t offset = 0;
 
     //load the bytes
@@ -1159,8 +1167,8 @@ double BitIO::getDouble(bool isLE) {
 
     //get exponent
     i += d;
-    e = s & makeRightMask(-nBits);  //remove sign part from exponent
-    s >>= (-nBits);     //remove exponent part from sign
+    e = s & makeRightMask(-nBits); //remove sign part from exponent
+    s >>= (-nBits);                //remove exponent part from sign
     nBits += eLen;
     for (; nBits > 0; e = (e * 256) + buffer[offset + i], i += d, nBits -= 8) {}
 
@@ -1174,10 +1182,10 @@ double BitIO::getDouble(bool isLE) {
 
     if (e == 0) {
         e = 1 - eBias;
-    } else if (static_cast<uint64_t>(e) == eMax) {  //e will never be negative at this point so safe to cast to uin64_t for comparison
+    } else if (static_cast<uint64_t>(e) == eMax) { //e will never be negative at this point so safe to cast to uin64_t for comparison
         return m ? nan("") : ((s ? -1 : 1) * INFINITY);
     } else {
-        m = m + ((uint64_t) 1 << mLen);      //1<<mLen is same as 2^mLen
+        m = m + ((uint64_t) 1 << mLen); //1<<mLen is same as 2^mLen
         e = e - eBias;
     }
     return (s ? -1.0 : 1.0) * m * pow(2, e - mLen);
@@ -1299,12 +1307,12 @@ int8_t BitIO::getBitcoinDataHeader() {
     }
     if ((opCode >= 79) && (opCode <= 96)) {
         return (int8_t) opCode - 80;
-    } // NOLINT(cppcoreguidelines-narrowing-conversions)
-    movePositionBy(-8);     //move pointer back
+    }                   // NOLINT(cppcoreguidelines-narrowing-conversions)
+    movePositionBy(-8); //move pointer back
     if ((opCode >= 1) && (opCode <= 78))
         return BITIO_BITCOIN_TYPE_DATA;
     invalidOpCode();
-    return 0;   //unreachable but makes clang happy
+    return 0; //unreachable but makes clang happy
 }
 
 /**

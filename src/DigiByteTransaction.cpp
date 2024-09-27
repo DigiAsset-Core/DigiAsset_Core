@@ -117,12 +117,33 @@ DigiByteTransaction::DigiByteTransaction(const string& txid, unsigned int height
     if (decodeKYC(txData, dataIndex)) return;
     if (decodeExchangeRate(txData, dataIndex)) return;
     if (decodeEncryptedKeyTx(txData, dataIndex)) return;
+    if (decodeSmartContract(txData)) return;
     if (decodeAssetTX(txData, dataIndex)) return;
     storeUnknown(txData, dataIndex);
 
     ///if any new special case types are added make sure they have no more than 5 inputs allowed or
     ///modify the mayNeedInputProcessing algorithm above to check for them.
 }
+
+bool DigiByteTransaction::decodeSmartContract(const getrawtransaction_t& txData) {
+    //check if it's a smart contract publishing
+    _smartContractData = SmartContractList::processTX(txData, _height, [this](const string& txid, unsigned int vout) -> string {
+        Database* db = AppMain::GetInstance()->getDatabase();
+        return db->getSendingAddress(txid, vout);
+    });
+    if (_smartContractData.publisherAddress.empty()) return false;
+
+    //record what type it is
+    if (_smartContractData.version == 0) {
+        _txType = SMARTCONTRACT_DEACTIVATE;
+    } else if (_smartContractData.version == 1) {
+        _txType = SMARTCONTRACT_ACTIVATE;
+    } else {
+        _txType = SMARTCONTRACT_PUBLISH;
+    }
+    return true;
+}
+
 
 /**
  * Looks to see if there is exchange rate data encoded in the transaction and we are tracking it
@@ -633,6 +654,14 @@ void DigiByteTransaction::addToDatabase() {
             }
             break;
         }
+        case SMARTCONTRACT_DEACTIVATE:
+        case SMARTCONTRACT_ACTIVATE:
+            db->updateSmartContractState(_smartContractData.contractAddress, _height, _smartContractData.version);
+            break;
+        case SMARTCONTRACT_PUBLISH: {
+            db->addSmartContract(_smartContractData.publisherAddress, _smartContractData.contractAddress, _smartContractData.cid, _smartContractData.version);
+            break;
+        }
     }
 
     //mark spent old UTXOs
@@ -659,6 +688,25 @@ void DigiByteTransaction::addToDatabase() {
     //finalise changes
     db->endTransaction();
 }
+
+/**
+ * Function used strictly by Database.cpp when modifying the database entry do to a new code version
+ */
+void DigiByteTransaction::updateDatabase() {
+    AppMain* main = AppMain::GetInstance();
+    Database* db = main->getDatabase();
+    switch (_txType) {
+        case SMARTCONTRACT_DEACTIVATE:
+        case SMARTCONTRACT_ACTIVATE:
+            db->updateSmartContractState(_smartContractData.contractAddress, _height, _smartContractData.version);
+            break;
+        case SMARTCONTRACT_PUBLISH: {
+            db->addSmartContract(_smartContractData.publisherAddress, _smartContractData.contractAddress, _smartContractData.cid, _smartContractData.version);
+            break;
+        }
+    }
+}
+
 
 /**
  * If there is an asset issuance will lookup its assetIndex
@@ -838,4 +886,15 @@ void DigiByteTransaction::addDigiByteOutput(const string& address, uint64_t amou
     //todo check its unlocked
     //todo check there is enough funds to send(and still pay tx fee)
     //todo add the output
+}
+int DigiByteTransaction::isSmartContractStateChange() const {
+    if (_txType==SMARTCONTRACT_DEACTIVATE) return 0;
+    if (_txType==SMARTCONTRACT_ACTIVATE) return 1;
+    return -1;
+}
+bool DigiByteTransaction::isSmartContractPublishing() const {
+    return (_txType==SMARTCONTRACT_PUBLISH);
+}
+std::string DigiByteTransaction::getSmartContractAddress() const {
+    return _smartContractData.contractAddress;
 }

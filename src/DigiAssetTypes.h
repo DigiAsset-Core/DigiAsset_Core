@@ -40,6 +40,7 @@ struct AssetUTXO {
     std::vector<DigiAsset> assets;
 
     Json::Value toJSON(bool simplified = true) const;
+    static AssetUTXO fromJSON(const Json::Value& json);
 };
 
 struct Signer {

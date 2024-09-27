@@ -115,10 +115,6 @@ namespace RPC {
         _io.run();
     }
 
-    void Server::start() {
-        accept();
-    }
-
     /*
      ██████╗ ███████╗███╗   ██╗███████╗██████╗ ██╗ ██████╗
     ██╔════╝ ██╔════╝████╗  ██║██╔════╝██╔══██╗██║██╔════╝
@@ -128,7 +124,7 @@ namespace RPC {
      ╚═════╝ ╚══════╝╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝╚═╝ ╚═════╝
      */
 
-    void Server::accept() {
+    void Server::mainFunction() {
         Log* log = Log::GetInstance();
         while (true) {
             uint64_t callNumber = _callCounter++; // Get a unique identifier for this call
@@ -233,15 +229,12 @@ namespace RPC {
 
         // Parse the JSON content
         Json::CharReaderBuilder readerBuilder;
-        Json::Value doc;
-        istringstream jsonContentStream(jsonContent);
-        string errs;
-
-        if (!Json::parseFromStream(readerBuilder, jsonContentStream, &doc, &errs)) {
-            throw DigiByteException(RPC_PARSE_ERROR, "JSON parsing error: " + errs);
+        try {
+            Json::Value doc = utils::fromJSON(jsonContent);
+            return doc;
+        } catch (const out_of_range& e) {
+            throw DigiByteException(RPC_PARSE_ERROR, e.what());
         }
-
-        return doc;
     }
 
     string Server::getHeader(const string& headers, const string& wantedHeader) {
@@ -275,11 +268,16 @@ namespace RPC {
         return (decoded == _username + ":" + _password);
     }
 
-    Value Server::executeCall(const std::string& methodName, const Json::Value& params, const Json::Value& id) {
+    Value Server::executeCall(const std::string& methodName, const Json::Value& params, const Json::Value& id, bool callFromPlugin) {
         AppMain* app = AppMain::GetInstance();
 
         //see if method on approved list
-        if (!isRPCAllowed(methodName)) throw DigiByteException(RPC_FORBIDDEN_BY_SAFE_MODE, methodName + " is forbidden");
+        if (callFromPlugin) {
+            if (methodName.find("wallet") != string::npos) throw DigiByteException(RPC_FORBIDDEN_BY_SAFE_MODE, methodName + " is forbidden");
+            //todo check if we should block any other commands
+        } else {
+            if (!isRPCAllowed(methodName)) throw DigiByteException(RPC_FORBIDDEN_BY_SAFE_MODE, methodName + " is forbidden");
+        }
 
         //see if cached
         Response response;
@@ -305,6 +303,19 @@ namespace RPC {
 
         //return as json
         return response.toJSON(id);
+    }
+
+    std::string Server::executeCallByPlugin(const string& methodName, const string& params) {
+        //convert params to json value
+        Json::Value jParams = params.empty() ? Json::arrayValue : utils::fromJSON(params); //in case someone puts empty params instead of "[]"
+
+        try {
+            Json::Value results = executeCall(methodName, jParams);
+            return results.toStyledString();
+        } catch (const DigiByteException& e) {
+            //if extra error handling needed
+            throw;
+        }
     }
 
     Value Server::handleRpcRequest(const Value& request) {

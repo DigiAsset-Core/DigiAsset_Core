@@ -15,6 +15,7 @@ namespace RPC {
         size_t _size=sizeof(Response);
 
         std::vector<std::string> _invalidateOnAddressChange; //invalidates if one of these addresses is modified
+        std::vector<std::string> _invalidateOnAssetChange;   //invalidates if one of these assets is modified
         int _blocksGoodFor=0;  //invalidates when drops bellow 0
         bool _invalidateOnNewAsset=false;  //if true will get deleted if a new asset is issued
 
@@ -27,6 +28,7 @@ namespace RPC {
 
         //functions for setting how long cache is good for
         void addInvalidateOnAddressChange(const std::string& address);
+        void addInvalidateOnAssetChange(const std::string& assetId);
         void setBlocksGoodFor(int blocks);
         void setInvalidateOnNewAsset();
 
@@ -36,6 +38,7 @@ namespace RPC {
 
         //functions to check if the cache should get deleted
         size_t addressChanged(const std::string& address) const;    //returns size if should delete, 0 if shouldn't
+        size_t assetChanged(const std::string& assetId) const;      //returns size if should delete, 0 if shouldn't
         size_t newBlockAdded();                                     //returns size if should delete, 0 if shouldn't
         size_t newAssetIssued();                                    //returns size if should delete, 0 if shouldn't
 

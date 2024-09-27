@@ -63,6 +63,19 @@ namespace RPC {
         }
     }
 
+    void Cache::assetChanged(const std::string& assetId) {
+        std::lock_guard<std::mutex> lock(_cacheMutex);
+        for (auto it = _cacheMap.begin(); it != _cacheMap.end(); ) {
+            size_t deleteSize=it->second.response.assetChanged(assetId);
+            if ( deleteSize > 0) {
+                _currentCacheSize -= (deleteSize + _entryOverhead);
+                it = _cacheMap.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+
     void Cache::newBlockAdded() {
         std::lock_guard<std::mutex> lock(_cacheMutex);
         for (auto it = _cacheMap.begin(); it != _cacheMap.end(); ) {

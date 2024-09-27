@@ -1,0 +1,40 @@
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" type="text/css" href="/css/style.css" />
+</head>
+<body>
+<div class="document" id="listmycontractaddresses">
+  <h1 class="title">listmycontractaddresses</h1>
+  <!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+  <tt class="docutils literal">listmycontractaddresses</tt>
+  <p>
+    Gets a list of contracts operated by a plugin
+  </p>
+  <div class="section" id="input">
+    <h2>Input Parameters</h2>
+    <ul>
+      <li><tt>pluginName</tt> (string): Name of the plugin to be used.  Must be one of the plugins installed on this node.</li>
+      <li><tt>account</tt> (string, optional): If multiple accounts are set up this field allows selecting the one to use.  Leave blank if multiple accounts not set</li>
+    </ul>
+  </div>
+  <div class="section" id="output">
+    <h2>Output Format</h2>
+    <pre class="literal-block">
+[
+    "contractAddress1", "contractAddress2"...
+]
+</pre
+>
+  </div>
+
+</div>
+
+<script src="/js/main.js"></script>
+<footer class="fixed-bottom">
+  <p class="copyright">© Copyright DigiByte Project 2024</p>
+</footer>
+</body>
+</html>

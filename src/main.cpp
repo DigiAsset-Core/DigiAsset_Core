@@ -209,12 +209,11 @@ int main() {
     main->setRpcCache(&rpcCache);
 
     /**
-     * Start Chain Analyzer
+     * Load Chain Analyzer
      */
-    log->addMessage("Starting Chain Analyzer");
+    log->addMessage("Loading Chain Analyzer");
     ChainAnalyzer analyzer;
     analyzer.loadConfig();
-    analyzer.start();
     main->setChainAnalyzer(&analyzer);
 
     //analyzer.stop();
@@ -222,17 +221,35 @@ int main() {
     /**
      * Start RPC Server
      */
-
+    RPC::Server* server;
     try {
         // Create and start the Bitcoin RPC server
         log->addMessage("Starting RPC Server");
-        RPC::Server server;
-        main->setRpcServer(&server);
-        server.start();
+        server = new RPC::Server("config.cfg");
+        main->setRpcServer(server);
+        server->start();
 
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
     }
+
+    /**
+     * Start Smart Contracts
+     */
+    SmartContractList* smartContracts;
+     try {
+        smartContracts = new SmartContractList();
+        main->setSmartContracts(smartContracts);
+     } catch (const std::exception& e) {
+        log->addMessage("Error Loading one or more smart contract plugins", Log::CRITICAL);
+        return 0;
+     }
+
+     /**
+     * Start Chain Analyzer
+     */
+     log->addMessage("Starting Chain Analyzer");
+     analyzer.start();
 
 
     while (true) {

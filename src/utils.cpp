@@ -3,15 +3,22 @@
 //
 
 #include "utils.h"
+#include "Base58.h"
+#include "Bech32.h"
+#include "crypto/SHA256.h"
 #include <algorithm>
+#include <chrono>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <jsoncpp/json/reader.h>
 #include <jsoncpp/json/value.h>
 #include <random>
 #include <regex>
 #include <sstream>
+#include <string>
 #include <sys/stat.h>
+#include <thread>
 
 
 using namespace std;
@@ -126,11 +133,11 @@ namespace utils {
      * @param progressWidth
      */
     void printProgressBar(float fraction, int progressWidth) {
-        int left=std::max(static_cast<int>(fraction*progressWidth),1);
-        int right=progressWidth-left;
+        int left = std::max(static_cast<int>(fraction * progressWidth), 1);
+        int right = progressWidth - left;
         std::cout << "\r[" << std::setfill('#') << std::setw(left) << '#';
         std::cout << std::setfill(' ') << std::setw(right) << "]";
-        std::cout << std::fixed << std::setprecision(1) << std::setw(5) << (fraction*100) << "%";
+        std::cout << std::fixed << std::setprecision(1) << std::setw(5) << (fraction * 100) << "%";
         std::cout.flush();
     }
 
@@ -168,6 +175,18 @@ namespace utils {
         return remainder;
     }
 
+    Json::Value fromJSON(const std::string& str) {
+        Json::CharReaderBuilder readerBuilder;
+        Json::Value json;
+        istringstream jsonContentStream(str);
+        string errs;
+
+        if (!Json::parseFromStream(readerBuilder, jsonContentStream, &json, &errs)) {
+            throw out_of_range("JSON parsing error: " + errs);
+        }
+
+        return json;
+    }
 
 
 
@@ -195,13 +214,13 @@ namespace utils {
         while (true) {
             // Check if there's a pending newline or other character in the input buffer
             if (cin.peek() == '\n' || cin.peek() == EOF) {
-                cin.ignore();  // Ignore the leftover newline or EOF before reading the line
+                cin.ignore(); // Ignore the leftover newline or EOF before reading the line
             }
 
-            getline(cin, inputLine);  // Use getline to read the full line
+            getline(cin, inputLine); // Use getline to read the full line
 
             stringstream ss(inputLine);
-            if (ss >> input && ss.eof()) {  // Check if the entire stringstream converts to an integer and if there's nothing else
+            if (ss >> input && ss.eof()) { // Check if the entire stringstream converts to an integer and if there's nothing else
                 if (input < min || input > max) {
                     cout << "Invalid input. Please enter a number between " << min << " and " << max << ": ";
                 } else {
@@ -219,17 +238,66 @@ namespace utils {
 
         // Check if there's a pending newline or other character in the input buffer
         if (cin.peek() == '\n' || cin.peek() == EOF) {
-            cin.ignore();  // Ignore the leftover newline or EOF before reading the line
+            cin.ignore(); // Ignore the leftover newline or EOF before reading the line
         }
 
         while (true) {
-            getline(cin, input);  // Use getline to read the full line of input
+            getline(cin, input); // Use getline to read the full line of input
 
             if (regexPattern.empty() || regex_match(input, pattern)) {
-                return input;  // Return the input if it matches the pattern or no pattern is provided
+                return input; // Return the input if it matches the pattern or no pattern is provided
             } else {
                 cout << "Invalid input. Please try again: ";
             }
         }
+    }
+
+    bool isBase58Char(char c) {
+        return (c >= '1' && c <= '9') || (c >= 'A' && c <= 'H') ||
+               (c >= 'J' && c <= 'N') || (c == 'P') || (c == 'Q') ||
+               (c >= 'R' && c <= 'Z') || (c >= 'a' && c <= 'k') ||
+               (c >= 'm' && c <= 'z');
+    }
+
+    bool isValidBase58(const string& address) {
+        if (address.length() < 25 || address.length() > 35) return false;
+        return all_of(address.begin(), address.end(), isBase58Char);
+    }
+
+    bool isValidAddress(const std::string& address) {
+        switch (address[0]) {
+            case 'D':
+            case 'S': {
+                //quick check all characters are correct types
+                if (!isValidBase58(address)) return false;
+
+                //decoded the data and check proper size
+                auto decoded = Base58::decode(address);
+                if (decoded.size() != 25) return false;
+
+                //check the checksum
+                vector<uint8_t> pubkeyHash(decoded.begin() + 1, decoded.begin() + 21);
+                SHA256 sha256a;
+                sha256a.update(pubkeyHash.data(), 20);
+                auto sha256DigestA = sha256a.digest();
+                SHA256 sha256b;
+                sha256b.update(sha256DigestA.data(), 32);
+                auto sha256DigestB = sha256b.digest();
+                for (size_t i = 0; i < 4; i++) {
+                    if (decoded[i + 21] != sha256DigestB[i]) return false;
+                }
+
+                //all tests passed
+                return true;
+            }
+            case 'd': {
+                auto decoded = Bech32::Decode(address);
+                if (decoded.hrp != "dgb") return false;
+                return (decoded.encoding != Bech32::Encoding::INVALID);
+            }
+        }
+
+        //no match found
+        return false;
     }
 } // namespace utils

@@ -57,6 +57,7 @@ endforeach()
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 set(CMAKE_CXX_STANDARD 11)
+find_package(Boost REQUIRED COMPONENTS filesystem)
 FIND_PACKAGE(JSONCPP REQUIRED)
 FIND_PACKAGE(JSONRPCCPP REQUIRED)
 find_package(CURL REQUIRED)
@@ -81,6 +82,7 @@ set(HEADER_FILES
         IPFS.h
         DigiByteTransaction.h
         Base58.h
+        Bech32.h
         serialize.h
         DigiAssetTypes.h
         DigiByteDomain.h
@@ -107,6 +109,10 @@ set(HEADER_FILES
         Database_LockedStatement.h
         crypto/ripemd.h
         crypto/SHA256.h
+        SmartContract/SmartContractList.h
+        SmartContract/SmartContractHandler.h
+        SmartContract/SmartContractMetadata.h
+        QueueThread.h
         )
 
 set(SOURCE_FILES
@@ -122,6 +128,7 @@ set(SOURCE_FILES
         IPFS.cpp
         DigiByteTransaction.cpp
         Base58.cpp
+        Bech32.cpp
         DigiAssetTypes.cpp
         DigiByteDomain.cpp
         Config.cpp
@@ -144,6 +151,10 @@ set(SOURCE_FILES
         Database_LockedStatement.cpp
         crypto/ripemd.c
         crypto/SHA256.cpp
+        SmartContract/SmartContractList.cpp
+        SmartContract/SmartContractHandler.cpp
+        SmartContract/SmartContractMetadata.cpp
+        QueueThread.cpp
         )
 
 add_executable(digiasset_core main.cpp ${SOURCE_FILES} ${HEADER_FILES} ${RPC_METHODS_FILES})
@@ -154,7 +165,7 @@ target_link_libraries(digiasset_core PUBLIC sqlite3)
 target_link_libraries(digiasset_core PRIVATE ssl)
 target_link_libraries(digiasset_core PRIVATE crypto)
 target_link_libraries(digiasset_core PRIVATE pthread)
-
+target_link_libraries(digiasset_core PRIVATE Boost::filesystem)
 target_link_libraries(digiasset_core PRIVATE /lib/x86_64-linux-gnu/libjsoncpp.so)
 target_link_libraries(digiasset_core PRIVATE jsonrpccpp-common)
 target_link_libraries(digiasset_core PRIVATE jsonrpccpp-client)

@@ -63,7 +63,7 @@ void Database::buildTables(unsigned int dbVersionNumber) {
             [&]() {
                 char* zErrMsg = nullptr;
                 int rc;
-                const char* sql =
+                const string sql =
                         //chain data tables
                         "BEGIN TRANSACTION;"
 
@@ -84,7 +84,7 @@ void Database::buildTables(unsigned int dbVersionNumber) {
                         "INSERT INTO \"flags\" VALUES (\"wasPrunedUTXOHistory\",-1);"
                         "INSERT INTO \"flags\" VALUES (\"wasPrunedVoteHistory\",-1);"
                         "INSERT INTO \"flags\" VALUES (\"wasPrunedNonAssetUTXOHistory\",0);"
-                        "INSERT INTO \"flags\" VALUES (\"dbVersion\",6);"
+                        "INSERT INTO \"flags\" VALUES (\"dbVersion\"," + to_string(DIGIBYTECORE_DATABASE_VERSION) + ");"
 
                         "CREATE TABLE \"kyc\" (\"address\" TEXT NOT NULL, \"country\" TEXT NOT NULL, \"name\" TEXT NOT NULL, \"hash\" BLOB NOT NULL, \"height\" INTEGER NOT NULL, \"revoked\" INTEGER, PRIMARY KEY(\"address\"));"
 
@@ -114,9 +114,15 @@ void Database::buildTables(unsigned int dbVersionNumber) {
                         //Encrypted keys table
                         "CREATE TABLE \"encryptedkeys\" (\"address\" TEXT NOT NULL, \"data\" BLOB NOT NULL, PRIMARY KEY(\"address\"));"
 
+                        //Smart Contract Tables
+                        "CREATE TABLE \"smartcontracts\" (\"publisher\" TEXT NOT NULL, \"contract\" TEXT NOT NULL, \"cid\" TEXT NOT NULL, \"version\" INTEGER NOT NULL, \"returnData\" TEXT, \"alias\" STRING, PRIMARY KEY(\"contract\"));"
+                        "CREATE TABLE \"smartcontractstate\" (\"contract\" TEXT NOT NULL, \"height\" INTEGER NOT NULL, \"state\" INTEGER NOT NULL);"
+                        "CREATE TABLE \"smartcontractsources\" (\"contract\" TEXT NOT NULL, \"address\" TEXT NOT NULL, \"funding\" INTEGER NOT NULL, PRIMARY KEY(\"contract\",\"address\"));"   //funding=1 means that the source funds the contract, funding=0 means the address is referenced by the contract but not funded by it
+
+                        //Database version
                         "COMMIT;";
-                rc = sqlite3_exec(_db, sql, Database::defaultCallback, nullptr, &zErrMsg);
-                skipUpToVersion = 6; //tell not to execute steps until version 6 to 7 transition
+                rc = sqlite3_exec(_db, sql.c_str(), Database::defaultCallback, nullptr, &zErrMsg);
+                skipUpToVersion = DIGIBYTECORE_DATABASE_VERSION; //tell not to execute steps until version 6 to 7 transition
                 if (rc != SQLITE_OK) {
                     sqlite3_free(zErrMsg);
                     throw exceptionFailedToCreateTable();
@@ -172,15 +178,26 @@ void Database::buildTables(unsigned int dbVersionNumber) {
                     sqlite3_free(zErrMsg);
                     throw exceptionFailedToCreateTable();
                 }
+            },
+
+
+            //Define what is changed from version 6 to version 7
+            [&]() {
+                Log* log = Log::GetInstance();
+                char* zErrMsg = nullptr;
+                int rc;
+
+                //if we haven't passed the first contract then allow upgrade
+                const char* sql = "CREATE TABLE \"smartcontracts\" (\"publisher\" TEXT NOT NULL, \"contract\" TEXT NOT NULL, \"cid\" TEXT NOT NULL, \"version\" INTEGER NOT NULL, \"returnData\" TEXT, \"alias\" STRING, PRIMARY KEY(\"contract\"));"
+                                  "CREATE TABLE \"smartcontractstate\" (\"contract\" TEXT NOT NULL, \"height\" INTEGER NOT NULL, \"state\" INTEGER NOT NULL);"
+                                  "CREATE TABLE \"smartcontractsources\" (\"contract\" TEXT NOT NULL, \"address\" TEXT NOT NULL, \"funding\" INTEGER NOT NULL, PRIMARY KEY(\"contract\",\"address\"));"
+                                  "UPDATE \"flags\" set \"value\"=7 WHERE \"key\"=\"dbVersion\";";
+                rc = sqlite3_exec(_db, sql, Database::defaultCallback, nullptr, &zErrMsg);
+                if (rc != SQLITE_OK) {
+                    sqlite3_free(zErrMsg);
+                    throw exceptionFailedToCreateTable();
+                }
             }
-
-
-
-            //Unknown Data table
-
-
-            //Encrypted keys table
-
 
             /*  To modify table structure place a comma after the last } above and then place the bellow code.
          *
@@ -200,6 +217,29 @@ void Database::buildTables(unsigned int dbVersionNumber) {
     for (unsigned int i = dbVersionNumber; i < lambdaFunctions.size(); ++i) {
         if (dbVersionNumber >= skipUpToVersion) lambdaFunctions[i]();
     }
+}
+
+/**
+ * When doing a database update there may be transactions that where not decoded because the old version did not understand them.
+ * This function goes back and decodes these old transactions.
+ * @param dbVersionNumber
+ */
+void Database::upgradeDatabaseContent(unsigned int dbVersionNumber) {
+    if (dbVersionNumber==DIGIBYTECORE_DATABASE_VERSION) return; //if current versions nothing to update
+
+    //Check if we need to process smart contracts
+    if (dbVersionNumber < 7) {
+        checkUnknown([](const std::string& txid, const Blob& data) -> bool {
+            //check if smart contract transaction
+            auto transaction = DigiByteTransaction(txid);
+            if (!transaction.isSmartContractPublishing() && (transaction.isSmartContractStateChange()==-1)) return false;
+
+            //update database with transaction data
+            transaction.updateDatabase();
+        });
+    }
+
+    ///even though the newest version will never get to this point it is important to version range updates so they don't get missed in the future
 }
 
 
@@ -271,6 +311,7 @@ void Database::initializeClassValues() {
 
     //statement to get asset holders
     _stmtGetAssetHolders.prepare(_db, "SELECT address,SUM(amount) FROM utxos WHERE assetIndex=? AND heightDestroyed IS NULL GROUP BY address;");
+    _stmtGetAssetHoldersAtTime.prepare(_db, "SELECT address,SUM(amount) FROM utxos WHERE assetIndex=? AND (heightDestroyed IS NULL OR heightDestroyed>?) AND heightCreated<=? GROUP BY address;");
 
     //statement to get all assetIndexs on a specific utxo
     _stmtGetAssetIndexOnUTXO.prepare(_db, "SELECT assetIndex FROM utxos WHERE txid=? AND vout=? AND aout IS NOT NULL;");
@@ -369,6 +410,7 @@ void Database::initializeClassValues() {
 
     //statements to get asset holdings
     _stmtGetAddressHoldings.prepare(_db, "SELECT assetIndex,SUM(amount) FROM utxos WHERE heightDestroyed IS NULL AND address=? GROUP BY assetIndex");
+    _stmtGetAddressHoldingsAtTime.prepare(_db, "SELECT assetIndex,SUM(amount) FROM utxos WHERE address=? AND heightCreated <= ? AND (heightDestroyed IS NULL OR heightDestroyed > ?) GROUP BY assetIndex");
     addPerformanceIndex("utxos", "address", "heightDestroyed", "assetIndex");
 
     //statement to get valid utxos for a given address
@@ -455,6 +497,7 @@ void Database::initializeClassValues() {
 
     //statement to get current exchange rate(1 rate)
     _stmtGetCurrentExchangeRate.prepare(_db, "SELECT value FROM exchange WHERE address=? AND [index]=? ORDER BY height DESC LIMIT 1;");
+    _stmtGetExchangeRateAtHeight.prepare(_db, "SELECT value FROM exchange WHERE address=? AND [index]=? AND height<=? ORDER BY height DESC LIMIT 1;");
 
 
     //statement to insert new kyc record
@@ -570,8 +613,6 @@ void Database::initializeClassValues() {
                                         "    WHERE a.assetId = ? AND p.poolIndex = ?"
                                         ");");
 
-
-
     //Statements for unknown table
     _stmtInsertUnknown.prepare(_db, "INSERT OR IGNORE INTO unknown (txid,data) VALUES (?,?);");
     _stmtGetUnknowns.prepare(_db, "SELECT txid, data FROM unknown WHERE 1;");
@@ -580,6 +621,27 @@ void Database::initializeClassValues() {
     //Statements for encrypted keys table
     _stmtInsertEncryptedKey.prepare(_db, "INSERT OR IGNORE INTO encryptedkeys (address,data) VALUES (?,?);");
     _stmtGetEncryptedKey.prepare(_db, "SELECT data FROM encryptedkeys WHERE address=?;");
+
+    //Smart Contract Tables
+    _stmtInsertSmartContract.prepare(_db, "INSERT INTO smartcontracts (publisher, contract, cid, version) VALUES (?,?,?,?);");
+    _stmtDeleteSmartContract.prepare(_db, "DELETE FROM smartcontracts WHERE contract=?;");
+    _stmtGetSmartContract.prepare(_db, "SELECT publisher, contract, cid, version, returnData, alias FROM smartcontracts WHERE contract=?;");
+    _stmtSetSmartContractAlias.prepare(_db, "UPDATE smartcontracts SET alias=? WHERE contract=?;");
+    const string stmtGetSmartContractsThatNeedAliasStr = "SELECT contract FROM smartcontracts WHERE version<=" + to_string(MAX_SMART_CONTRACT_VERSION_SUPPORTED) + " AND alias LIKE \"{%\");";  //if alias is JSON then it needs to be processed
+    _stmtGetSmartContractsThatNeedAlias.prepare(_db, stmtGetSmartContractsThatNeedAliasStr);
+    _stmtSetSmartContractReturnData.prepare(_db, "UPDATE smartcontracts SET returnData=? WHERE contract=?;");
+
+    _stmtUpdateSmartContractState.prepare(_db, "INSERT INTO smartcontractstate (contract, height, state) VALUES (?,?,?);");
+    _stmtGetSmartContractState.prepare(_db, "SELECT state FROM smartcontractstate WHERE contract=? ORDER BY HEIGHT DESC LIMIT 1;");
+    _stmtGetSmartContractStateAtHeight.prepare(_db, "SELECT state FROM smartcontractstate WHERE contract=? AND height<=? ORDER BY HEIGHT DESC LIMIT 1;");
+
+    _stmtAddSmartContractSource.prepare(_db, "INSERT OR IGNORE INTO smartcontractsources (contract,address,funding) VALUES (?,?,?);");
+    _stmtGetSmartContractSources.prepare(_db, "SELECT address FROM smartcontractsources WHERE contract=? AND funding=1;");
+    _stmtGetSmartContractReferences.prepare(_db, "SELECT address FROM smartcontractsources WHERE contract=?;");
+
+    addPerformanceIndex("smartcontracts", "contract");
+    addPerformanceIndex("smartcontractstate", "contract", "height");
+    addPerformanceIndex("smartcontractsources", "contract");
 
     //initialize exchange address watch list
     sqlite3_stmt* stmt1;
@@ -673,8 +735,10 @@ Database::Database(const string& newFileName) {
     if (rc) throw exceptionFailedToOpen();
 
     //create needed tables
+    unsigned int dbVersion;
     if (firstRun) {
         buildTables();
+        dbVersion = DIGIBYTECORE_DATABASE_VERSION;
     } else {
         //get database version number
         sqlite3_stmt* stmt;
@@ -682,7 +746,7 @@ Database::Database(const string& newFileName) {
         rc = sqlite3_prepare_v2(_db, sql, -1, &stmt, nullptr);
         if (rc != SQLITE_OK) throw exceptionCreatingStatement();
         if (executeSqliteStepWithRetry(stmt) != SQLITE_ROW) throw exceptionFailedSelect();
-        unsigned int dbVersion = sqlite3_column_int(stmt, 0);
+        dbVersion = sqlite3_column_int(stmt, 0);
 
         //make sure tables are in the newest format
         buildTables(dbVersion);
@@ -690,6 +754,9 @@ Database::Database(const string& newFileName) {
 
     //create needed statements
     initializeClassValues();
+
+    //check if any updates need to be made
+    upgradeDatabaseContent(dbVersion);
 }
 
 Database::~Database() {
@@ -1554,9 +1621,13 @@ std::vector<AssetUTXO> Database::getAddressUTXOs(const string& address, unsigned
  * @param assetIndex
  * @return
  */
-std::vector<AssetHolder> Database::getAssetHolders(uint64_t assetIndex) {
-    LockedStatement getAssetHolders{_stmtGetAssetHolders};
+std::vector<AssetHolder> Database::getAssetHolders(uint64_t assetIndex, unsigned int height) {
+    LockedStatement getAssetHolders{(height==0)?_stmtGetAssetHolders:_stmtGetAssetHoldersAtTime};
     getAssetHolders.bindInt64(1, assetIndex);
+    if (height>0) {
+        getAssetHolders.bindInt64(2, height);
+        getAssetHolders.bindInt64(3, height);
+    }
     vector<AssetHolder> result;
     while (getAssetHolders.executeStep() == SQLITE_ROW) {
         string address = getAssetHolders.getColumnText(0);
@@ -1573,18 +1644,18 @@ std::vector<AssetHolder> Database::getAssetHolders(uint64_t assetIndex) {
  * @param assetIndex
  * @return
  */
-std::vector<AssetHolder> Database::getAssetHolders(string assetId) {
+std::vector<AssetHolder> Database::getAssetHolders(const string& assetId, unsigned int height) {
     //get list of asset Indexes
     vector<uint64_t> assetIndexes = getAssetIndexes(assetId);
 
     //handle simple cases
     if (assetIndexes.empty()) return {};
-    if (assetIndexes.size() == 1) return getAssetHolders(assetIndexes[0]);
+    if (assetIndexes.size() == 1) return getAssetHolders(assetIndexes[0], height);
 
     //get all holders
     vector<AssetHolder> allHolders;
     for (uint64_t assetIndex: assetIndexes) {
-        std::vector<AssetHolder> holders = getAssetHolders(assetIndex);
+        std::vector<AssetHolder> holders = getAssetHolders(assetIndex, height);
         allHolders.insert(allHolders.end(), holders.begin(), holders.end());
     }
 
@@ -1770,11 +1841,15 @@ std::vector<uint64_t> Database::getAssetsCreatedByAddress(const string& address)
  * @param address
  * @return
  */
-std::vector<AssetCount> Database::getAddressHoldings(const string& address) {
+std::vector<AssetCount> Database::getAddressHoldings(const string& address, unsigned int height) {
     std::vector<AssetCount> results;
 
-    LockedStatement getAddressHoldings{_stmtGetAddressHoldings};
+    LockedStatement getAddressHoldings{(height == 0) ? _stmtGetAddressHoldings : _stmtGetAddressHoldingsAtTime};
     getAddressHoldings.bindText(1, address);
+    if (height == 0) {
+        getAddressHoldings.bindInt(2, height);
+        getAddressHoldings.bindInt(3, height);
+    }
     while (getAddressHoldings.executeStep() == SQLITE_ROW) {
         results.emplace_back(AssetCount{
                 .assetIndex = static_cast<unsigned int>(getAddressHoldings.getColumnInt(0)),
@@ -1949,12 +2024,13 @@ double Database::getAcceptedExchangeRate(const ExchangeRate& rate, unsigned int 
     return min;
 }
 
-double Database::getCurrentExchangeRate(const ExchangeRate& rate) {
-    LockedStatement getCurrentExchangeRate{_stmtGetCurrentExchangeRate};
-    getCurrentExchangeRate.bindText(1, rate.address);
-    getCurrentExchangeRate.bindInt(2, rate.index);
-    if (getCurrentExchangeRate.executeStep() != SQLITE_ROW) throw out_of_range("Unknown Exchange Rate");
-    return getCurrentExchangeRate.getColumnDouble(0);
+double Database::getExchangeRate(const ExchangeRate& rate, unsigned int height) {
+    LockedStatement stmt{(height == 0) ? _stmtGetCurrentExchangeRate : _stmtGetExchangeRateAtHeight};
+    stmt.bindText(1, rate.address);
+    stmt.bindInt(2, rate.index);
+    if (height != 0) stmt.bindInt(3, height);
+    if (stmt.executeStep() != SQLITE_ROW) throw out_of_range("Unknown Exchange Rate");
+    return stmt.getColumnDouble(0);
 }
 
 /*
@@ -3345,4 +3421,206 @@ void Database::executePerformanceIndex(int& state) {
         _performanceIndexes.emplace_back(index); //couldn't execute so push it back on to be done later
     }
     log->addMessage("Finished creating performance index " + index.name);
+}
+
+
+void Database::addSmartContract(const string& publisherAddress, const string& contractAddress, const string& cid, uint32_t version) {
+    LockedStatement stmt{_stmtInsertSmartContract};
+    stmt.bindText(1, publisherAddress);
+    stmt.bindText(2, contractAddress);
+    stmt.bindText(3, cid);
+    stmt.bindInt(4, version);
+    int rc = stmt.executeStep();
+    if (rc != SQLITE_DONE) {
+        handleSpecialErrors(__LINE__);
+        throw exceptionFailedInsert();
+    }
+}
+void Database::deleteSmartContract(const std::string& contractAddress) {
+    LockedStatement stmt{_stmtDeleteSmartContract};
+    stmt.bindText(1, contractAddress);
+    int rc = stmt.executeStep();
+    if (rc != SQLITE_DONE) {
+        handleSpecialErrors(__LINE__);
+        throw exceptionFailedDelete();
+    }
+}
+void Database::setSmartContractReturnData(const std::string& contractAddress, const Json::Value& returnData) {
+    LockedStatement stmt{_stmtSetSmartContractReturnData};
+    stmt.bindText(1, returnData.toStyledString());
+    stmt.bindText(2, contractAddress);
+    int rc = stmt.executeStep();
+    if (rc != SQLITE_DONE) {
+        handleSpecialErrors(__LINE__);
+        throw exceptionFailedUpdate();
+    }
+}
+void Database::updateSmartContractState(const string& contractAddress, unsigned int height, bool state) {
+    //check state doesn't match current state
+    if (state == getSmartContractState(contractAddress, height)) return;
+
+    //update state
+    LockedStatement stmt{_stmtUpdateSmartContractState};
+    stmt.bindText(1, contractAddress);
+    stmt.bindInt(2, height);
+    stmt.bindInt(3, state);
+}
+bool Database::getSmartContractState(const string& contractAddress, unsigned int height) {
+    LockedStatement stmt{(height > 0) ? _stmtGetSmartContractStateAtHeight : _stmtGetSmartContractState};
+    stmt.bindText(1, contractAddress);
+    if (height > 0) stmt.bindInt(2, height);
+    int rc = stmt.executeStep();
+    if (rc != SQLITE_ROW) return true; //if no entry then state is true
+    return stmt.getColumnInt(0);
+}
+
+/**
+ * Gets data stored on chain about a contract
+ * @param contractAddress
+ * @return
+ */
+ContractChainData Database::getSmartContractChainData(const string& contractAddress) {
+    ContractChainData result;
+
+    //get Contract Data
+    LockedStatement stmt{_stmtGetSmartContract};
+    stmt.bindText(1, contractAddress);
+    int rc = stmt.executeStep();
+    if (rc != SQLITE_ROW) {
+        handleSpecialErrors(__LINE__);
+        throw exceptionFailedSelect();
+    }
+    result.publisherAddress = stmt.getColumnText(0);
+    result.contractAddress = stmt.getColumnText(1);
+    result.cid = stmt.getColumnText(2);
+    result.version = stmt.getColumnInt(3);
+
+    return result;
+}
+
+/**
+ * Constructs a SmartContract Metadata object from database
+ * @param contractAddress
+ * @return
+ */
+SmartContractMetadata Database::getSmartContract(const std::string& contractAddress) {
+    ContractChainData contractChainData;
+    string returnData;
+    string aliasData;
+
+    //get Contract Data
+    {
+        LockedStatement stmt{_stmtGetSmartContract};
+        stmt.bindText(1, contractAddress);
+        int rc = stmt.executeStep();
+        if (rc != SQLITE_ROW) {
+            handleSpecialErrors(__LINE__);
+            throw exceptionFailedSelect();
+        }
+        contractChainData.publisherAddress = stmt.getColumnText(0);
+        contractChainData.contractAddress = stmt.getColumnText(1);
+        contractChainData.cid = stmt.getColumnText(2);
+        contractChainData.version = stmt.getColumnInt(3);
+        if (!stmt.isNull(4)) throw exceptionDataNotSetYet(); //needed data isn't loaded
+        returnData = stmt.getColumnText(4);
+        aliasData = stmt.getColumnText(5);
+    }
+    return {contractChainData,returnData,aliasData};
+}
+
+
+/**
+ * After verifying an alias this is used to save it in database
+ * @param contractAddress
+ * @param alias
+ */
+void Database::setSmartContractAlias(const string& contractAddress, const string& alias) {
+    LockedStatement stmt{_stmtSetSmartContractAlias};
+    stmt.bindText(1, alias);
+    stmt.bindText(2, contractAddress);
+    int rc = stmt.executeStep();
+    if (rc != SQLITE_DONE) {
+        handleSpecialErrors(__LINE__);
+        throw exceptionFailedUpdate();
+    }
+}
+
+/**
+ * Returns a list of all contracts that need alias checked
+ * @return
+ */
+std::vector<std::string> Database::getSmartContractsThatNeedAlias() {
+    std::vector<std::string> result;
+    LockedStatement stmt{_stmtGetSmartContractsThatNeedAlias};
+    while (stmt.executeStep() == SQLITE_ROW) {
+        result.emplace_back(stmt.getColumnText(0));
+    }
+    return result;
+}
+
+/**
+ * adds to database a contract source
+ * @param contractAddress
+ * @param sourceAddress
+ */
+void Database::addSmartContractSource(const std::string& contractAddress, const std::string& sourceAddress, bool funding) {
+    LockedStatement stmt{_stmtAddSmartContractSource};
+    stmt.bindText(1, contractAddress);
+    stmt.bindText(2, sourceAddress);
+    stmt.bindInt(3, funding);
+    int rc = stmt.executeStep();
+    if (rc != SQLITE_DONE) {
+        handleSpecialErrors(__LINE__);
+        throw exceptionFailedUpdate();
+    }
+}
+
+/**
+ * Returns a list of DigiByte addresses that the contract can draw from to pay out
+ * @param contractAddress
+ * @return
+ */
+std::vector<std::string> Database::getSmartContractSources(const std::string& contractAddress) {
+    std::vector<std::string> result;
+    {
+        LockedStatement stmt{_stmtGetSmartContractSources};
+        stmt.bindText(1, contractAddress);
+        while (stmt.executeStep() == SQLITE_ROW) {
+            result.emplace_back(stmt.getColumnText(0));
+        }
+    }
+    if (result.empty()) {
+        //check if valid address or not yet loaded
+        LockedStatement stmt{_stmtGetSmartContract};
+        stmt.bindText(1, contractAddress);
+        int rc = stmt.executeStep();
+        if (rc != SQLITE_ROW) throw out_of_range("invalid contract address");
+        throw exceptionDataNotSetYet();
+    }
+    return result;
+}
+
+/**
+ * Returns a list of DigiByte addresses or assetIds that invalidate the cache
+ * @param contractAddress
+ * @return
+ */
+std::vector<std::string> Database::getSmartContractReferences(const std::string& contractAddress) {
+    std::vector<std::string> result;
+    {
+        LockedStatement stmt{_stmtGetSmartContractReferences};
+        stmt.bindText(1, contractAddress);
+        while (stmt.executeStep() == SQLITE_ROW) {
+            result.emplace_back(stmt.getColumnText(0));
+        }
+    }
+    if (result.empty()) {
+        //check if valid address or not yet loaded
+        LockedStatement stmt{_stmtGetSmartContract};
+        stmt.bindText(1, contractAddress);
+        int rc = stmt.executeStep();
+        if (rc != SQLITE_ROW) throw out_of_range("invalid contract address");
+        throw exceptionDataNotSetYet();
+    }
+    return result;
 }

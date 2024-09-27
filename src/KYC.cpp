@@ -43,14 +43,14 @@ KYC::KYC(const getrawtransaction_t& txData, unsigned int height,
  * @return
  */
 unsigned int KYC::processTX(const getrawtransaction_t& txData, unsigned int height,
-                            std::function<std::string(std::string, unsigned int)> addressGetterFunction) {
+                            const std::function<std::string(const std::string&, unsigned int)> addressGetterFunction) {
     if (processKYCVerify(txData, height, addressGetterFunction)) return VERIFY;
     if (processKYCRevoke(txData, height, addressGetterFunction)) return REVOKE;
     return NA;
 }
 
 bool KYC::processKYCVerify(const getrawtransaction_t& txData, unsigned int height,
-                           std::function<std::string(std::string, unsigned int)>& addressGetterFunction) {
+                           const std::function<std::string(const std::string&, unsigned int)>& addressGetterFunction) {
     //check there are 3 or 4 outputs
     if ((txData.vout.size() != 3) && (txData.vout.size() != 4)) return false;
 
@@ -119,7 +119,7 @@ bool KYC::processKYCVerify(const getrawtransaction_t& txData, unsigned int heigh
 }
 
 bool KYC::processKYCRevoke(const getrawtransaction_t& txData, unsigned int height,
-                           std::function<std::string(std::string, unsigned int)>& addressGetterFunction) {
+                           const std::function<std::string(const std::string&, unsigned int)>& addressGetterFunction) {
     //check there are at least 2 outputs
     if (txData.vout.size() < 2) return false;
 
@@ -201,14 +201,27 @@ int KYC::getHeightRevoked() const {
     return _heightRevoked;
 }
 
-bool KYC::valid(int height) const {
+bool KYC::valid(unsigned int height) const {
     if (_heightCreated == -1) return false;                       //empty
-    if ((height > -1) && (height < _heightCreated)) return false; //before created
+    if ((height > 0) && (height < _heightCreated)) return false; //before created
     if (_heightRevoked == -1) return true;                        //never revoked
-    if (height == -1) return false;                               //was revoked at some point and selected highest
+    if (height == 0) return false;                               //was revoked at some point and selected highest
     return (height < _heightRevoked);                             //valid if height before revoke
 }
 
 bool KYC::empty() const {
     return (_heightCreated == -1);
+}
+Json::Value KYC::toJSON() const {
+    Json::Value result=Json::objectValue;
+    result["address"]=_address;
+    if (valid()) {
+        result["country"]=_country;
+        if (!_name.empty()) {
+            result["name"]=_name;
+        } else {
+            result["hash"]=_hash;
+        }
+    }
+    return result;
 }

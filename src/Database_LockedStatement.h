@@ -44,6 +44,8 @@ public:
 
     Blob getColumnBlob(int index);
 
+    bool isNull(int index);
+
     // Execute step
     int executeStep();
 

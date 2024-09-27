@@ -18,6 +18,7 @@
 
 #define DIGIBYTECORE_DATABASE_CHAIN_WATCH_MAX 20
 
+#define DIGIBYTECORE_DATABASE_VERSION 7
 
 #include "BitIO.h"
 #include "Blob.h"
@@ -28,6 +29,8 @@
 #include "DigiByteCore.h"
 #include "IPFS.h"
 #include "KYC.h"
+#include "SmartContract/SmartContractList.h"
+#include "SmartContract/SmartContractMetadata.h"
 #include <future>
 #include <iomanip>
 #include <mutex>
@@ -78,7 +81,16 @@ struct BlockBasics {
     unsigned int algo;
 };
 
+//todo don't think i need anymore
+struct SmartContractResourceCheckList {
+    std::string asset;  //format will be one of the following:
+                        // assetId:assetIndex      - digiAsset needed
+                        // digibyte                - digibyte needed
+    uint64_t need;
+    uint64_t have;
+};
 
+struct SmartContractData;  //forward declaration
 
 
 class Database {
@@ -107,6 +119,7 @@ private:
     Statement _stmtGetVoteCount;
     Statement _stmtGetAssetUTXO;
     Statement _stmtGetAssetHolders;
+    Statement _stmtGetAssetHoldersAtTime;
     Statement _stmtAddAsset;
     Statement _stmtUpdateAsset;
     Statement _stmtGetAssetIndex;
@@ -119,6 +132,7 @@ private:
     Statement _stmtGetKYC;
     Statement _stmtGetValidExchangeRate;
     Statement _stmtGetCurrentExchangeRate;
+    Statement _stmtGetExchangeRateAtHeight;
     Statement _stmtGetNextIPFSJob;
     Statement _stmtSetIPFSPauseSync;
     Statement _stmtClearNextIPFSJob_a;
@@ -157,6 +171,7 @@ private:
     Statement _stmtGetAddressTxHistory;
     Statement _stmtGetAssetCreateByAddress;
     Statement _stmtGetAddressHoldings;
+    Statement _stmtGetAddressHoldingsAtTime;
     Statement _stmtGetValidUTXO;
     Statement _stmtGetAddressChangesDuringPeriod;
     Statement _stmtGetLastBlocks;
@@ -165,6 +180,18 @@ private:
     Statement _stmtDeleteFromUnknowns;
     Statement _stmtInsertEncryptedKey;
     Statement _stmtGetEncryptedKey;
+    Statement _stmtInsertSmartContract;
+    Statement _stmtDeleteSmartContract;
+    Statement _stmtGetSmartContract;
+    Statement _stmtUpdateSmartContractState;
+    Statement _stmtGetSmartContractState;
+    Statement _stmtGetSmartContractStateAtHeight;
+    Statement _stmtSetSmartContractAlias;
+    Statement _stmtSetSmartContractReturnData;
+    Statement _stmtGetSmartContractsThatNeedAlias; //don't bother adding to stats
+    Statement _stmtAddSmartContractSource;
+    Statement _stmtGetSmartContractSources;
+    Statement _stmtGetSmartContractReferences;
 
 public:
     std::string printProfilingInfo() {
@@ -201,6 +228,7 @@ public:
         result += printStatementInfo("_stmtGetVoteCount", _stmtGetVoteCount);
         result += printStatementInfo("_stmtGetAssetUTXO", _stmtGetAssetUTXO);
         result += printStatementInfo("_stmtGetAssetHolders", _stmtGetAssetHolders);
+        result += printStatementInfo("_stmtGetAssetHoldersAtTime",_stmtGetAssetHoldersAtTime);
         result += printStatementInfo("_stmtAddAsset", _stmtAddAsset);
         result += printStatementInfo("_stmtUpdateAsset", _stmtUpdateAsset);
         result += printStatementInfo("_stmtGetAssetIndex", _stmtGetAssetIndex);
@@ -213,6 +241,7 @@ public:
         result += printStatementInfo("_stmtGetKYC", _stmtGetKYC);
         result += printStatementInfo("_stmtGetValidExchangeRate", _stmtGetValidExchangeRate);
         result += printStatementInfo("_stmtGetCurrentExchangeRate", _stmtGetCurrentExchangeRate);
+        result += printStatementInfo("_stmtGetExchangeRateAtHeight", _stmtGetExchangeRateAtHeight);
         result += printStatementInfo("_stmtGetNextIPFSJob", _stmtGetNextIPFSJob);
         result += printStatementInfo("_stmtSetIPFSPauseSync", _stmtSetIPFSPauseSync);
         result += printStatementInfo("_stmtClearNextIPFSJob_a", _stmtClearNextIPFSJob_a);
@@ -251,6 +280,7 @@ public:
         result += printStatementInfo("_stmtGetAddressTxHistory", _stmtGetAddressTxHistory);
         result += printStatementInfo("_stmtGetAssetCreateByAddress", _stmtGetAssetCreateByAddress);
         result += printStatementInfo("_stmtGetAddressHoldings", _stmtGetAddressHoldings);
+        result += printStatementInfo("_stmtGetAddressHoldingsAtTime", _stmtGetAddressHoldingsAtTime);
         result += printStatementInfo("_stmtGetValidUTXO", _stmtGetValidUTXO);
         result += printStatementInfo("_stmtGetLastBlocks", _stmtGetLastBlocks);
         result += printStatementInfo("_stmtInsertUnknown", _stmtInsertUnknown);
@@ -258,6 +288,17 @@ public:
         result += printStatementInfo("_stmtDeleteFromUnknowns", _stmtDeleteFromUnknowns);
         result += printStatementInfo("_stmtInsertEncryptedKey", _stmtInsertEncryptedKey);
         result += printStatementInfo("_stmtGetEncryptedKey", _stmtGetEncryptedKey);
+        result += printStatementInfo("_stmtInsertSmartContract", _stmtInsertSmartContract);
+        result += printStatementInfo("_stmtDeleteSmartContract", _stmtDeleteSmartContract);
+        result += printStatementInfo("_stmtGetSmartContract", _stmtGetSmartContract);
+        result += printStatementInfo("_stmtUpdateSmartContractState", _stmtUpdateSmartContractState);
+        result += printStatementInfo("_stmtGetSmartContractState", _stmtGetSmartContractState);
+        result += printStatementInfo("_stmtGetSmartContractStateAtHeight", _stmtGetSmartContractStateAtHeight);
+        result += printStatementInfo("_stmtSetSmartContractAlias", _stmtSetSmartContractAlias);
+        result += printStatementInfo("_stmtSetSmartContractReturnData", _stmtSetSmartContractReturnData);
+        result += printStatementInfo("_stmtAddSmartContractSource", _stmtAddSmartContractSource);
+        result += printStatementInfo("_stmtGetSmartContractSources", _stmtGetSmartContractSources);
+        result += printStatementInfo("_stmtGetSmartContractReferences", _stmtGetSmartContractReferences);
         return result;
     }
 
@@ -286,6 +327,7 @@ private:
 
     void buildTables(unsigned int dbVersionNumber = 0);
     void initializeClassValues();
+    void upgradeDatabaseContent(unsigned int dbVersionNumber);
 
     //flag table
     int getFlagInt(const std::string& flag);
@@ -407,7 +449,7 @@ public:
     void addExchangeRate(const std::string& address, unsigned int index, unsigned int height, double exchangeRate);
     void pruneExchange(unsigned int height);
     double getAcceptedExchangeRate(const ExchangeRate& rate, unsigned int height);
-    double getCurrentExchangeRate(const ExchangeRate& rate);
+    double getExchangeRate(const ExchangeRate& rate, unsigned int height = 0);
     std::vector<exchangeRateHistoryValue> getExchangeRatesAtHeight(unsigned int height);
 
     //exchange watch table
@@ -440,8 +482,8 @@ public:
 
     //utxo table asset related
     AssetUTXO getAssetUTXO(const std::string& txid, unsigned int vout, unsigned int height = 0);
-    std::vector<AssetHolder> getAssetHolders(uint64_t assetIndex);
-    std::vector<AssetHolder> getAssetHolders(std::string assetId);
+    std::vector<AssetHolder> getAssetHolders(uint64_t assetIndex, unsigned int height = 0);
+    std::vector<AssetHolder> getAssetHolders(const std::string& assetId, unsigned int height = 0);
     uint64_t getTotalAssetCount(uint64_t assetIndex);        //returns total count of specific variant
     uint64_t getTotalAssetCount(const std::string& assetId); //returns total count of specific asset(sum of all variants)
     uint64_t getOriginalAssetCount(uint64_t assetIndex);
@@ -454,7 +496,7 @@ public:
     std::vector<AssetUTXO> getAddressUTXOs(const std::string& address, unsigned int minConfirms = 0, unsigned int maxConfirms = std::numeric_limits<unsigned int>::max());
     std::vector<std::string> getAddressTxList(const std::string& address, unsigned int minHeight = 1, unsigned int maxHeight = std::numeric_limits<unsigned int>::max(), unsigned int limit = 1000);
     std::vector<uint64_t> getAssetsCreatedByAddress(const std::string& address);
-    std::vector<AssetCount> getAddressHoldings(const std::string& address);
+    std::vector<AssetCount> getAddressHoldings(const std::string& address, unsigned int height = 0);
 
     //vote table
     void addVote(const std::string& address, unsigned int assetIndex, uint64_t count, unsigned int height);
@@ -504,6 +546,27 @@ public:
     bool isAssetInPool(unsigned int assetIndex);
     std::vector<int> listPoolsAssetIsIn(unsigned int assetIndex);
     std::vector<std::string> getPSPFileList(unsigned int poolIndex);
+
+    //Smart Contract Tables
+    void addSmartContract(const std::string& publisherAddress, const std::string& contractAddress, const std::string& cid, uint32_t version);
+    void setSmartContractReturnData(const std::string& contractAddress, const Json::Value& returnData);
+    void deleteSmartContract(const std::string& contractAddress); //if found to be invalid after initial load
+    void setSmartContractAlias(const std::string& contractAddress, const std::string& alias);
+    void setSmartContractJSON(const Json::Value& json);
+    std::vector<std::string> getSmartContractsThatNeedAlias();
+
+    ContractChainData getSmartContractChainData(const std::string& contractAddress);
+    SmartContractMetadata getSmartContract(const std::string& contractAddress);
+
+
+    void updateSmartContractState(const std::string& contractAddress, unsigned int height, bool state);
+    bool getSmartContractState(const std::string& contractAddress, unsigned int height = 0);
+
+    void addSmartContractSource(const std::string& contractAddress, const std::string& sourceAddress, bool funding);
+    std::vector<std::string> getSmartContractSources(const std::string& contractAddress);
+    std::vector<std::string> getSmartContractReferences(const std::string& contractAddress);
+
+
 
     //stats table
     //warning a new stats table is created for every timeFrame.  It is not recommended to allow users direct access to this value
@@ -594,6 +657,12 @@ public:
     public:
         explicit exceptionDataPruned()
             : exception("The requested data has been pruned") {}
+    };
+
+    class exceptionDataNotSetYet : public exception {
+    public:
+        explicit exceptionDataNotSetYet()
+            : exception("The data your looking for is not completely ready") {}
     };
 };
 

@@ -69,6 +69,8 @@ namespace RPC {
 
         void addressChanged(const std::string& address);
 
+        void assetChanged(const std::string& assetId);
+
         void newBlockAdded();
 
         void newAssetIssued();
