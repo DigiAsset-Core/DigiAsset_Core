@@ -213,7 +213,7 @@ namespace RPC {
 
         //verify the authentication
         if (!basicAuth(headers)) {
-            throw DigiByteException(HTTP_UNAUTHORIZED, "Invalid HTTP request: No request body found.");
+            throw DigiByteException(HTTP_UNAUTHORIZED, "Invalid HTTP request: No valid authentication provided.");
         }
 
         // Find the Content-Length header
@@ -246,10 +246,15 @@ namespace RPC {
 
     string Server::getHeader(const string& headers, const string& wantedHeader) {
         //find the auth header
-        size_t start = headers.find(wantedHeader + ": ");
+        string lowerHeaders = headers;
+        string lowerWantedHeader = wantedHeader;
+        transform(lowerHeaders.begin(), lowerHeaders.end(), lowerHeaders.begin(), ::tolower);
+        transform(lowerWantedHeader.begin(), lowerWantedHeader.end(), lowerWantedHeader.begin(), ::tolower);
+
+        size_t start = lowerHeaders.find(lowerWantedHeader + ": ");
         if (start == string::npos) throw DigiByteException(HTTP_BAD_REQUEST, wantedHeader + " header not found");
-        size_t end = headers.find("\r\n", start);
-        size_t headerLength = wantedHeader.length() + 2; //+2 for ": "
+        size_t end = lowerHeaders.find("\r\n", start);
+        size_t headerLength = lowerWantedHeader.length() + 2; //+2 for ": "
         return headers.substr(start + headerLength, end - start - headerLength);
     }
 
