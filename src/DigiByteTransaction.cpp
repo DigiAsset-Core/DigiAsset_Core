@@ -313,7 +313,9 @@ void DigiByteTransaction::decodeAssetTransfer(BitIO& dataStream, const vector<As
         bool range = dataStream.getBits(1);
         bool percent = dataStream.getBits(1);
         uint16_t output = range ? dataStream.getBits(13) : dataStream.getBits(5);
-        uint64_t amount = percent ? inputs[index][0].getCount() * percent / 100 : dataStream.getFixedPrecision();
+        uint64_t amount = percent ?
+                                  inputs[index][0].getCount() * (dataStream.getBits(8)+1) / 256 : //if a percentage mode amount is 1 byte value.  0xff=100%, 0x00=0.39%
+                                  dataStream.getFixedPrecision();
         uint64_t totalAmount = range ? (output + 1) * amount : amount;
 
         //there was an error in legacy code that a 0 amount causes the input to get wasted and go to change
