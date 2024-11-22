@@ -37,13 +37,12 @@ void RPCMethodsTest::SetUpTestSuite() {
     appMain->setPermanentStoragePoolList(psp);
 
     analyzer = new ChainAnalyzer();
-    analyzer->loadFake(17579454,-1);
+    analyzer->loadFake(17579454, -1);
     ///do not start() analyzer we are using in fake mode
     appMain->setChainAnalyzer(analyzer);
 
     rpcCache = new RPC::Cache();
     appMain->setRpcCache(rpcCache);
-
 }
 
 void RPCMethodsTest::TearDownTestSuite() {

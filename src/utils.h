@@ -26,6 +26,7 @@ namespace utils {
     void printJson(const Json::Value& params);  //added to make debugging easier
     bool copyFile(const std::string& sourcePath, const std::string& destinationPath);
     size_t estimateJsonMemoryUsage(const Json::Value& value);
+    uint64_t mod256by64(const std::array<uint8_t, 32>& numerator, uint64_t divisor);
 
     bool getAnswerBool();
     int getAnswerInt(int min=std::numeric_limits<int>::min(), int max=std::numeric_limits<int>::max());

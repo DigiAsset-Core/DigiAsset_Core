@@ -84,7 +84,7 @@ void Database::buildTables(unsigned int dbVersionNumber) {
                         "INSERT INTO \"flags\" VALUES (\"wasPrunedUTXOHistory\",-1);"
                         "INSERT INTO \"flags\" VALUES (\"wasPrunedVoteHistory\",-1);"
                         "INSERT INTO \"flags\" VALUES (\"wasPrunedNonAssetUTXOHistory\",0);"
-                        "INSERT INTO \"flags\" VALUES (\"dbVersion\",5);"
+                        "INSERT INTO \"flags\" VALUES (\"dbVersion\",6);"
 
                         "CREATE TABLE \"kyc\" (\"address\" TEXT NOT NULL, \"country\" TEXT NOT NULL, \"name\" TEXT NOT NULL, \"hash\" BLOB NOT NULL, \"height\" INTEGER NOT NULL, \"revoked\" INTEGER, PRIMARY KEY(\"address\"));"
 
@@ -108,9 +108,15 @@ void Database::buildTables(unsigned int dbVersionNumber) {
                         "CREATE TABLE \"domainsMasters\" (\"assetId\" TEXT NOT NULL, \"active\" BOOL NOT NULL);"
                         "INSERT INTO \"domainsMasters\" VALUES (\"Ua7Bd7UVtrzavSHhpHxHZ2nzS2hGaHXRMT9sqy\",true);"
 
+                        //Unknown Data table
+                        "CREATE TABLE \"unknown\" (\"txid\" BLOB NOT NULL, \"data\" BLOB NOT NULL);"
+
+                        //Encrypted keys table
+                        "CREATE TABLE \"encryptedkeys\" (\"address\" TEXT NOT NULL, \"data\" BLOB NOT NULL, PRIMARY KEY(\"address\"));"
+
                         "COMMIT;";
                 rc = sqlite3_exec(_db, sql, Database::defaultCallback, nullptr, &zErrMsg);
-                skipUpToVersion = 5; //tell not to execute steps until version 5 to 6 transition
+                skipUpToVersion = 6; //tell not to execute steps until version 6 to 7 transition
                 if (rc != SQLITE_OK) {
                     sqlite3_free(zErrMsg);
                     throw exceptionFailedToCreateTable();
@@ -147,7 +153,33 @@ void Database::buildTables(unsigned int dbVersionNumber) {
                 Log* log = Log::GetInstance();
                 log->addMessage("Unsupported database version.", Log::CRITICAL);
                 throw runtime_error("Unsupported database version.");
+            },
+
+
+            //Define what is changed from version 5 to version 6
+            [&]() {
+                char* zErrMsg = nullptr;
+                int rc;
+
+                const char* sql = "BEGIN TRANSACTION;"
+                                  "CREATE TABLE \"unknown\" (\"txid\" BLOB NOT NULL, \"data\" BLOB NOT NULL);"
+                                  "CREATE TABLE \"encryptedkeys\" (\"address\" TEXT NOT NULL, \"data\" BLOB NOT NULL, PRIMARY KEY(\"address\"));"
+                                  "UPDATE \"flags\" set \"value\"=6 WHERE \"key\"=\"dbVersion\";"
+                                  "COMMIT;";
+                rc = sqlite3_exec(_db, sql, Database::defaultCallback, nullptr, &zErrMsg);
+                if (rc != SQLITE_OK) {
+                    sqlite3_free(zErrMsg);
+                    throw exceptionFailedToCreateTable();
+                }
             }
+
+
+
+            //Unknown Data table
+
+
+            //Encrypted keys table
+
 
             /*  To modify table structure place a comma after the last } above and then place the bellow code.
          *
@@ -223,6 +255,9 @@ void Database::initializeClassValues() {
 
     //statement to spend UTXO
     _stmtSpendUTXO.prepare(_db, "UPDATE utxos SET heightDestroyed=?, spentTXID=? WHERE txid=? AND vout=?;");
+
+    //statement to get heights for a UTXO
+    _stmtGetUTXOHeight.prepare(_db, "SELECT heightCreated, heightDestroyed FROM utxos WHERE txid=? AND vout=? LIMIT 1;");
 
     //statement to get spending address from UTXO
     _stmtGetSpendingAddress.prepare(_db, "SELECT address FROM utxos WHERE txid=? AND vout=?");
@@ -536,6 +571,14 @@ void Database::initializeClassValues() {
 
 
 
+    //Statements for unknown table
+    _stmtInsertUnknown.prepare(_db, "INSERT OR IGNORE INTO unknown (txid,data) VALUES (?,?);");
+    _stmtGetUnknowns.prepare(_db, "SELECT txid, data FROM unknown WHERE 1;");
+    _stmtDeleteFromUnknowns.prepare(_db, "DELETE FROM unknown WHERE txid=?;");
+
+    //Statements for encrypted keys table
+    _stmtInsertEncryptedKey.prepare(_db, "INSERT OR IGNORE INTO encryptedkeys (address,data) VALUES (?,?);");
+    _stmtGetEncryptedKey.prepare(_db, "SELECT data FROM encryptedkeys WHERE address=?;");
 
     //initialize exchange address watch list
     sqlite3_stmt* stmt1;
@@ -1280,6 +1323,26 @@ void Database::spendUTXO(const std::string& txid, unsigned int vout, unsigned in
         handleSpecialErrors(__LINE__);
         throw exceptionFailedUpdate();
     }
+}
+
+/**
+ * Returns the height a utxo was created and destroyed
+ * @param txid
+ * @param vout
+ * @return
+ */
+pair<unsigned int, unsigned int> Database::getUTXOHeight(const std::string& txid, unsigned int vout) {
+    LockedStatement getHeight{_stmtGetUTXOHeight};
+    Blob blobTXID = Blob(txid);
+    getHeight.bindBlob(1, blobTXID);
+    getHeight.bindInt(2, vout);
+    int rc = getHeight.executeStep();
+    if (rc != SQLITE_ROW) {
+        handleSpecialErrors();
+        throw exceptionFailedSelect();
+    }
+    return {
+            getHeight.getColumnInt(0), getHeight.getColumnInt(1)};
 }
 
 std::string Database::getSendingAddress(const string& txid, unsigned int vout) {
@@ -3110,6 +3173,75 @@ std::vector<AddressStats> Database::getAddressStats(unsigned int start, unsigned
     return addressStatsList;
 }
 
+/**
+ * Add an op_return that is unknown how to process to database
+ * @param txid
+ * @param data
+ */
+void Database::addUnknown(const std::string& txid, const Blob& data) {
+    Blob txidBlob(txid);
+    LockedStatement stmt{_stmtInsertUnknown};
+    stmt.bindBlob(1, txidBlob);
+    stmt.bindBlob(2, data);
+    if (stmt.executeStep() != SQLITE_DONE) {
+        handleSpecialErrors(__LINE__);
+        throw exceptionFailedInsert();
+    }
+}
+
+/**
+ * Calls a callback for each unknown 1 at a time.  If the callback returns true it will be deleted from the unknown list
+ * @param callback
+ */
+void Database::checkUnknown(const std::function<bool(const std::string&, const Blob&)>& callback) {
+    vector<Blob> txidsToDelete;
+
+    //get list of values that should be deleted
+    {
+        LockedStatement getStmt{_stmtGetUnknowns};
+        while (getStmt.executeStep() == SQLITE_ROW) {
+            Blob txid = getStmt.getColumnBlob(0);
+            Blob data = getStmt.getColumnBlob(1);
+            bool shouldDelete = callback(txid.toHex(), data); //let callback process request
+            if (shouldDelete) txidsToDelete.push_back(txid);
+        }
+    }
+
+    //delete values that are now known
+    LockedStatement deleteStmt{_stmtDeleteFromUnknowns};
+    for (const Blob& txid: txidsToDelete) {
+        deleteStmt.bindBlob(1, txid);
+        deleteStmt.executeStep();
+        deleteStmt.reset();
+    }
+}
+
+/**
+ * Inserts an encrypted key to the database
+ * @param address
+ * @param data
+ */
+void Database::addEncryptedKey(const std::string& address, const Blob& data) {
+    LockedStatement stmt{_stmtInsertEncryptedKey};
+    stmt.bindText(1, address);
+    stmt.bindBlob(2, data);
+    if (stmt.executeStep() != SQLITE_DONE) {
+        handleSpecialErrors(__LINE__);
+        throw exceptionFailedInsert();
+    }
+}
+
+/**
+ * Gets an encrypted key
+ * @param address
+ * @return
+ */
+Blob Database::getEncryptedKey(const std::string& address) {
+    LockedStatement stmt{_stmtGetEncryptedKey};
+    stmt.bindText(1, address);
+    if (stmt.executeStep() != SQLITE_ROW) throw exceptionFailedSelect();
+    return stmt.getColumnBlob(0);
+}
 
 /**
 * Helper function to allow retying a command if database busy
@@ -3158,19 +3290,21 @@ void Database::executeSQLStatement(const string& query, const std::exception& er
  */
 void Database::handleSpecialErrors(unsigned int lineNumber) {
     string tempErrorMessage = sqlite3_errmsg(_db);
+    /*
     if (tempErrorMessage == "no more rows available") {
         Log::GetInstance()->addMessage("Known Unrecoverable Database Error: " + tempErrorMessage, Log::CRITICAL);
         std::abort();                                  //crash the program
         throw runtime_error("no more rows available"); //backup in case above does not work
     }
-    if (lineNumber!=0) {
+     */
+    if (lineNumber != 0) {
         Log::GetInstance()->addMessage("Error thrown in database.cpp on line " + to_string(lineNumber) + ": " + tempErrorMessage, Log::DEBUG);
     }
 }
 
 /**
  * Checks if index exists.
- * Not prepared because this gets executed during the preperation cycle
+ * Not prepared because this gets executed during the preparation cycle
  * @param indexName
  * @return
  */

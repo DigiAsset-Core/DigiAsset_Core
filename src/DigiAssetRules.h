@@ -12,8 +12,6 @@
 #include <jsonrpccpp/server.h>
 
 class DigiAssetRules {
-    static std::string _lastErrorMessage;
-
     bool _noRules = true;
     bool _rewritable = false;
     bool _movable = true;
@@ -111,29 +109,29 @@ public:
    ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝
     */
     class exception : public std::exception {
-    public:
-        exception() = default;
+    protected:
+        std::string _lastErrorMessage;
+        mutable std::string _fullErrorMessage;
 
-        char* what() {
-            _lastErrorMessage = "There was an unknown error involving DigiAsset Rules object";
-            return const_cast<char*>(_lastErrorMessage.c_str());
+    public:
+        explicit exception(const std::string& message = "Unknown") : _lastErrorMessage(message) {}
+
+        virtual const char* what() const noexcept override {
+            _fullErrorMessage = "DigiAsset Rules Exception: " + _lastErrorMessage;
+            return _fullErrorMessage.c_str();
         }
     };
 
     class exceptionInvalidRule : public exception {
     public:
-        char* what() {
-            _lastErrorMessage = "Invalid Rule defined";
-            return const_cast<char*>(_lastErrorMessage.c_str());
-        }
+        explicit exceptionInvalidRule()
+            : exception("Invalid Rule defined") {}
     };
 
     class exceptionVoteOptionsCorrupt : public exception {
     public:
-        char* what() {
-            _lastErrorMessage = "Vote option meta data is corrupt or missing";
-            return const_cast<char*>(_lastErrorMessage.c_str());
-        }
+        explicit exceptionVoteOptionsCorrupt()
+            : exception("Vote option meta data is corrupt or missing") {}
     };
 };
 

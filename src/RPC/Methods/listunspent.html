@@ -93,7 +93,7 @@ http://opensource.org/licenses/MIT. -->
     
     <h3>Requesting UTXOs for External Address with Asset Filtering</h3>
     <pre class="literal-block">
-    curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "listunspent", "params": [1, 9999999, ["DPg5tAN4Lv5uJv3iKyv5pjrQKW2NUmT8ym"], true, {"minimumAmount": 0.5, "includeAsset": true}]}' -H 'content-type: text/plain;' http://127.0.0.1:14022/
+    curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "listunspent", "params": [1, 9999999, ["DPg5tAN4Lv5uJv3iKyv5pjrQKW2NUmT8ym"], true, {"minimumAmount": 0.5, "includeAsset": true}]}' -H 'content-type: text/plain;' http://127.0.0.1:14024/
     </pre>
     <p>This example queries UTXOs for an external address, including assets, with a minimum amount of 0.5 DGB per UTXO.</p>
     

@@ -84,7 +84,7 @@ void ChainAnalyzer::setFileName(const std::string& fileName) {
     //if file exists load it
     try {
         loadConfig();
-    } catch (const exceptionConfigFileMissing& e) {
+    } catch (const Config::exceptionConfigFileMissing& e) {
         //no config file so just ignore
     }
 }
@@ -98,8 +98,8 @@ void ChainAnalyzer::loadConfig() {
     setPruneUTXOHistory(config.getBool("pruneutxohistory", true));
     setPruneVoteHistory(config.getBool("prunevotehistory", true));
     setStoreNonAssetUTXO(config.getBool("storenonassetutxo", false));
-    _verifyDatabaseWrite=config.getBool("verifydatabasewrite",true);
-    _showAllBlockSyncTime=config.getBool("showallblocksynctimes",false);
+    _verifyDatabaseWrite = config.getBool("verifydatabasewrite", true);
+    _showAllBlockSyncTime = config.getBool("showallblocksynctimes", false);
 }
 
 /**
@@ -108,8 +108,8 @@ void ChainAnalyzer::loadConfig() {
  * @param syncLevel
  */
 void ChainAnalyzer::loadFake(unsigned int databaseHeight, int syncLevel) {
-    _height=databaseHeight;
-    _state=syncLevel;
+    _height = databaseHeight;
+    _state = syncLevel;
 }
 
 void ChainAnalyzer::saveConfig() {
@@ -208,7 +208,7 @@ void ChainAnalyzer::startupFunction() {
     _nextHash = dgb->getBlockHash(_height);
 
     //clear the block we left off on just in case it was partially processed
-    Log* log=Log::GetInstance();
+    Log* log = Log::GetInstance();
     log->addMessage("Repairing database from shutdown");
     db->clearBlocksAboveHeight(_height);
     log->addMessage("Repair complete");
@@ -254,7 +254,7 @@ void ChainAnalyzer::phaseRewind() {
         _state = ChainAnalyzer::REWINDING;
 
         //rewind until correct
-        unsigned int originalHeight=_height;
+        unsigned int originalHeight = _height;
         while (hash != _nextHash) {
             _height--;
             hash = dgb->getBlockHash(_height);
@@ -267,7 +267,7 @@ void ChainAnalyzer::phaseRewind() {
                 return;
             }
         }
-        log->addMessage("Rewinding " + to_string(originalHeight-_height) + " blocks");
+        log->addMessage("Rewinding " + to_string(originalHeight - _height) + " blocks");
 
         //delete all data above & including _height
         db->clearBlocksAboveHeight(_height);
@@ -289,7 +289,7 @@ void ChainAnalyzer::phaseSync() {
     chrono::steady_clock::time_point beginTotalTime;
     long totalProcessed = 0;
     stringstream ss;
-    blockinfo_t blockData = dgb->getBlock(hash);        //get first blocks data in syncing process(all future ones are at end of loop)
+    blockinfo_t blockData = dgb->getBlock(hash); //get first blocks data in syncing process(all future ones are at end of loop)
     while ((hash == _nextHash) && !stopRequested()) {
         if (totalProcessed == 0) {
             beginTotalTime = chrono::steady_clock::now();
@@ -436,43 +436,43 @@ void ChainAnalyzer::restart() {
 
 void ChainAnalyzer::processTX(const string& txid, unsigned int height) {
     //get raw transaction
-    std::chrono::steady_clock::time_point startTime=std::chrono::steady_clock::now();
+    std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
     DigiByteTransaction tx(txid, height, !_storeNonAssetUTXOs);
     auto duration = std::chrono::steady_clock::now() - startTime;
-    _processTransactionRunTime+=std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
+    _processTransactionRunTime += std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
     _processTransactionRunCount++;
 
     //add transaction to database
-    startTime=std::chrono::steady_clock::now();
+    startTime = std::chrono::steady_clock::now();
     tx.addToDatabase();
     duration = std::chrono::steady_clock::now() - startTime;
-    _saveTransactionRunTime+=std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
+    _saveTransactionRunTime += std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
     _saveTransactionRunCount++;
 
     //get list of addresses that have been changed
-    startTime=std::chrono::steady_clock::now();
+    startTime = std::chrono::steady_clock::now();
     vector<string> addresses;
-    size_t inputCount=tx.getInputCount();
-    for (size_t i=0; i<inputCount; i++) {
+    size_t inputCount = tx.getInputCount();
+    for (size_t i = 0; i < inputCount; i++) {
         addresses.emplace_back(tx.getInput(i).address);
     }
-    size_t outputCount=tx.getOutputCount();
-    for (size_t i=0; i<outputCount; i++) {
+    size_t outputCount = tx.getOutputCount();
+    for (size_t i = 0; i < outputCount; i++) {
         addresses.emplace_back(tx.getOutput(i).address);
     }
 
     // Remove duplicates from addresses
-    std::sort(addresses.begin(), addresses.end()); // Sort the vector
+    std::sort(addresses.begin(), addresses.end());               // Sort the vector
     auto last = std::unique(addresses.begin(), addresses.end()); // Remove consecutive duplicates
-    addresses.erase(last, addresses.end()); // Erase the non-unique elements
+    addresses.erase(last, addresses.end());                      // Erase the non-unique elements
 
     //invalidate rpc caches based on addresses that have changed
-    RPC::Cache* cache=AppMain::GetInstance()->getRpcCache();
+    RPC::Cache* cache = AppMain::GetInstance()->getRpcCache();
     for (auto address: addresses) {
         cache->addressChanged(address);
     }
     duration = std::chrono::steady_clock::now() - startTime;
-    _clearAddressCacheRunTime+=std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
+    _clearAddressCacheRunTime += std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
     _clearAddressCacheRunCount++;
 }
 

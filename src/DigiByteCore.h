@@ -31,7 +31,6 @@ class DigiByteCore {
     bool _useAssetPort = false;
 
 
-    static std::string _lastErrorMessage;
     std::string _configFileName = "config.cfg";
 
     template<typename fn_t>
@@ -218,34 +217,29 @@ public:
     ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝
      */
     class exception : public std::exception {
-    private:
-        std::string _message;
+    protected:
+        std::string _lastErrorMessage;
+        mutable std::string _fullErrorMessage;
 
     public:
-        exception(const std::string& message = "unknown error") {
-            _message = "Something went wrong with DigiByte Core: " + message;
-        }
+        explicit exception(const std::string& message = "Unknown") : _lastErrorMessage(message) {}
 
-        char* what() {
-            _lastErrorMessage = _message;
-            return const_cast<char*>(_lastErrorMessage.c_str());
+        virtual const char* what() const noexcept override {
+            _fullErrorMessage = "DigiByte Core Exception: " + _lastErrorMessage;
+            return _fullErrorMessage.c_str();
         }
     };
 
     class exceptionCoreOffline : public exception {
     public:
-        char* what() {
-            _lastErrorMessage = "The core wallet appears to be offline";
-            return const_cast<char*>(_lastErrorMessage.c_str());
-        }
+        explicit exceptionCoreOffline()
+            : exception("Core Offline") {}
     };
 
     class exceptionDigiByteCoreNotConnected : public exception {
     public:
-        char* what() {
-            _lastErrorMessage = "Connection to DigiByte core is not open.  Run makeConnection()";
-            return const_cast<char*>(_lastErrorMessage.c_str());
-        }
+        explicit exceptionDigiByteCoreNotConnected()
+            : exception("Core not connected") {} //Run makeConnection()
     };
 };
 

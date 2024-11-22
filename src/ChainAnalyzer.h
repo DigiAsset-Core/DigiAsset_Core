@@ -17,8 +17,6 @@
 #include <thread>
 
 class ChainAnalyzer : public Threaded {
-    static std::string _lastErrorMessage;
-
 public:
     //constructor/destructor
     explicit ChainAnalyzer();
@@ -137,10 +135,6 @@ private:
     //process sub functions
     void processTX(const std::string& txid, unsigned int height);
 
-    //helper function
-    static unsigned int configSizeToInt(unsigned int value);
-    static unsigned int extraFileLengthByMimeType(const std::string& mimeType);
-
     friend class Database; //so database can modify state
 public:
     /*
@@ -152,42 +146,23 @@ public:
    ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝
     */
     class exception : public std::exception {
-    private:
-        std::string _message;
+    protected:
+        std::string _lastErrorMessage;
+        mutable std::string _fullErrorMessage;
 
     public:
-        exception(const std::string& message = "unknown error") {
-            _message = "Something went wrong with chain analyzer: " + message;
-        }
+        explicit exception(const std::string& message = "Unknown") : _lastErrorMessage(message) {}
 
-        char* what() {
-            _lastErrorMessage = _message;
-            return const_cast<char*>(_lastErrorMessage.c_str());
-        }
-    };
-
-    class exceptionConfigFileMissing : public exception {
-    public:
-        char* what() {
-            _lastErrorMessage = "The config file could not be found";
-            return const_cast<char*>(_lastErrorMessage.c_str());
-        }
-    };
-
-    class exceptionCorruptConfigFile : public exception {
-    public:
-        char* what() {
-            _lastErrorMessage = "The config file is corrupt";
-            return const_cast<char*>(_lastErrorMessage.c_str());
+        virtual const char* what() const noexcept override {
+            _fullErrorMessage = "Chain Analyzer: " + _lastErrorMessage;
+            return _fullErrorMessage.c_str();
         }
     };
 
     class exceptionAlreadyPruned : public exception {
     public:
-        char* what() {
-            _lastErrorMessage = "Pruning can't be disabled when data has already been pruned";
-            return const_cast<char*>(_lastErrorMessage.c_str());
-        }
+        explicit exceptionAlreadyPruned()
+            : exception("Already been pruned") {}
     };
 };
 

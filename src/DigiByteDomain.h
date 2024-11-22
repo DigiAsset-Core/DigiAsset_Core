@@ -5,7 +5,7 @@
 #ifndef DIGIASSET_CORE_DIGIBYTEDOMAIN_H
 #define DIGIASSET_CORE_DIGIBYTEDOMAIN_H
 
-#define DIGIBYTEDOMAIN_CALLBACK_NEWMETADATA_ID  "DigiByteDomain::_callbackNewMetadata"
+#define DIGIBYTEDOMAIN_CALLBACK_NEWMETADATA_ID "DigiByteDomain::_callbackNewMetadata"
 
 #include "DigiAsset.h"
 #include "DigiByteTransaction.h"
@@ -14,8 +14,6 @@ class DigiByteDomain {
     static void initializeClassValues();
 
 public:
-    static std::string _lastErrorMessage;
-
     static void processAssetIssuance(const DigiAsset& asset);
 
     //API interface calls
@@ -36,38 +34,36 @@ public:
     ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝
      */
     class exception : public std::exception {
+    protected:
+        std::string _lastErrorMessage;
+        mutable std::string _fullErrorMessage;
+
     public:
-        char* what() {
-            _lastErrorMessage = "Something went wrong with DigiByte Domain";
-            return const_cast<char*>(_lastErrorMessage.c_str());
+        explicit exception(const std::string& message = "Unknown") : _lastErrorMessage(message) {}
+
+        virtual const char* what() const noexcept override {
+            _fullErrorMessage = "DigiByte Domain Exception: " + _lastErrorMessage;
+            return _fullErrorMessage.c_str();
         }
     };
 
     class exceptionRevokedDomain : public exception {
     public:
-        char* what() {
-            _lastErrorMessage = "Domain has been revoked";
-            return const_cast<char*>(_lastErrorMessage.c_str());
-        }
+        explicit exceptionRevokedDomain()
+            : exception("Domain has been revoked") {}
     };
 
     class exceptionBurnedDomain : public exception {
     public:
-        char* what() {
-            _lastErrorMessage = "Domain has been burned";
-            return const_cast<char*>(_lastErrorMessage.c_str());
-        }
+        explicit exceptionBurnedDomain()
+            : exception("Domain has been burned") {}
     };
 
     class exceptionUnknownDomain : public exception {
     public:
-        char* what() {
-            _lastErrorMessage = "Domain has not been issued";
-            return const_cast<char*>(_lastErrorMessage.c_str());
-        }
+        explicit exceptionUnknownDomain()
+            : exception("Domain has not been issued") {}
     };
-
-
 };
 
 

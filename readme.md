@@ -97,7 +97,7 @@ Group=<your-username>
 Type=forking
 PIDFile=/home/<your-username>/.digibyte/digibyted.pid
 ExecStart=/home/<your-username>/digibyte-7.17.2/bin/digibyted -daemon -pid=/home/<your-username>/.digibyte/digibyted.pid \
--conf=/home/<your-username>/.digibyte/digibyte.conf -datadir=/home/<your-username>/.digibyte -disablewallet
+-conf=/home/<your-username>/.digibyte/digibyte.conf -datadir=/home/<your-username>/.digibyte
 
 Restart=always
 PrivateTmp=true

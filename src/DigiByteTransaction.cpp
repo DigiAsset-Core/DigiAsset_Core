@@ -103,10 +103,23 @@ DigiByteTransaction::DigiByteTransaction(const string& txid, unsigned int height
                 .digibyte = vout.valueS});
     }
 
+    //find index of op_return
+    int dataIndex = -1;
+    for (size_t i = 0; i < txData.vout.size(); i++) {
+        if (txData.vout[i].scriptPubKey.type == "nulldata") {
+            dataIndex = i;
+            break;
+        }
+    }
+    if (dataIndex == -1) return;
+
     //Check different tx types
-    if (decodeKYC(txData)) return;
-    if (decodeExchangeRate(txData)) return;
-    decodeAssetTX(txData);
+    if (decodeKYC(txData, dataIndex)) return;
+    if (decodeExchangeRate(txData, dataIndex)) return;
+    if (decodeEncryptedKeyTx(txData, dataIndex)) return;
+    if (decodeAssetTX(txData, dataIndex)) return;
+    storeUnknown(txData, dataIndex);
+
     ///if any new special case types are added make sure they have no more than 5 inputs allowed or
     ///modify the mayNeedInputProcessing algorithm above to check for them.
 }
@@ -117,13 +130,15 @@ DigiByteTransaction::DigiByteTransaction(const string& txid, unsigned int height
  * @param txData
  * @return if there was exchange rate data
  */
-bool DigiByteTransaction::decodeExchangeRate(const getrawtransaction_t& txData) {
+bool DigiByteTransaction::decodeExchangeRate(const getrawtransaction_t& txData, int dataIndex) {
+    //quick check op_return in correct spot
+    if (dataIndex != 0) return false;
+
     //exchange rate transactions always have 1 input and 2 outputs
     if (txData.vin.size() != 1) return false;
     if (txData.vout.size() != 2) return false;
 
     //check first output is an op_return
-    if (txData.vout[0].scriptPubKey.type != "nulldata") return false;
     BitIO dataStream = BitIO::makeHexString(txData.vout[0].scriptPubKey.hex);
     if (!dataStream.checkIsBitcoinOpReturn()) return false;                         //not an OP_RETURN
     if (dataStream.getBitcoinDataHeader() != BITIO_BITCOIN_TYPE_DATA) return false; //not data
@@ -157,7 +172,11 @@ bool DigiByteTransaction::decodeExchangeRate(const getrawtransaction_t& txData) 
  * @param txData
  * @return true if there is KYC data in the transaction
  */
-bool DigiByteTransaction::decodeKYC(const getrawtransaction_t& txData) {
+bool DigiByteTransaction::decodeKYC(const getrawtransaction_t& txData, int dataIndex) {
+    //quick check op_return in correct spot
+    if (dataIndex != 1) return false;
+
+    //process
     unsigned int txType = _kycData.processTX(txData, _height, [this](string txid, unsigned int vout) -> string {
         Database* db = AppMain::GetInstance()->getDatabase();
         return db->getSendingAddress(txid, vout);
@@ -172,17 +191,50 @@ bool DigiByteTransaction::decodeKYC(const getrawtransaction_t& txData) {
 }
 
 /**
+ * Checks to see if a transaction is an Encrypted Key Tx
+ * @param txData
+ * @param dataIndex
+ * @return
+ */
+bool DigiByteTransaction::decodeEncryptedKeyTx(const getrawtransaction_t& txData, int dataIndex) {
+    //quick check op_return in correct spot
+    if (dataIndex != 1) return false;
+
+    //check if valid
+    if (txData.vin.size() != 1) return false;
+    if ((txData.vout.size() < 2) || (txData.vout.size() > 3)) return false;
+    if (txData.vout[0].valueS != 650) return false;
+
+    //store
+    _txType = ENCRYPTED_KEY;
+    _opReturnHex = txData.vout[dataIndex].scriptPubKey.hex;
+    return true;
+}
+
+/**
+ * Stores an unknown op_return data if doesn't match known structure
+ * @param txData
+ * @param dataIndex
+ */
+void DigiByteTransaction::storeUnknown(const getrawtransaction_t& txData, int dataIndex) {
+    if (dataIndex == -1) return;
+
+    _txType = STANDARD;
+    _opReturnHex = txData.vout[dataIndex].scriptPubKey.hex;
+}
+
+/**
  * Looks to see if there is DigiAsset Transaction in the transaction and decodes it if there is
  * @param txData
  */
-void DigiByteTransaction::decodeAssetTX(const getrawtransaction_t& txData) {
+bool DigiByteTransaction::decodeAssetTX(const getrawtransaction_t& txData, int dataIndex) {
     //get the DigiAsset header and read the version and opcode
     unsigned char opcode;
     BitIO dataStream;
     DigiAsset::decodeAssetTxHeader(txData, _assetTransactionVersion, opcode, dataStream);
 
     if (opcode == 0) {
-        return; //invalid op code
+        return false; //invalid op code
     }
     if (opcode < 16) {
 
@@ -196,19 +248,20 @@ void DigiByteTransaction::decodeAssetTX(const getrawtransaction_t& txData) {
             _newAsset = DigiAsset{txData, _height, _assetTransactionVersion, opcode, dataStream};
             decodeAssetTransfer(dataStream, vector<AssetUTXO>{{.digibyte = 0, .assets = vector<DigiAsset>{_newAsset}}}, DIGIASSET_ISSUANCE);
             _txType = DIGIASSET_ISSUANCE;
+            return true;
         } catch (const DigiAsset::exception& e) {
+            return false;
         }
-        return;
     } else if (opcode < 48) {
 
         //check if valid transfer or burn
         bool burn = (opcode >= 0x20);
         if ((opcode % 16) != 5) {
-            return; //invalid transfer opcode
+            return false; //invalid transfer opcode
         }
 
         if (!_assetFound) {
-            return;
+            return false;
         }
 
         //do transfer
@@ -220,14 +273,16 @@ void DigiByteTransaction::decodeAssetTX(const getrawtransaction_t& txData) {
             for (AssetUTXO& output: _outputs) {
                 output.assets.clear();
             }
-            return;
+            return false;
         } catch (const DigiAsset::exception& e) {
-            return;
+            return false;
         } catch (const out_of_range& e) {
-            return;
+            return false;
         }
         _txType = burn ? DIGIASSET_BURN : DIGIASSET_TRANSFER;
+        return true;
     }
+    return false;
 }
 
 /**
@@ -258,7 +313,9 @@ void DigiByteTransaction::decodeAssetTransfer(BitIO& dataStream, const vector<As
         bool range = dataStream.getBits(1);
         bool percent = dataStream.getBits(1);
         uint16_t output = range ? dataStream.getBits(13) : dataStream.getBits(5);
-        uint64_t amount = percent ? inputs[index][0].getCount() * percent / 100 : dataStream.getFixedPrecision();
+        uint64_t amount = percent ?
+                                  inputs[index][0].getCount() * (dataStream.getBits(8)+1) / 256 : //if a percentage mode amount is 1 byte value.  0xff=100%, 0x00=0.39%
+                                  dataStream.getFixedPrecision();
         uint64_t totalAmount = range ? (output + 1) * amount : amount;
 
         //there was an error in legacy code that a 0 amount causes the input to get wasted and go to change
@@ -525,20 +582,23 @@ void DigiByteTransaction::addToDatabase() {
 
     //add special tx types
     switch (_txType) {
-        case KYC_ISSUANCE:
+        case KYC_ISSUANCE: {
             db->addKYC(_kycData.getAddress(), _kycData.getCountry(), _kycData.getName(), _kycData.getHash(), _height);
 
             break;
-        case KYC_REVOKE:
+        }
+        case KYC_REVOKE: {
             db->revokeKYC(_kycData.getAddress(), _height);
             break;
-        case EXCHANGE_PUBLISH:
+        }
+        case EXCHANGE_PUBLISH: {
             for (size_t index = 0; index < _exchangeRate.size(); index++) {
                 if (isnan(_exchangeRate[index])) continue;
                 db->addExchangeRate(_outputs[1].address, index, _height, _exchangeRate[index]);
             }
             break;
-        case DIGIASSET_ISSUANCE:
+        }
+        case DIGIASSET_ISSUANCE: {
             //Set that caches based on new issuances should be deleted
             main->getRpcCache()->newAssetIssued();
 
@@ -563,6 +623,18 @@ void DigiByteTransaction::addToDatabase() {
             }
             if (isIssuance()) _newAsset.setAssetIndex(assetIndex);
             break;
+        }
+        case ENCRYPTED_KEY: {
+            //add op_return data to database
+            db->addEncryptedKey(_outputs[0].address, Blob(_opReturnHex));
+            break;
+        }
+        case STANDARD: {
+            if (!_opReturnHex.empty()) {
+                db->addUnknown(_txid, Blob(_opReturnHex));
+            }
+            break;
+        }
     }
 
     //mark spent old UTXOs

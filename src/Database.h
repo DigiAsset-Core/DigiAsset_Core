@@ -91,6 +91,7 @@ private:
     Statement _stmtGetBlockHash;
     Statement _stmtCreateUTXO;
     Statement _stmtSpendUTXO;
+    Statement _stmtGetUTXOHeight;
     Statement _stmtIsWatchAddress;
     Statement _stmtAddWatchAddress;
     Statement _stmtGetSpendingAddress;
@@ -159,6 +160,11 @@ private:
     Statement _stmtGetValidUTXO;
     Statement _stmtGetAddressChangesDuringPeriod;
     Statement _stmtGetLastBlocks;
+    Statement _stmtInsertUnknown;
+    Statement _stmtGetUnknowns;
+    Statement _stmtDeleteFromUnknowns;
+    Statement _stmtInsertEncryptedKey;
+    Statement _stmtGetEncryptedKey;
 
 public:
     std::string printProfilingInfo() {
@@ -179,6 +185,7 @@ public:
         result += printStatementInfo("_stmtGetBlockHash", _stmtGetBlockHash);
         result += printStatementInfo("_stmtCreateUTXO", _stmtCreateUTXO);
         result += printStatementInfo("_stmtSpendUTXO", _stmtSpendUTXO);
+        result += printStatementInfo("_stmtGetUTXOHeight", _stmtGetUTXOHeight);
         result += printStatementInfo("_stmtIsWatchAddress", _stmtIsWatchAddress);
         result += printStatementInfo("_stmtAddWatchAddress", _stmtAddWatchAddress);
         result += printStatementInfo("_stmtGetSpendingAddress", _stmtGetSpendingAddress);
@@ -246,6 +253,11 @@ public:
         result += printStatementInfo("_stmtGetAddressHoldings", _stmtGetAddressHoldings);
         result += printStatementInfo("_stmtGetValidUTXO", _stmtGetValidUTXO);
         result += printStatementInfo("_stmtGetLastBlocks", _stmtGetLastBlocks);
+        result += printStatementInfo("_stmtInsertUnknown", _stmtInsertUnknown);
+        result += printStatementInfo("_stmtGetUnknowns", _stmtGetUnknowns);
+        result += printStatementInfo("_stmtDeleteFromUnknowns", _stmtDeleteFromUnknowns);
+        result += printStatementInfo("_stmtInsertEncryptedKey", _stmtInsertEncryptedKey);
+        result += printStatementInfo("_stmtGetEncryptedKey", _stmtGetEncryptedKey);
         return result;
     }
 
@@ -289,7 +301,7 @@ private:
     //helpers
     static int executeSqliteStepWithRetry(sqlite3_stmt* stmt, int maxRetries = 3, int sleepDurationMs = 100);
     void executeSQLStatement(const std::string& query, const std::exception& errorToThrowOnFail);
-    void handleSpecialErrors(unsigned int lineNumber=0);
+    void handleSpecialErrors(unsigned int lineNumber = 0);
 
     //ipfs ram db values
     std::vector<std::pair<std::string, uint64_t>> _ipfsCurrentlyPaused;
@@ -306,8 +318,6 @@ private:
     void updateAddressStats(unsigned int timeFrame, unsigned int endTime, unsigned int startHeight, unsigned int endHeight);
 
 public:
-    static std::string _lastErrorMessage;
-
     struct exchangeRateHistoryValue {
         unsigned int height;
         std::string address;
@@ -424,6 +434,7 @@ public:
     //utxos table
     void createUTXO(const AssetUTXO& value, unsigned int heightCreated, bool assetIssuance);
     void spendUTXO(const std::string& txid, unsigned int vout, unsigned int heightSpent, const std::string& spentTXID);
+    std::pair<unsigned int, unsigned int> getUTXOHeight(const std::string& txid, unsigned int vout);
     std::string getSendingAddress(const std::string& txid, unsigned int vout);
     void pruneUTXO(unsigned int height);
 
@@ -474,6 +485,14 @@ public:
     void setDomainCompromised();
     bool isDomainCompromised() const;
 
+    //Unknown table
+    void addUnknown(const std::string& txid, const Blob& data);
+    void checkUnknown(const std::function<bool(const std::string&, const Blob&)>& callback); //callback takes (txid,data) and if known by callback returns true which removes from unknown table
+
+    //Encrypted Keys table
+    void addEncryptedKey(const std::string& address, const Blob& data);
+    Blob getEncryptedKey(const std::string& address);
+
     //Permanent table
     void addToPermanent(unsigned int poolIndex, const std::string& cid);
     void removeFromPermanent(unsigned int poolIndex, const std::string& cid, bool unpin);
@@ -502,95 +521,80 @@ public:
     ███████╗██║  ██║██║  ██║╚██████╔╝██║  ██║███████║
     ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝
      */
-
     class exception : public std::exception {
+    protected:
+        std::string _lastErrorMessage;
+        mutable std::string _fullErrorMessage;
+
     public:
-        char* what() {
-            _lastErrorMessage = "Something went wrong with database";
-            return const_cast<char*>(_lastErrorMessage.c_str());
+        explicit exception(const std::string& message = "Unknown") : _lastErrorMessage(message) {}
+
+        virtual const char* what() const noexcept override {
+            _fullErrorMessage = "Database Exception: " + _lastErrorMessage;
+            return _fullErrorMessage.c_str();
         }
     };
 
     class exceptionFailedToOpen : public exception {
     public:
-        char* what() {
-            _lastErrorMessage = "Couldn't open or create the database";
-            return const_cast<char*>(_lastErrorMessage.c_str());
-        }
+        explicit exceptionFailedToOpen()
+            : exception("Couldn't open or create the database") {}
     };
 
     class exceptionFailedSQLCommand : public exception {
-        char* what() {
-            _lastErrorMessage = "Failed to create sql command";
-            return const_cast<char*>(_lastErrorMessage.c_str());
-        }
+    public:
+        explicit exceptionFailedSQLCommand(const std::string& error = "SQL command failed")
+            : exception(error) {}
     };
 
 
     class exceptionFailedToCreateTable : public exceptionFailedSQLCommand {
     public:
-        char* what() {
-            _lastErrorMessage = "Failed to create table";
-            return const_cast<char*>(_lastErrorMessage.c_str());
-        }
+        explicit exceptionFailedToCreateTable(const std::string& error = "Table creation failed")
+            : exceptionFailedSQLCommand(error) {}
     };
 
     class exceptionFailedInsert : public exceptionFailedSQLCommand {
     public:
-        char* what() {
-            _lastErrorMessage = "Failed to insert into table";
-            return const_cast<char*>(_lastErrorMessage.c_str());
-        }
+        explicit exceptionFailedInsert(const std::string& error = "Insert failed")
+            : exceptionFailedSQLCommand(error) {}
     };
 
     class exceptionFailedSelect : public exceptionFailedSQLCommand {
     public:
-        char* what() {
-            _lastErrorMessage = "Failed to select from table";
-            return const_cast<char*>(_lastErrorMessage.c_str());
-        }
+        explicit exceptionFailedSelect(const std::string& error = "Select failed")
+            : exceptionFailedSQLCommand(error) {}
     };
 
     class exceptionFailedUpdate : public exceptionFailedSQLCommand {
     public:
-        char* what() {
-            _lastErrorMessage = "Failed to update table";
-            return const_cast<char*>(_lastErrorMessage.c_str());
-        }
+        explicit exceptionFailedUpdate(const std::string& error = "Update failed")
+            : exceptionFailedSQLCommand(error) {}
     };
 
     class exceptionFailedDelete : public exceptionFailedSQLCommand {
     public:
-        char* what() {
-            _lastErrorMessage = "Failed to delete from table";
-            return const_cast<char*>(_lastErrorMessage.c_str());
-        }
+        explicit exceptionFailedDelete(const std::string& error = "Delete failed")
+            : exceptionFailedSQLCommand(error) {}
     };
 
     class exceptionCreatingStatement : public exceptionFailedSQLCommand {
     public:
-        char* what() {
-            _lastErrorMessage = "Failed to create statement for table";
-            return const_cast<char*>(_lastErrorMessage.c_str());
-        }
+        explicit exceptionCreatingStatement(const std::string& error = "Statement creation failed")
+            : exceptionFailedSQLCommand(error) {}
     };
 
     class exceptionFailedReset : public exception {
     public:
-        char* what() {
-            _lastErrorMessage = "Failed to reset table";
-            return const_cast<char*>(_lastErrorMessage.c_str());
-        }
+        explicit exceptionFailedReset()
+            : exception("Reset failed") {}
     };
 
     class exceptionDataPruned : public exception {
     public:
-        char* what() {
-            _lastErrorMessage = "The requested data has been pruned";
-            return const_cast<char*>(_lastErrorMessage.c_str());
-        }
+        explicit exceptionDataPruned()
+            : exception("The requested data has been pruned") {}
     };
 };
-
 
 #endif //DIGIBYTECORE_DATABASECHAIN_H

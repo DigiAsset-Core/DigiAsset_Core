@@ -156,6 +156,18 @@ namespace utils {
         return size;
     }
 
+    uint64_t mod256by64(const array<uint8_t, 32>& numerator, uint64_t divisor) {
+        uint64_t remainder = 0;
+
+        // Process each byte of the 256-bit number
+        for (int i = 0; i < 32; ++i) {
+            remainder = (remainder << 8) | numerator[i];
+            remainder %= divisor;
+        }
+
+        return remainder;
+    }
+
 
 
 

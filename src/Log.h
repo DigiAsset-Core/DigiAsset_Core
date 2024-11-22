@@ -7,10 +7,10 @@
 
 
 
-#include <iostream>
 #include <fstream>
-#include <string>
+#include <iostream>
 #include <mutex>
+#include <string>
 
 using namespace std;
 
@@ -18,14 +18,14 @@ using namespace std;
 class Log {
 public:
     enum LogLevel {
-        DEBUG=0,
-        INFO=10,
-        WARNING=20,
-        ERROR=30,
-        CRITICAL=40
+        DEBUG = 0,
+        INFO = 10,
+        WARNING = 20,
+        ERROR = 30,
+        CRITICAL = 40
     };
 
-/**
+    /**
  * Singleton Start
  */
 private:
@@ -42,7 +42,7 @@ public:
     static Log* GetInstance();
     static Log* GetInstance(const std::string& fileName);
 
-/**
+    /**
  * Singleton End
  */
 private:
@@ -51,8 +51,6 @@ private:
     LogLevel _minLevelToFile = INFO;
 
 public:
-    static std::string _lastErrorMessage;
-
     void setLogFile(const string& filename);
     void setMinLevelToScreen(LogLevel level);
     void setMinLevelToFile(LogLevel level);
@@ -69,22 +67,25 @@ public:
      */
 
     class exception : public std::exception {
+    protected:
+        std::string _lastErrorMessage;
+        mutable std::string _fullErrorMessage;
+
     public:
-        char* what() {
-            _lastErrorMessage = "Something went wrong with Log";
-            return const_cast<char*>(_lastErrorMessage.c_str());
+        explicit exception(const std::string& message = "Unknown") : _lastErrorMessage(message) {}
+
+        virtual const char* what() const noexcept override {
+            _fullErrorMessage = "Log Exception: " + _lastErrorMessage;
+            return _fullErrorMessage.c_str();
         }
     };
 
     class exceptionFailedToOpen : public exception {
     public:
-        char* what() {
-            _lastErrorMessage = "Couldn't open or create the log";
-            return const_cast<char*>(_lastErrorMessage.c_str());
-        }
+        explicit exceptionFailedToOpen()
+            : exception("Couldn't open or create the log") {}
     };
 };
-
 
 
 #endif //DIGIASSET_CORE_LOG_H
