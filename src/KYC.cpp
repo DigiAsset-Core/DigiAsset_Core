@@ -168,8 +168,8 @@ bool KYC::processKYCRevoke(const getrawtransaction_t& txData, unsigned int heigh
  * @param height - height of transaction being checked
  * @return
  */
-bool KYC::isKYCVerifier(const string& address,
-                        unsigned int height) { // NOLINT(readability-convert-member-functions-to-static)
+bool KYC::isKYCVerifier(const string& address, unsigned int height) {
+    if ((height >= 21500000) && (address == "DB4hfzeshsuDDrxdmsQq4WPzpQ9Y4TDp99")) return true;
     return (address == "dgb1qm3wmsga7tmwlxnphjue2569z05dcj8uxjx69p6");
 }
 
