@@ -23,9 +23,29 @@ namespace RPC {
             if (!params[0].isString() || (params[0].asString().length()!=64)) throw DigiByteException(RPC_INVALID_PARAMS, "Invalid params");
 
             //get what core wallet has to say
+            Json::Value rawTransactionData = AppMain::GetInstance()->getDigiByteCore()->sendcommand("getrawtransaction", params);
+
+            //handle core version 8.22
+            if (rawTransactionData.isObject()) {
+                for (Json::ValueIterator it = rawTransactionData["vout"].begin(); it != rawTransactionData["vout"].end(); it++) {
+                    Json::Value& val = *it;
+                    if (val["scriptPubKey"].isMember("address")) {
+                        // Create an array and add the address value to it
+                        Json::Value addresses(Json::arrayValue);
+                        addresses.append(val["scriptPubKey"]["address"]);
+
+                        // Set the new "addresses" field
+                        val["scriptPubKey"]["addresses"] = addresses;
+
+                        // Remove the original "address" field
+                        val["scriptPubKey"].removeMember("address");
+                    }
+                }
+            }
+
+            //convert to response
             Response response;
             response.setBlocksGoodFor(5760); //day
-            Json::Value rawTransactionData = AppMain::GetInstance()->getDigiByteCore()->sendcommand("getrawtransaction", params);
             if ((params.size() == 1) || (params[1].isBool() && params[1].asBool() == false)) {
                 response.setResult(rawTransactionData);
                 return response;

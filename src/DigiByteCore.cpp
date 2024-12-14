@@ -1225,8 +1225,7 @@ getrawtransaction_t DigiByteCore::getrawtransaction(const string& txid, bool ver
             ret.vin.push_back(input);
         }
 
-        for (ValueIterator it = result["vout"].begin(); it != result["vout"].end();
-             it++) {
+        for (ValueIterator it = result["vout"].begin(); it != result["vout"].end(); it++) {
             Value val = (*it);
             vout_t output;
 
@@ -1239,9 +1238,15 @@ getrawtransaction_t DigiByteCore::getrawtransaction(const string& txid, bool ver
             output.scriptPubKey.reqSigs = val["scriptPubKey"]["reqSigs"].asInt();
 
             output.scriptPubKey.type = val["scriptPubKey"]["type"].asString();
-            for (ValueIterator it2 = val["scriptPubKey"]["addresses"].begin();
-                 it2 != val["scriptPubKey"]["addresses"].end(); it2++) {
-                output.scriptPubKey.addresses.push_back((*it2).asString());
+            if (val["scriptPubKey"].isMember("address")) {
+                //handle 8.22
+                output.scriptPubKey.addresses.push_back(val["scriptPubKey"]["address"].asString());
+            } else {
+                //handle older versions
+                for (ValueIterator it2 = val["scriptPubKey"]["addresses"].begin();
+                     it2 != val["scriptPubKey"]["addresses"].end(); it2++) {
+                    output.scriptPubKey.addresses.push_back((*it2).asString());
+                }
             }
 
             ret.vout.push_back(output);
