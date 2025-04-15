@@ -1243,7 +1243,14 @@ getrawtransaction_t DigiByteCore::getrawtransaction(const string& txid, bool ver
                  it2 != val["scriptPubKey"]["addresses"].end(); it2++) {
                 output.scriptPubKey.addresses.push_back((*it2).asString());
             }
-
+            auto &addr = val["scriptPubKey"]["address"];
+             if (addr) {
+                 std::string addrStr = addr.asString();
+                 // Check if address is already in the vector before adding it.
+                 if (std::find(output.scriptPubKey.addresses.begin(), output.scriptPubKey.addresses.end(), addrStr) == output.scriptPubKey.addresses.end()) {
+                     output.scriptPubKey.addresses.push_back(addrStr);
+                 }
+            }
             ret.vout.push_back(output);
         }
         ret.blockhash = result["blockhash"].asString();
