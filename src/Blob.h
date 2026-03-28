@@ -6,6 +6,7 @@
 #define DIGIBYTECORE_BLOB_H
 
 
+#include <cstdint>
 #include <cstring>
 #include <string>
 #include <vector>
