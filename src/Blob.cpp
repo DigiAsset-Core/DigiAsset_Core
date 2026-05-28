@@ -70,7 +70,9 @@ size_t Blob::length() const {
 
 std::vector<uint8_t> Blob::vector() const {
     std::vector<uint8_t> result(_length);
-    memcpy(&result[0], &_data[0], _length);
+    if (_length > 0) {
+        memcpy(result.data(), _data, _length);
+    }
     return result;
 }
 
