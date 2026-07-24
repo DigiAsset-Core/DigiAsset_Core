@@ -858,7 +858,7 @@ void Database::reset() {
                       "DELETE FROM pspFiles;"
                       "DELETE FROM pspAssets;"
                       "DELETE FROM domains;"
-                      "DELETE FROM domainsMaster;"
+                      "DELETE FROM domainsMasters;"
                       "INSERT INTO \"domainsMasters\" VALUES (\"Ua7Bd7UVtrzavSHhpHxHZ2nzS2hGaHXRMT9sqy\",true);";
 
     rc = sqlite3_exec(_db, sql, Database::defaultCallback, nullptr, &zErrMsg);
