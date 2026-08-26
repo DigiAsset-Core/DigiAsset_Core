@@ -80,7 +80,7 @@ TEST(DigiAssetTransaction, existingAssetTransactions) {
     };
     const Fixture fixtures[]{
             {"QmNPyr5tkm48cUu5iMbReiM8GN8AW6PRpzUztPFadaxC8j", "../tests/testFiles/assetTest.csv"},
-            {"QmVoawgnYej8TNwpBB7DtJ75KbrAB99k7f9VAWzqSLJBeX", "../tests/testFiles/assetTest.db"},
+            {"QmUXQ2SMCvNAL4THgMm2g5vM4t6dBzj78ArnW9YBFmk81m", "../tests/testFiles/assetTest.db"},
     };
     for (const auto& fixture: fixtures) {
         try {

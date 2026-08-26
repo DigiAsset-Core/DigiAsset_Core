@@ -91,7 +91,13 @@ int main(int argc, char* argv[]) {
     ///Reviewers: same rule as officialBootstrap - only ever changed by a trusted party
     const vector<string> officialPinnedCIDs = {
             "QmNPyr5tkm48cUu5iMbReiM8GN8AW6PRpzUztPFadaxC8j", //tests/testFiles/assetTest.csv
-            "QmVoawgnYej8TNwpBB7DtJ75KbrAB99k7f9VAWzqSLJBeX"  //tests/testFiles/assetTest.db
+            "QmUXQ2SMCvNAL4THgMm2g5vM4t6dBzj78ArnW9YBFmk81m"  //tests/testFiles/assetTest.db
+    };
+
+    ///Superseded entries from the list above, unpinned on start the same way oldBootstrapCIDs are.
+    ///Without this a node that pinned one keeps carrying it forever with no way to let go
+    const vector<string> retiredPinnedCIDs = {
+            "QmVoawgnYej8TNwpBB7DtJ75KbrAB99k7f9VAWzqSLJBeX" //assetTest.db before it was vacuumed(243MB)
     };
 
     /*
@@ -344,6 +350,9 @@ int main(int argc, char* argv[]) {
         ipfs.pin(cid);
     }
     for (const auto& cid: oldBootstrapCIDs) {
+        ipfs.unpin(cid);
+    }
+    for (const auto& cid: retiredPinnedCIDs) {
         ipfs.unpin(cid);
     }
 
