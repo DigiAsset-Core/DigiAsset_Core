@@ -42,6 +42,12 @@ public:
     //running state modifiers
     void restart(); //erases all data and starts syncing over
 
+    ///Stop syncing once this height is written and skip the speed indexes(0 = normal operation).
+    ///Used to package the bootstrap image: the indexes are several times the size of the data they
+    ///point at and whoever restores the image builds them itself, so leaving them out keeps the
+    ///download small without costing the receiving node anything it would not have done anyway
+    void setBootstrapMode(unsigned int stopHeight);
+
     //SYNCING is anything <0 where the number is how many blocks behind it is
     static const int SYNCED = 0;
     static const int STOPPED = 1;
@@ -106,6 +112,7 @@ private:
     int _state = STOPPED;
     int _height;
     std::string _nextHash;
+    unsigned int _bootstrapStopHeight = 0; //0 = sync to the tip like normal.  see setBootstrapMode()
 
     //config variables(chain data)
     int _pruneAge; //number of blocks to keep for roll back protection(-1 don't prune, default is 1 day)

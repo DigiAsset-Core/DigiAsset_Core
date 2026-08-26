@@ -185,6 +185,15 @@ void ChainAnalyzer::setTrackDigiDollar(bool shouldTrack) {
     _trackDigiDollar = shouldTrack;
 }
 
+/**
+ * Stops the sync at a chosen height instead of following the chain tip, and leaves the speed
+ * indexes off while it runs.  Only --bootgen uses this.
+ * @param stopHeight - last block to write, 0 to go back to normal tip following
+ */
+void ChainAnalyzer::setBootstrapMode(unsigned int stopHeight) {
+    _bootstrapStopHeight = stopHeight;
+}
+
 
 /**
  * returns 0 if we should not prune right now otherwise returns height we can prune up to
@@ -530,6 +539,14 @@ void ChainAnalyzer::phaseSync() {
     Database* db = main->getDatabase();
     DigiByteCore* dgb = main->getDigiByteCore();
 
+    //in bootstrap mode the image is finished the moment the target height has been written.  Idle
+    //here instead of following the chain any further so main can stop us and package the file
+    if ((_bootstrapStopHeight > 0) && (_height > static_cast<int>(_bootstrapStopHeight))) {
+        _state = SYNCED;
+        pause(1);
+        return;
+    }
+
     //start syncing
     watchdogWorkingOn("looking up block " + to_string(_height) + " in DigiByte Core");
     string hash = dgb->getBlockHash(_height);
@@ -541,6 +558,12 @@ void ChainAnalyzer::phaseSync() {
     bool inTransaction = false;
     blockinfo_t blockData = dgb->getBlock(hash); //get first blocks data in syncing process(all future ones are at end of loop)
     while ((hash == _nextHash) && !stopRequested()) {
+        //bootstrap mode stops on a chosen block rather than the tip.  _height is the block about to
+        //be processed, so this writes everything up to and including the requested height
+        if ((_bootstrapStopHeight > 0) && (_height > static_cast<int>(_bootstrapStopHeight))) {
+            _state = SYNCED;
+            break;
+        }
         if (totalProcessed == 0) {
             beginTotalTime = chrono::steady_clock::now();
         }
@@ -658,7 +681,9 @@ void ChainAnalyzer::phaseSync() {
             if (stopRequested()) return;
 
             //see if any performance indexes need to be added(do before marking as synced will set state to BUSY if there is anything to do)
-            db->executePerformanceIndex(_state);
+            //bootstrap mode leaves them out - they are rebuilt on the node that restores the image,
+            //and building them here would bloat the file that everyone has to download
+            if (_bootstrapStopHeight == 0) db->executePerformanceIndex(_state);
 
             //mark as synced
             _state = SYNCED;
@@ -677,6 +702,16 @@ void ChainAnalyzer::phaseSync() {
 
             //update blockData so we can exit loop
             blockData = dgb->getBlock(hash);
+        }
+
+        //The block DigiDollar activated on has now been indexed by the normal sync path, so record
+        //it.  The marker is the only thing that tells a later start this database already has
+        //DigiDollar in it, and it used to be written solely by phaseDigiDollarBackfill.  That left
+        //any database built by syncing forward - including a bootstrap image - claiming height 0,
+        //so the next start rewound all the way back here to redo work that was already done
+        if (shouldTrackDigiDollar() &&
+            (_height == static_cast<int>(DigiAssetConstants::DIGIDOLLAR_ACTIVATION_HEIGHT))) {
+            db->setDigiDollarSyncHeight(DigiAssetConstants::DIGIDOLLAR_ACTIVATION_HEIGHT);
         }
 
         //get what would be next block based on the block we just processed

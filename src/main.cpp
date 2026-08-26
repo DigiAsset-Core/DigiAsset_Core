@@ -2,6 +2,7 @@
 #include "ChainAnalyzer.h"
 #include "Config.h"
 #include "Database.h"
+#include "DigiAssetConstants.h"
 #include "DigiByteCore.h"
 #include "EventBroadcaster.h"
 #include "IPFS.h"
@@ -30,17 +31,36 @@ int main(int argc, char* argv[]) {
     /*
      * Parse command line
      */
-    bool bootGenMode = false; //--bootgen: sync to the tip, make the db a single clean file, then exit
+    bool bootGenMode = false; //--bootgen: sync to a chosen height, make the db a single clean file, then exit
+    ///Where the bootstrap image stops unless told otherwise.  DigiDollar activated here, and a node
+    ///restoring the image still has to sync everything after it, so there is nothing to gain by
+    ///going further - and plenty to lose, since every extra block makes the download bigger
+    unsigned int bootGenTarget = DigiAssetConstants::DIGIDOLLAR_ACTIVATION_HEIGHT;
     for (int i = 1; i < argc; i++) {
         string arg = argv[i];
-        if (arg == "--bootgen") {
+        if ((arg == "--bootgen") || (arg.rfind("--bootgen=", 0) == 0)) {
             bootGenMode = true;
+            if (arg.size() > 10) { //strlen("--bootgen=")
+                try {
+                    bootGenTarget = stoul(arg.substr(10));
+                } catch (const exception&) {
+                    cerr << "--bootgen needs a block height, eg --bootgen="
+                         << DigiAssetConstants::DIGIDOLLAR_ACTIVATION_HEIGHT << "\nTry --help\n";
+                    return 1;
+                }
+            }
         } else if ((arg == "--help") || (arg == "-h")) {
             cout << "DigiAsset Core " << getVersionString() << "\n"
                  << "Usage: digiasset_core [options]\n"
-                 << "  --bootgen   Sync to the chain tip, then compact the database into a single\n"
-                 << "              shareable file and shut down.  Used to build the IPFS bootstrap\n"
-                 << "              image.  The RPC server and event stream stay off.\n"
+                 << "  --bootgen[=height]\n"
+                 << "              Sync to height(default " << DigiAssetConstants::DIGIDOLLAR_ACTIVATION_HEIGHT
+                 << ", where DigiDollar activated), then compact\n"
+                 << "              the database into a single shareable file and shut down.  Used to\n"
+                 << "              build the IPFS bootstrap image.  The speed indexes are left out so\n"
+                 << "              the image stays small - the node that restores it builds the ones it\n"
+                 << "              actually uses.  Run it against an empty database so no indexes from\n"
+                 << "              an earlier sync are already there.  The RPC server and event stream\n"
+                 << "              stay off.\n"
                  << "  --help      Show this message\n";
             return 0;
         } else {
@@ -187,7 +207,8 @@ int main(int argc, char* argv[]) {
      */
     log->addMessage("Starting DigiAsset Core " + getVersionString());
     if (bootGenMode) {
-        log->addMessage("Bootstrap generation mode.  Will shut down once fully synced");
+        log->addMessage("Bootstrap generation mode.  Will sync to block " + to_string(bootGenTarget) +
+                        " then compact and shut down");
     }
 
     /*
@@ -352,6 +373,7 @@ int main(int argc, char* argv[]) {
     log->addMessage("Starting Chain Analyzer");
     ChainAnalyzer analyzer;
     analyzer.loadConfig();
+    if (bootGenMode) analyzer.setBootstrapMode(bootGenTarget); //stop at the target, skip the speed indexes
     analyzer.start();
     main->setChainAnalyzer(&analyzer);
 
@@ -400,7 +422,7 @@ int main(int argc, char* argv[]) {
         }
     }
     unsigned int bootGenHeight = analyzer.getSyncHeight();
-    log->addMessage(bootGenComplete ? "Sync complete.  Stopping to generate bootstrap image"
+    log->addMessage(bootGenComplete ? "Reached bootstrap target height.  Stopping to generate bootstrap image"
                                     : "Shutdown signal received.  Stopping");
 
     //order matters: stop everything that could touch the database before flushing/closing it
@@ -421,6 +443,9 @@ int main(int argc, char* argv[]) {
     if (bootGenComplete) {
         cout << "\nBootstrap image ready: " << dbFilename << " (synced to block " << bootGenHeight << ")\n"
              << "There should be no " << dbFilename << "-wal or " << dbFilename << "-shm file beside it.\n"
+             << "The speed indexes were left out on purpose - the node that restores this builds the\n"
+             << "ones it needs the first time it catches up, so do not open the file with a normal\n"
+             << "node before sharing it or they will be written back in and the image will grow.\n"
              << "Add it to IPFS, then update officialBootstrap in src/main.cpp with the new CID and\n"
              << "height " << bootGenHeight << ", and move the CID it replaces into oldBootstrapCIDs.\n";
     }
