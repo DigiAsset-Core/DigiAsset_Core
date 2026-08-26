@@ -146,10 +146,13 @@ void IPFS::mainFunction() {
             //don't worry about failed pin
         }
     } else {
-        //figure out what the max time we should try to download the file for is
+        //figure out what the max time we should try to download the file for is.
+        //maxSleep 0 means the caller set no deadline of its own(every callOnDownload and pin job
+        //does), so this gets the full download timeout and keeps retrying - it must not be read
+        //as "give up immediately", or a file that simply takes a while to arrive is dropped
         unsigned int timeout = _timeoutDownload * 1000;
         bool lastTry = false;
-        if (maxSleep < timeout) {
+        if ((maxSleep > 0) && (maxSleep < timeout)) {
             timeout = maxSleep;
             lastTry = true;
         }
@@ -296,6 +299,10 @@ string IPFS::_command(const string& command, const map<string, string>& data, un
 }
 
 
+///these are small text responses from third party services, and there are three of them to
+///try, so a short limit is right - the point is to move on rather than to succeed
+static const unsigned int IP_LOOKUP_TIMEOUT_MS = 15000;
+
 /**
  * Gets the users current IP address
  */
@@ -307,7 +314,8 @@ string IPFS::getIP() {
 
     for (const auto& url: ipSources) {
         try {
-            string ip = CurlHandler::get(url);
+            //bounded so one unresponsive lookup service does not stop us trying the next
+            string ip = CurlHandler::get(url, IP_LOOKUP_TIMEOUT_MS);
             if (ip.empty()) continue;
             return ip;
         } catch (const runtime_error& e) {
@@ -538,8 +546,11 @@ unsigned int IPFS::getSize(const string& cid) const {
     if (!isValidCID(cid)) throw exceptionInvalidCID(cid);
     if (isLostCID(cid)) throw exceptionTimeout(); //well it would have timed out if we had let it
     //files/stat handles both dag-pb(Qm…) and raw-leaves(bafkrei…) cids.  object/stat was
-    //removed in kubo 0.40 so it failed for every cid on modern nodes
-    string stats = _command("files/stat?arg=/ipfs/" + cid);
+    //removed in kubo 0.40 so it failed for every cid on modern nodes.
+    //This is the one command here that is not a local lookup - working out CumulativeSize walks
+    //the whole dag, fetching any block the node does not have, so a large file on a slow link
+    //legitimately takes minutes.  It gets the download timeout, not the short command one
+    string stats = _command("files/stat?arg=/ipfs/" + cid, {}, _timeoutDownload * 1000);
     Json::Value json;
     Json::CharReaderBuilder rbuilder;
     istringstream s(stats);

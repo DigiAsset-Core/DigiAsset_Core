@@ -42,10 +42,11 @@ private:
     unsigned int _timeoutPin = 1200;
     unsigned int _timeoutDownload = 3600;
     unsigned int _timeoutRetry = 3600;
-    ///applies to every request that does not ask for something longer.  Most of these are
-    ///quick local queries but files/stat and cat will happily sit waiting on the dht for a
-    ///block the network can not supply, and some of those calls are made on the chain
-    ///analyzer's own thread, so an unbounded one stops the node in the middle of a block
+    ///applies to the requests that only ask the local node a question - pin/ls, id, and reading
+    ///content the node has already pinned.  Anything that may have to fetch from the network
+    ///asks for _timeoutDownload or _timeoutPin instead.  Without a limit here a wedged daemon
+    ///held on to whichever thread called it, and some of those calls are made while an rpc
+    ///request is being answered
     unsigned int _timeoutCommand = 30;
     unsigned int _maxParallel = 10;
 

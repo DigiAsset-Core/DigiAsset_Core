@@ -21,8 +21,10 @@ using namespace std;
 static const unsigned int PSP_SERVER_TIMEOUT_MS = 30000;
 
 ///max wait for the metadata of the issuance being costed.  Same reasoning: getCost runs on an
-///rpc thread and used to wait for a cid the node may never be able to fetch
-static const unsigned int PSP_METADATA_WAIT_MS = 30000;
+///rpc thread and used to wait for a cid the node may never be able to fetch.  Generous rather
+///than snappy - the file is normally one this node just published, but if it has to come from
+///the network it is up to 2MB over whatever link the operator has
+static const unsigned int PSP_METADATA_WAIT_MS = 300000;
 
 mctrivia::mctrivia() : _keepRunning(false){};
 mctrivia::~mctrivia() { stop(); }
