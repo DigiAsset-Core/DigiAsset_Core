@@ -16,6 +16,7 @@ class Threaded {
     volatile bool _running = false;
     volatile bool _stopRequest = false;
     void _threadFunction();
+    static void _reportResult(std::future<void>& result);
     size_t _parallels = 1;//if task is asynchronous allows running sub threads within thread.
 
 protected:
@@ -25,7 +26,7 @@ protected:
     void setMaxParallels(size_t max = 1);
 
 public:
-    bool stopRequested();
+    bool stopRequested() const;
     void start();
     virtual void stop();
     virtual ~Threaded();

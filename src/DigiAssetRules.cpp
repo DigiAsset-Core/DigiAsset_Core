@@ -7,6 +7,7 @@
 #include "DigiAsset.h"
 #include "DigiAssetTypes.h"
 #include "DigiAssetConstants.h"
+#include "IPFS.h"
 #include "serialize.h"
 #include <algorithm>
 
@@ -825,11 +826,20 @@ Json::Value DigiAssetRules::toJSON() {
             }
             vote["options"] = options;
         } catch (const exceptionVoteOptionsCorrupt& e) {
-            //download failed so include list of addresses but flag that labels are corrupt
+            //labels downloaded but did not match the chain data
             Json::Value options(Json::objectValue);
             vector<VoteOption> voteOptions = _voteOptions;
             for (const VoteOption& option: voteOptions) {
                 options[option.address] = "Label corrupt";
+            }
+            vote["options"] = options;
+        } catch (const IPFS::exception& e) {
+            //labels could not be fetched in time.  Still answer with the addresses - an asset
+            //whose label file is unavailable must not make getassetdata fail outright
+            Json::Value options(Json::objectValue);
+            vector<VoteOption> voteOptions = _voteOptions;
+            for (const VoteOption& option: voteOptions) {
+                options[option.address] = "Label unavailable";
             }
             vote["options"] = options;
         }
@@ -868,7 +878,9 @@ std::vector<VoteOption> DigiAssetRules::getVoteOptions() {
                                    //(was inverted: it downloaded the EMPTY cid after labels
                                    //were processed and skipped the fetch when one was pending)
         IPFS* ipfs = AppMain::GetInstance()->getIPFS();
-        string content = ipfs->callOnDownloadSync(_voteLabelsCID);
+        //bounded: this is reached from getassetdata, and a label file nobody is serving used to
+        //leave the rpc call hanging with no answer and no error
+        string content = ipfs->callOnDownloadSync(_voteLabelsCID, "", DIGIASSET_JSON_IPFS_MAX_WAIT);
 
         //parse returned data
         Json::Reader reader;

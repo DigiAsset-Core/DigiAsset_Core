@@ -5,6 +5,11 @@
 #include "gtest/gtest.h"
 #include "IPFS.h"
 
+#include <boost/asio.hpp>
+#include <chrono>
+#include <cstdio>
+#include <fstream>
+
 using namespace std;
 
 
@@ -68,4 +73,43 @@ TEST(IPFS, isLostCID) {
     EXPECT_FALSE(IPFS::isLostCID("bafkreicr2pggml4j5bjv3hhxi5i5ud4rgnnaqphrfs2mtoub77zfiwbhju"));
     EXPECT_FALSE(IPFS::isLostCID(""));
     EXPECT_FALSE(IPFS::isLostCID("QmNotInTheLostList"));
+}
+// ─────────────────────────────────────────────────────────────────────────────
+// Timeouts — a node that stops answering must not stop the caller
+// ─────────────────────────────────────────────────────────────────────────────
+
+TEST(IPFS, commandGivesUpWhenTheNodeStopsAnswering) {
+    // Regression: every request built by _command left CURLOPT_TIMEOUT_MS unset unless the caller
+    // asked for one, and most callers do not.  getSize() is one of them, and it runs on the chain
+    // analyzer's own thread(a storage pool sizes each file an issuance references), so a wedged
+    // ipfs daemon stopped the whole node on whichever block held the next issuance - silently,
+    // because progress is only logged once a block finishes.
+    //
+    // The socket below completes the TCP handshake from the listen backlog and then never says
+    // another word, which is exactly what that looks like from the client side.
+    boost::asio::io_context io;
+    boost::asio::ip::tcp::acceptor silent(
+            io, boost::asio::ip::tcp::endpoint(boost::asio::ip::make_address("127.0.0.1"), 0));
+    const unsigned short port = silent.local_endpoint().port();
+
+    const string configFile = "_ipfs_timeout_test.cfg";
+    {
+        ofstream config(configFile);
+        ASSERT_TRUE(config.is_open());
+        config << "ipfspath=http://127.0.0.1:" << port << "/api/v0/\n";
+        config << "ipfstimeoutcommand=2\n";
+    }
+
+    IPFS ipfs(configFile, false); //false: no job threads, this test only makes the one call
+
+    auto start = chrono::steady_clock::now();
+    EXPECT_THROW(ipfs.getSize("bafkreicr2pggml4j5bjv3hhxi5i5ud4rgnnaqphrfs2mtoub77zfiwbhju"),
+                 IPFS::exceptionTimeout);
+    auto elapsed = chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now() - start).count();
+
+    // generous against a slow machine but nowhere near "forever", which is what it used to be
+    EXPECT_LT(elapsed, 15) << "getSize() waited " << elapsed
+                           << "s on a silent node - sync would be stopped for that long too";
+
+    remove(configFile.c_str());
 }

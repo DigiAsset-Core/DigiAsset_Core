@@ -8,6 +8,7 @@
 #include "DigiAssetRules.h"
 #include "DigiByteCore_Types.h"
 #include "Threaded.h"
+#include <atomic>
 #include <functional>
 #include <future>
 #include <mutex>
@@ -41,7 +42,19 @@ private:
     unsigned int _timeoutPin = 1200;
     unsigned int _timeoutDownload = 3600;
     unsigned int _timeoutRetry = 3600;
+    ///applies to every request that does not ask for something longer.  Most of these are
+    ///quick local queries but files/stat and cat will happily sit waiting on the dht for a
+    ///block the network can not supply, and some of those calls are made on the chain
+    ///analyzer's own thread, so an unbounded one stops the node in the middle of a block
+    unsigned int _timeoutCommand = 30;
     unsigned int _maxParallel = 10;
+
+    ///a node with a dead or wedged ipfs daemon hits these paths once per asset, so the
+    ///warnings are throttled - the point is to make the reason visible, not to bury the log
+    static const unsigned int WARNING_REPEAT_SECONDS = 60;
+    mutable std::atomic<long long> _lastTimeoutWarning{0};
+    mutable std::atomic<long long> _lastOfflineWarning{0};
+    static bool _shouldWarn(std::atomic<long long>& lastWarning);
 
     void mainFunction() override;
     static std::string getIP();

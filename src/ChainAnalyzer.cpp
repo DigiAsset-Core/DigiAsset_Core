@@ -45,6 +45,7 @@ ChainAnalyzer::ChainAnalyzer() {
 
 ChainAnalyzer::~ChainAnalyzer() {
     stop();
+    watchdogStop(); //shutdownFunction does this on the normal path; belt and braces for the rest
 }
 
 /*
@@ -239,6 +240,9 @@ void ChainAnalyzer::startupFunction() {
         db->setBeenPrunedNonAssetUTXOHistory(true);
     }
 
+    //start watching for steps that never finish
+    watchdogStart();
+
     //remember the newest oracle epoch so the sync loop can skip re-reading commitments it has
     _lastOracleEpoch = db->getDigiDollarLastEpoch();
 
@@ -364,6 +368,93 @@ void ChainAnalyzer::pause(unsigned int seconds) {
 
 void ChainAnalyzer::shutdownFunction() {
     _state = STOPPED;
+    watchdogStop();
+}
+
+/*
+██╗    ██╗ █████╗ ████████╗ ██████╗██╗  ██╗██████╗  ██████╗  ██████╗
+██║    ██║██╔══██╗╚══██╔══╝██╔════╝██║  ██║██╔══██╗██╔═══██╗██╔════╝
+██║ █╗ ██║███████║   ██║   ██║     ███████║██║  ██║██║   ██║██║  ███╗
+██║███╗██║██╔══██║   ██║   ██║     ██╔══██║██║  ██║██║   ██║██║   ██║
+╚███╔███╔╝██║  ██║   ██║   ╚██████╗██║  ██║██████╔╝╚██████╔╝╚██████╔╝
+ ╚══╝╚══╝ ╚═╝  ╚═╝   ╚═╝    ╚═════╝╚═╝  ╚═╝╚═════╝  ╚═════╝  ╚═════╝
+ */
+
+long long ChainAnalyzer::steadySeconds() {
+    return chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now().time_since_epoch()).count();
+}
+
+void ChainAnalyzer::watchdogStart() {
+    if (_watchdogRunning) return;
+    _watchdogRunning = true;
+    _watchdogThread = std::thread(&ChainAnalyzer::watchdogTask, this);
+}
+
+void ChainAnalyzer::watchdogStop() {
+    _watchdogRunning = false;
+    if (_watchdogThread.joinable()) _watchdogThread.join();
+}
+
+/**
+ * Records what the analyzer is about to do so the watchdog can name it if it never comes back
+ * @param step - human readable description, eg "block 24081128 transaction abc123..."
+ */
+void ChainAnalyzer::watchdogWorkingOn(const string& step) {
+    {
+        lock_guard<mutex> lock(_watchdogMutex);
+        _watchdogStep = step;
+    }
+    _watchdogSince = steadySeconds();
+}
+
+/**
+ * Says the analyzer is deliberately doing nothing(waiting for a new block, or shutting down)
+ * so the watchdog stays quiet
+ */
+void ChainAnalyzer::watchdogIdle() {
+    _watchdogSince = 0;
+}
+
+/**
+ * Complains whenever a single step has been running for longer than _stallWarningSeconds, and
+ * again every _stallWarningSeconds after that for as long as it keeps running.
+ *
+ * Everything the analyzer logs is written after a block completes, so a step that blocks forever
+ * produces no output at all - which is what a node stuck on a single issuance looked like from
+ * the outside.  The message names the block and transaction so the cause can actually be found.
+ */
+void ChainAnalyzer::watchdogTask() {
+    Log* log = Log::GetInstance();
+    long long warnedForSince = 0;
+    long long nextWarnAfter = _stallWarningSeconds;
+
+    while (_watchdogRunning) {
+        this_thread::sleep_for(chrono::milliseconds(200));
+
+        long long since = _watchdogSince;
+        if (since == 0) continue; //idle on purpose
+
+        //a different step than the one last warned about starts the count over
+        if (since != warnedForSince) {
+            warnedForSince = since;
+            nextWarnAfter = _stallWarningSeconds;
+        }
+
+        long long elapsed = steadySeconds() - since;
+        if (elapsed < nextWarnAfter) continue;
+        nextWarnAfter = elapsed + _stallWarningSeconds;
+        _stallWarnings++;
+
+        string step;
+        {
+            lock_guard<mutex> lock(_watchdogMutex);
+            step = _watchdogStep;
+        }
+        log->addMessage("Still working on " + step + " after " + to_string(elapsed) +
+                                " seconds.  Sync is not frozen, it is waiting on something outside the node - "
+                                "usually the IPFS daemon, DigiByte Core, or a storage pool server",
+                        Log::WARNING);
+    }
 }
 
 /*
@@ -377,6 +468,7 @@ void ChainAnalyzer::shutdownFunction() {
 
 void ChainAnalyzer::phaseRewind() {
     Log* log = Log::GetInstance();
+    watchdogWorkingOn("rewinding from height " + to_string(_height));
 
     AppMain* main = AppMain::GetInstance();
     Database* db = main->getDatabase();
@@ -439,6 +531,7 @@ void ChainAnalyzer::phaseSync() {
     DigiByteCore* dgb = main->getDigiByteCore();
 
     //start syncing
+    watchdogWorkingOn("looking up block " + to_string(_height) + " in DigiByte Core");
     string hash = dgb->getBlockHash(_height);
     bool fastMode = false;
     chrono::steady_clock::time_point beginTime;
@@ -483,8 +576,12 @@ void ChainAnalyzer::phaseSync() {
 
         //process each tx in block
         if (shouldStoreNonAssetUTXO() || (_height >= 8432316)) { //only non asset utxo below this height
-            for (string& tx: blockData.tx)
+            for (string& tx: blockData.tx) {
+                //named here rather than per block: an issuance whose metadata the ipfs node
+                //can not produce blocks on one transaction, and that is the one worth printing
+                watchdogWorkingOn("block " + to_string(blockData.height) + " transaction " + tx);
                 processTX(tx, blockData.height);
+            }
         }
 
         if (!fastMode) {
@@ -495,6 +592,7 @@ void ChainAnalyzer::phaseSync() {
         }
 
         if (endBatch && inTransaction) {
+            watchdogWorkingOn("writing block " + to_string(blockData.height) + " to the database");
             db->endTransaction();
             inTransaction = false;
         }
@@ -554,6 +652,7 @@ void ChainAnalyzer::phaseSync() {
         phasePrune();
 
         //if fully synced pause until new block
+        watchdogIdle(); //waiting for the chain to move is not a stall
         while (blockData.nextblockhash.empty()) {
             //a new block can be minutes away - don't hold up shutdown waiting for one
             if (stopRequested()) return;
@@ -585,6 +684,7 @@ void ChainAnalyzer::phaseSync() {
 
         //get what actually is the next block(we check both ways because if they don't match there was a rollback)
         _height++;
+        watchdogWorkingOn("looking up block " + to_string(_height) + " in DigiByte Core");
         hash = dgb->getBlockHash(_height);
         blockData = dgb->getBlock(hash);
 
@@ -592,6 +692,7 @@ void ChainAnalyzer::phaseSync() {
         db->insertBlock(blockData.height, blockData.hash, blockData.time, blockData.algo, blockData.difficulty);
     }
     if (inTransaction) db->endTransaction();
+    watchdogIdle();
 }
 
 /**
