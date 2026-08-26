@@ -67,13 +67,33 @@ TEST(DigiAssetTransaction, existingAssetTransactions) {
     } catch (...) {}
 
     IPFS ipfs("config.cfg", false);
-    try {
-        ipfs.downloadFile("QmNPyr5tkm48cUu5iMbReiM8GN8AW6PRpzUztPFadaxC8j", "../tests/testFiles/assetTest.csv", true);
-        ipfs.downloadFile("QmVoawgnYej8TNwpBB7DtJ75KbrAB99k7f9VAWzqSLJBeX", "../tests/testFiles/assetTest.db", true);
-    } catch (const IPFS::exceptionNoConnection&) {
-        GTEST_SKIP() << "IPFS node not available - skipping transaction tests";
-    } catch (const IPFS::exceptionTimeout&) {
-        GTEST_SKIP() << "IPFS node timed out - skipping transaction tests";
+
+    //Both fixtures are fetched with pinAlso set, so every machine that runs this suite keeps a copy
+    //and becomes another source for the next one.  That only helps while at least one node still has
+    //the file: these are ordinary ipfs content, nothing republishes them automatically, so if every
+    //holder goes offline the cid stops resolving and no amount of pinning here brings it back.
+    //When that happens say which file is missing - the whole of RPCMethodsTest is built from
+    //assetTest.db, so a generic "ipfs timed out" turns into 40 unexplained failures later in the run
+    struct Fixture {
+        const char* cid;
+        const char* path;
+    };
+    const Fixture fixtures[]{
+            {"QmNPyr5tkm48cUu5iMbReiM8GN8AW6PRpzUztPFadaxC8j", "../tests/testFiles/assetTest.csv"},
+            {"QmVoawgnYej8TNwpBB7DtJ75KbrAB99k7f9VAWzqSLJBeX", "../tests/testFiles/assetTest.db"},
+    };
+    for (const auto& fixture: fixtures) {
+        try {
+            ipfs.downloadFile(fixture.cid, fixture.path, true);
+        } catch (const IPFS::exceptionNoConnection&) {
+            GTEST_SKIP() << "IPFS node not available - skipping transaction tests";
+        } catch (const IPFS::exceptionTimeout&) {
+            GTEST_SKIP() << "No IPFS peer served " << fixture.cid << " (" << fixture.path
+                         << ") before the timeout.  If your connection is simply slow raise "
+                            "ipfstimeoutdownload in config.cfg and try again.  If it stays unavailable "
+                            "nobody is hosting the file any more and it has to be added back to IPFS by "
+                            "someone holding a copy - every test that needs rpcTest.db depends on it.";
+        }
     }
 
     //initialize prerequisites

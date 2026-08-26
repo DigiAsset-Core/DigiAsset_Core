@@ -63,6 +63,17 @@ int main(int argc, char* argv[]) {
             {"QmUUpXkcajwApumJ9KGz9nX7x1QmTQ4kTW4YzPc4HXqu4Z", 21505152}    //v8
     };
 
+    ///Files that every node keeps a copy of so they stay findable.  The storage pool only keeps asset
+    ///metadata alive, and the bootstrap list only covers the images above, so anything else on ipfs
+    ///survives purely on whoever happens to still have it - and when that was one machine, the test
+    ///fixtures below dropped to zero providers the moment it went offline.  Spreading them over every
+    ///node costs each one a copy but means the test suite is never blocked on a single operator.
+    ///Reviewers: same rule as officialBootstrap - only ever changed by a trusted party
+    const vector<string> officialPinnedCIDs = {
+            "QmNPyr5tkm48cUu5iMbReiM8GN8AW6PRpzUztPFadaxC8j", //tests/testFiles/assetTest.csv
+            "QmVoawgnYej8TNwpBB7DtJ75KbrAB99k7f9VAWzqSLJBeX"  //tests/testFiles/assetTest.db
+    };
+
     /*
      * Check if config exists and prompt user to make one if it doesn't
      */
@@ -307,6 +318,9 @@ int main(int argc, char* argv[]) {
     main->setIPFS(&ipfs);
     for (const auto& bootstrap: officialBootstrap) {
         ipfs.pin(bootstrap.cid);
+    }
+    for (const auto& cid: officialPinnedCIDs) {
+        ipfs.pin(cid);
     }
     for (const auto& cid: oldBootstrapCIDs) {
         ipfs.unpin(cid);
