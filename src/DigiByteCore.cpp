@@ -1750,10 +1750,44 @@ uint64_t DigiByteCore::_dgbToSat(std::string value) {
     return result;
 }
 
+/**
+ * Which wallet generation DigiByte Core is.
+ *
+ * getnetworkinfo names the version outright, so ask that first.  The fallback below infers it from
+ * the shape of a getrawtransaction reply, which cannot separate v9 from v8 - both return
+ * scriptPubKey.address where v7 returned scriptPubKey.addresses - and that inference runs as a side
+ * effect of any getrawtransaction call, so it can be cached before this is ever called.  The node's
+ * own answer therefore has to override it rather than the other way round.
+ */
 DigiByteCore::WalletVersion DigiByteCore::coreVersion() {
-    if (_walletVersion!=unknown) return _walletVersion;
+    if (_walletVersionFromNode) return _walletVersion;
+
+    int nodeVersion = getNodeVersion(); //eg 92605 for 9.26.5
+    if (nodeVersion > 0) {
+        if (nodeVersion >= 90000) {
+            _walletVersion = v9;
+        } else if (nodeVersion >= 80000) {
+            _walletVersion = v8;
+        } else {
+            _walletVersion = v7;
+        }
+        _walletVersionFromNode = true;
+        return _walletVersion;
+    }
+
+    //node did not answer - fall back to whatever the reply shape said
+    if (_walletVersion != unknown) return _walletVersion;
     getrawtransaction("0378a92db8025318a129c83e2ee0766a5908550ef7b4619e8a325c9c69873a4b",true); //force wallet version to be set
     return _walletVersion;
+}
+
+std::string DigiByteCore::walletVersionName(WalletVersion version) {
+    switch (version) {
+        case v7: return "7.17.3 or older";
+        case v8: return "8.22.0";
+        case v9: return "9 or newer";
+        default: return "of unknown version";
+    }
 }
 
 int DigiByteCore::getNodeVersion() {

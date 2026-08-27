@@ -35,9 +35,13 @@ public:
 
     enum WalletVersion {
         unknown= 0,
-        v7=7,         //7 or less
-        v8=8          //8 or higher
+        v7=7,         //7.17.3 or older
+        v8=8,         //8.22.0 series
+        v9=9          //9 or newer - the only one this build supports
     };
+
+    ///Renders a WalletVersion for humans.  Used by the startup checks that refuse anything old
+    static std::string walletVersionName(WalletVersion version);
 
 
 private:
@@ -60,6 +64,9 @@ private:
     long long _runTime = 0;
     unsigned int _runCount = 0;
     WalletVersion _walletVersion = unknown;
+    ///set once the version came from getnetworkinfo.  The scriptPubKey sniffing below cannot tell
+    ///v9 from v8(both return scriptPubKey.address) so its answer must never win over the node's own
+    bool _walletVersionFromNode = false;
 
 public:
     WalletVersion coreVersion();

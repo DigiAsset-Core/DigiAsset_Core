@@ -78,10 +78,9 @@ int main(int argc, char* argv[]) {
 
     ///When updating bootstrap image change both values.   Reviewers make sure this value is only ever changed by trusted party
     const vector<string> oldBootstrapCIDs = {"QmVYaAEq5Whh1951RtRrBx1aFXiLuPoho4apRRa9tX6BDM","QmaAHM9ZPGDWjW2Y5HhVzRVKAyrWofjzkN7pCW1juKgizU"};
-    const bootStrap officialBootstrap[2]{
-            {"QmUUpXkcajwApumJ9KGz9nX7x1QmTQ4kTW4YzPc4HXqu4Z", 21505152},   //v7
-            {"QmUUpXkcajwApumJ9KGz9nX7x1QmTQ4kTW4YzPc4HXqu4Z", 21505152}    //v8
-    };
+    ///Only one image now that v9 is the sole supported wallet - there used to be one per wallet
+    ///generation, picked by walletVersion, which would have silently handed v9 nodes the v7 entry
+    const bootStrap officialBootstrap{"QmUUpXkcajwApumJ9KGz9nX7x1QmTQ4kTW4YzPc4HXqu4Z", 21505152};
 
     ///Files that every node keeps a copy of so they stay findable.  The storage pool only keeps asset
     ///metadata alive, and the bootstrap list only covers the images above, so anything else on ipfs
@@ -286,6 +285,13 @@ int main(int argc, char* argv[]) {
      * Get wallet version
      */
     DigiByteCore::WalletVersion walletVersion = dgb.coreVersion();
+    if (walletVersion < DigiByteCore::WalletVersion::v9) {
+        log->addMessage("DigiByte Core wallet " + DigiByteCore::walletVersionName(walletVersion) +
+                                " is no longer supported.  DigiAsset Core requires a v9 wallet or "
+                                "newer - upgrade DigiByte Core and restart.",
+                        Log::CRITICAL);
+        return -1;
+    }
 
     /*
      * Predownload database files if config files allow and database missing
@@ -297,9 +303,8 @@ int main(int argc, char* argv[]) {
             !utils::fileExists(dbFilename)) {              //if the chain database does not yet exist
         log->addMessage("Bootstraping Database.  This may take a while depending on how faster your internet is.");
         IPFS ipfs("config.cfg", false);
-        const auto bootstrap=(walletVersion==DigiByteCore::WalletVersion::v8)? officialBootstrap[1]: officialBootstrap[0];
-        ipfs.downloadFile(bootstrap.cid, dbFilename, true);
-        pauseHeight = bootstrap.height+2;
+        ipfs.downloadFile(officialBootstrap.cid, dbFilename, true);
+        pauseHeight = officialBootstrap.height+2;
     }
 
     //make sure if we predownloaded data from ipfs that the wallet is synced past the point image was syned to
@@ -326,8 +331,8 @@ int main(int argc, char* argv[]) {
                     "██ ██  ██ ██ ██      ██    ██ ██  ██  ██ ██      ██   ██    ██    ██ ██   ██ ██      ██      \n"
                     "██ ██   ████  ██████  ██████  ██      ██ ██      ██   ██    ██    ██ ██████  ███████ ███████ \n"
                     "                                                                                             \n"
-                    " DigiByte Core Wallet " << (walletVersion==DigiByteCore::WalletVersion::v7?"7.17.3 or older":"8.22.0 or newer") << " detected. \n"
-                    " Database compatible with " << (compatibleWalletVersion==DigiByteCore::WalletVersion::v7?"7.17.3 or older":"8.22.0 or newer") << "\n"
+                    " DigiByte Core Wallet " << DigiByteCore::walletVersionName(walletVersion) << " detected. \n"
+                    " Database compatible with " << DigiByteCore::walletVersionName(compatibleWalletVersion) << "\n"
                     " Change core version or delete chain.db and restart\n";
             return -1;
         }
@@ -343,9 +348,7 @@ int main(int argc, char* argv[]) {
     log->addMessage("Starting IPFS handler");
     IPFS ipfs("config.cfg");
     main->setIPFS(&ipfs);
-    for (const auto& bootstrap: officialBootstrap) {
-        ipfs.pin(bootstrap.cid);
-    }
+    ipfs.pin(officialBootstrap.cid);
     for (const auto& cid: officialPinnedCIDs) {
         ipfs.pin(cid);
     }
