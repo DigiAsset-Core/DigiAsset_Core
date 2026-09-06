@@ -1,0 +1,69 @@
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link rel="stylesheet" type="text/css" href="/css/style.css" />
+    </head>
+    <body>
+        <div class="document" id="reissueasset">
+            <h1 class="title">reissueasset</h1>
+            <!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+            <tt class="docutils literal">reissueasset</tt>
+            <p>
+                Issues more of an existing UNLOCKED asset. The wallet must
+                control the address the asset was originally issued from, and
+                that address must hold at least one DigiByte only UTXO (the
+                assetId is derived from the first input, so the reissuance
+                must spend from the issuer address - send a little DGB to it
+                first if it holds no coins). The reissuance reuses the
+                existing metadata and keeps the asset's current rules.
+            </p>
+            <div class="section" id="input">
+                <h2>Input Parameters</h2>
+                <p>
+                    <tt>asset</tt> (string or integer): assetId or assetIndex
+                    of the unlocked asset.
+                </p>
+                <p>
+                    <tt>amount</tt> (number or string): Additional assets to
+                    create in display units.
+                </p>
+                <p>
+                    <tt>options</tt> (object, optional):
+                </p>
+                <pre class="literal-block">
+{
+    "toAddress": "dgb1....",      // address or domain the new assets go to.
+    "dryrun": false               // when true builds the transaction and returns its cost
+                                  // (outputs, estimatedMinerFee, estimatedTotal) without
+                                  // broadcasting anything
+                                  // defaults to a new wallet address
+}
+</pre
+                >
+            </div>
+            <div class="section" id="output">
+                <h2>Output Format</h2>
+                <pre class="literal-block">
+{
+    "txid": "....",      // txid of the reissuance transaction
+    "assetId": "Ua...."  // id of the asset (same as the original)
+}
+</pre
+                >
+            </div>
+            <div class="section" id="examples">
+                <h2>Examples</h2>
+                <pre class="literal-block">
+digiasset_core-cli reissueasset "Ua4zrzWkUwojQT9vkr2aB7snw7czocjxv48Rd2" 100
+</pre
+                >
+                <pre class="literal-block">
+curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "reissueasset", "params": ["Ua4zrzWkUwojQT9vkr2aB7snw7czocjxv48Rd2", 100]}' -H 'content-type: text/plain;' http://127.0.0.1:14024/
+</pre
+                >
+            </div>
+        </div>
+    </body>
+</html>

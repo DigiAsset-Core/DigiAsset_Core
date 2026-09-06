@@ -557,9 +557,11 @@
 
             <h3>Wallet RPCs</h3>
             <p>
-                <strong>Note:</strong> the wallet RPCs are only available if
-                DigiByte Core was built with wallet support, which is the
-                default.
+                <strong>Note:</strong> DigiAsset Core requires DigiByte Core
+                to be built with wallet support (the default for official
+                releases). Wallet RPCs, along with the DigiAsset
+                issueasset/sendasset/getwalletbalances methods, will not work
+                if wallet support was disabled at compile time.
             </p>
             <div class="rpc_nav">
                 <li class="rpc_item">
@@ -1020,16 +1022,44 @@
                 </li>
                 <li class="rpc_item">
                     <a
-                        href="/rpc/getoldstreamkey.html"
+                        href="/rpc/getpsp.html"
                         class="reference external"
-                        >getoldstreamkey</a
+                        >getpsp</a
                     >
                 </li>
                 <li class="rpc_item">
                     <a
-                        href="/rpc/getpsp.html"
+                        href="/rpc/getrandom.html"
                         class="reference external"
-                        >getpsp</a
+                        >getrandom</a
+                    >
+                </li>
+                <li class="rpc_item">
+                    <a
+                        href="/rpc/getwalletbalances.html"
+                        class="reference external"
+                        >getwalletbalances</a
+                    >
+                </li>
+                <li class="rpc_item">
+                    <a
+                        href="/rpc/burnasset.html"
+                        class="reference external"
+                        >burnasset</a
+                    >
+                </li>
+                <li class="rpc_item">
+                    <a
+                        href="/rpc/issueasset.html"
+                        class="reference external"
+                        >issueasset</a
+                    >
+                </li>
+                <li class="rpc_item">
+                    <a
+                        href="/rpc/reissueasset.html"
+                        class="reference external"
+                        >reissueasset</a
                     >
                 </li>
                 <li class="rpc_item">
@@ -1079,6 +1109,20 @@
                         href="/rpc/resyncmetadata.html"
                         class="reference external"
                         >resyncmetadata</a
+                    >
+                </li>
+                <li class="rpc_item">
+                    <a
+                        href="/rpc/sendasset.html"
+                        class="reference external"
+                        >sendasset</a
+                    >
+                </li>
+                <li class="rpc_item">
+                    <a
+                        href="/rpc/sendmanyassets.html"
+                        class="reference external"
+                        >sendmanyassets</a
                     >
                 </li>
                 <li class="rpc_item">

@@ -6,6 +6,7 @@
 #include "Log.h"
 #include "RPC/Response.h"
 #include "RPC/Server.h"
+#include <csignal>
 #include <jsoncpp/json/value.h>
 
 namespace RPC {
@@ -19,6 +20,11 @@ namespace RPC {
             main->getIPFS()->stop();
             Log* log = Log::GetInstance();
             log->addMessage("Safe to shut down", Log::CRITICAL);
+
+            //hand the rest of the shutdown(stop RPC server, flush WAL, close db) to the
+            //main thread - same path as ctrl-c.  The response still goes out because the
+            //RPC worker pool is drained before the sockets close
+            std::raise(SIGTERM);
 
             //return response
             Response response;

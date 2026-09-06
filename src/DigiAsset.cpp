@@ -172,6 +172,45 @@ DigiAsset::DigiAsset(const getrawtransaction_t& txData, unsigned int height, uns
 }
 
 
+/**
+ * Creates a brand new asset that has not yet been written to chain.
+ * The assetId can not be known until the issuance transaction's first input has been chosen
+ * (see calculateAssetId) so it is left blank.
+ * @param cid - IPFS cid of the metadata(raw mode, sha256 based - see IPFS::addFile).  "" for no metadata
+ * @param count - number of assets to create in smallest divisible units
+ * @param divisibility - number of decimals(0-7, three bit field.  8 is reserved for the DigiByte pseudo asset)
+ * @param locked - true if no more can ever be issued
+ * @param aggregation - one of AGGREGABLE, HYBRID, DISPERSED
+ */
+DigiAsset::DigiAsset(const string& cid, uint64_t count, unsigned char divisibility, bool locked,
+                     unsigned char aggregation, const DigiAssetRules& rules) {
+    if (divisibility > 7) throw out_of_range("divisibility must be 0 to 7");
+    if (aggregation > DISPERSED) throw out_of_range("invalid aggregation type");
+    if (count == 0) throw out_of_range("count must be at least 1");
+    if (count > (uint64_t) 18014398509481983) throw out_of_range("count too large");
+    _cid = cid;
+    _count = count;
+    _divisibility = divisibility;
+    _locked = locked;
+    _aggregation = aggregation;
+    _heightCreated = 0;
+    _heightUpdated = 0;
+    _existingAsset = false;
+    _enableWrite = true;
+    _rules = rules;
+    if (locked) _rules.lock(); //locked assets can never have rewritable rules
+}
+
+/**
+ * Returns the issuance flags byte that gets encoded as the last byte of an issuance transaction
+ *      bit 7,6,5: divisibility
+ *      bit 4: locked
+ *      bit 3,2: aggregation
+ */
+unsigned char DigiAsset::getIssuanceFlags() const {
+    return (_divisibility << 5) | (_locked ? 0x10 : 0x00) | (_aggregation << 2);
+}
+
 DigiAsset::DigiAsset(uint64_t assetIndex, const string& assetId, const string& cid, const KYC& issuer,
                      const DigiAssetRules& rules,
                      unsigned int heightCreated, unsigned int heightUpdated, uint64_t amount) {
@@ -723,6 +762,22 @@ void DigiAsset::checkRulesPass(const vector<AssetUTXO>& inputs, const vector<Ass
         uint64_t exchangeRate = floor(db->getAcceptedExchangeRate(_rules.getRoyaltyCurrency(), height));
 
         //get the number of new recipients(assume 1 is change if more than 1 output)
+        //
+        //Starting at -1 is what drops the sender's change from the count, so change is never
+        //charged a royalty.  The floor below then stops the count reaching zero - without it a
+        //sender could route everything back to themselves as "change", move nothing on paper and
+        //owe nothing, which would make the royalty optional for anyone willing to shape their
+        //transaction that way.
+        //
+        //A complete burn has no outputs holding the asset, so the loop never runs and count stays
+        //wrapped at SIZE_MAX - the floor does not catch it because SIZE_MAX is not < 1.  The
+        //multiplication below then overflows into a figure nobody can pay, the rule fails, and
+        //every asset in the transaction is destroyed.  That is left alone deliberately: it is
+        //precisely what a complete burn asked for, so the error state is already the correct
+        //state and no arithmetic is spent steering around it.  A partial burn is different - it
+        //has a change output, so count is 1 and a royalty is genuinely owed, same as a send.
+        //
+        //See docs/asset-rules-and-burns.md
         size_t count = -1;
         for (const AssetUTXO& utxo: outputs) {
             for (const DigiAsset& asset: utxo.assets) {

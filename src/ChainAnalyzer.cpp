@@ -3,6 +3,7 @@
 //
 
 #include "ChainAnalyzer.h"
+#include "EventBroadcaster.h"
 #include "AppMain.h"
 #include "BitIO.h"
 #include "Config.h"
@@ -42,6 +43,7 @@ ChainAnalyzer::ChainAnalyzer() {
 
 ChainAnalyzer::~ChainAnalyzer() {
     stop();
+    watchdogStop(); //shutdownFunction does this on the normal path; belt and braces for the rest
 }
 
 /*
@@ -164,7 +166,6 @@ void ChainAnalyzer::setStoreNonAssetUTXO(bool shouldStore) {
     _storeNonAssetUTXOs = shouldStore;
 }
 
-
 /**
  * returns 0 if we should not prune right now otherwise returns height we can prune up to
  * @param height
@@ -218,15 +219,163 @@ void ChainAnalyzer::startupFunction() {
         //mark as has been pruned if we aren't keeping and database will not store them
         db->setBeenPrunedNonAssetUTXOHistory(true);
     }
+
+    //start watching for steps that never finish
+    watchdogStart();
 }
 
 void ChainAnalyzer::mainFunction() {
-    phaseRewind();
-    phaseSync();
+    try {
+        phaseRewind();
+        phaseSync();
+        _lastErrorMessage.clear(); //a pass that got through means whatever it was is over
+        _repeatErrorCount = 0;
+    } catch (const std::exception& e) {
+        handleSyncError(e.what());
+    } catch (...) {
+        handleSyncError("unknown error");
+    }
+}
+
+/**
+ * Handles a pass that ended in an error.
+ *
+ * A failure part way through leaves the thread loop to simply start the pass over.  The exception
+ * itself used to go nowhere - the thread pool drops it without looking - so an error that repeats
+ * forever was an invisible spin at full speed: one report had 3,851,461 rewind attempts logged and
+ * not one line saying what had gone wrong.  Say what happened, and slow down once it is clear the
+ * error is not going to clear on its own, so the node stays diagnosable instead of filling the disk.
+ *
+ * The retry itself is kept - a failure part way through a block is usually a passing condition and
+ * the next pass picks up where this one left off.
+ *
+ * @param message - what went wrong
+ */
+void ChainAnalyzer::handleSyncError(const string& message) {
+    Log* log = Log::GetInstance();
+
+    if (message == _lastErrorMessage) {
+        _repeatErrorCount++;
+    } else {
+        _lastErrorMessage = message;
+        _repeatErrorCount = 1;
+    }
+
+    if (_repeatErrorCount < REPEAT_ERRORS_BEFORE_PAUSE) {
+        log->addMessage("Chain analyzer error: " + message, Log::ERROR);
+        pause(1);
+        return;
+    }
+    if (_repeatErrorCount == REPEAT_ERRORS_BEFORE_PAUSE) {
+        //say it once at this point rather than every pass from here on
+        log->addMessage("Chain analyzer has hit the same error " + to_string(_repeatErrorCount) +
+                                " times in a row and is not getting past it: " + message +
+                                ".  Still retrying, now every " + to_string(REPEAT_FAILURE_PAUSE_SECONDS) + " seconds",
+                        Log::CRITICAL);
+    }
+    pause(REPEAT_FAILURE_PAUSE_SECONDS);
+}
+
+/**
+ * Waits, but gives up as soon as a shutdown is requested so a pause can never hold up an exit
+ * @param seconds - how long to wait for
+ */
+void ChainAnalyzer::pause(unsigned int seconds) {
+    for (unsigned int i = 0; i < seconds * 2; i++) {
+        if (stopRequested()) return;
+        this_thread::sleep_for(chrono::milliseconds(500));
+    }
 }
 
 void ChainAnalyzer::shutdownFunction() {
     _state = STOPPED;
+    watchdogStop();
+}
+
+/*
+██╗    ██╗ █████╗ ████████╗ ██████╗██╗  ██╗██████╗  ██████╗  ██████╗
+██║    ██║██╔══██╗╚══██╔══╝██╔════╝██║  ██║██╔══██╗██╔═══██╗██╔════╝
+██║ █╗ ██║███████║   ██║   ██║     ███████║██║  ██║██║   ██║██║  ███╗
+██║███╗██║██╔══██║   ██║   ██║     ██╔══██║██║  ██║██║   ██║██║   ██║
+╚███╔███╔╝██║  ██║   ██║   ╚██████╗██║  ██║██████╔╝╚██████╔╝╚██████╔╝
+ ╚══╝╚══╝ ╚═╝  ╚═╝   ╚═╝    ╚═════╝╚═╝  ╚═╝╚═════╝  ╚═════╝  ╚═════╝
+ */
+
+long long ChainAnalyzer::steadySeconds() {
+    return chrono::duration_cast<chrono::seconds>(chrono::steady_clock::now().time_since_epoch()).count();
+}
+
+void ChainAnalyzer::watchdogStart() {
+    if (_watchdogRunning) return;
+    _watchdogRunning = true;
+    _watchdogThread = std::thread(&ChainAnalyzer::watchdogTask, this);
+}
+
+void ChainAnalyzer::watchdogStop() {
+    _watchdogRunning = false;
+    if (_watchdogThread.joinable()) _watchdogThread.join();
+}
+
+/**
+ * Records what the analyzer is about to do so the watchdog can name it if it never comes back
+ * @param step - human readable description, eg "block 24081128 transaction abc123..."
+ */
+void ChainAnalyzer::watchdogWorkingOn(const string& step) {
+    {
+        lock_guard<mutex> lock(_watchdogMutex);
+        _watchdogStep = step;
+    }
+    _watchdogSince = steadySeconds();
+}
+
+/**
+ * Says the analyzer is deliberately doing nothing(waiting for a new block, or shutting down)
+ * so the watchdog stays quiet
+ */
+void ChainAnalyzer::watchdogIdle() {
+    _watchdogSince = 0;
+}
+
+/**
+ * Complains whenever a single step has been running for longer than _stallWarningSeconds, and
+ * again every _stallWarningSeconds after that for as long as it keeps running.
+ *
+ * Everything the analyzer logs is written after a block completes, so a step that blocks forever
+ * produces no output at all - which is what a node stuck on a single issuance looked like from
+ * the outside.  The message names the block and transaction so the cause can actually be found.
+ */
+void ChainAnalyzer::watchdogTask() {
+    Log* log = Log::GetInstance();
+    long long warnedForSince = 0;
+    long long nextWarnAfter = _stallWarningSeconds;
+
+    while (_watchdogRunning) {
+        this_thread::sleep_for(chrono::milliseconds(200));
+
+        long long since = _watchdogSince;
+        if (since == 0) continue; //idle on purpose
+
+        //a different step than the one last warned about starts the count over
+        if (since != warnedForSince) {
+            warnedForSince = since;
+            nextWarnAfter = _stallWarningSeconds;
+        }
+
+        long long elapsed = steadySeconds() - since;
+        if (elapsed < nextWarnAfter) continue;
+        nextWarnAfter = elapsed + _stallWarningSeconds;
+        _stallWarnings++;
+
+        string step;
+        {
+            lock_guard<mutex> lock(_watchdogMutex);
+            step = _watchdogStep;
+        }
+        log->addMessage("Still working on " + step + " after " + to_string(elapsed) +
+                                " seconds.  Sync is not frozen, it is waiting on something outside the node - "
+                                "usually the IPFS daemon, DigiByte Core, or a storage pool server",
+                        Log::WARNING);
+    }
 }
 
 /*
@@ -240,7 +389,7 @@ void ChainAnalyzer::shutdownFunction() {
 
 void ChainAnalyzer::phaseRewind() {
     Log* log = Log::GetInstance();
-    log->addMessage("Rewinding Phase Started");
+    watchdogWorkingOn("rewinding from height " + to_string(_height));
 
     AppMain* main = AppMain::GetInstance();
     Database* db = main->getDatabase();
@@ -251,6 +400,9 @@ void ChainAnalyzer::phaseRewind() {
     //check if we need to rewind
     string hash = dgb->getBlockHash(_height);
     if (hash != _nextHash) {
+        //only say so when there is really something to rewind.  Every pass comes through here, so
+        //saying it up front turned a pass that kept failing into millions of meaningless lines
+        log->addMessage("Rewinding Phase Started");
         _state = ChainAnalyzer::REWINDING;
 
         //rewind until correct
@@ -272,6 +424,23 @@ void ChainAnalyzer::phaseRewind() {
         //delete all data above & including _height
         db->clearBlocksAboveHeight(_height);
         log->addMessage("Rewinding Phase Ended");
+
+        //a chain that keeps reorganising back to the same height is either a very busy fork or
+        //something undoing the same work over and over.  Rewinds are normal so the first few are
+        //left alone, but past that stop hammering the node and the disk
+        if (static_cast<unsigned int>(_height) == _lastRewindHeight) {
+            _repeatRewindCount++;
+        } else {
+            _lastRewindHeight = _height;
+            _repeatRewindCount = 1;
+        }
+        if (_repeatRewindCount > REWINDS_TO_SAME_HEIGHT_BEFORE_PAUSE) {
+            log->addMessage("Rewound to height " + to_string(_height) + " " + to_string(_repeatRewindCount) +
+                                    " times in a row.  Waiting " + to_string(REPEAT_FAILURE_PAUSE_SECONDS) +
+                                    " seconds before carrying on",
+                            Log::WARNING);
+            pause(REPEAT_FAILURE_PAUSE_SECONDS);
+        }
     }
 }
 
@@ -283,6 +452,7 @@ void ChainAnalyzer::phaseSync() {
     DigiByteCore* dgb = main->getDigiByteCore();
 
     //start syncing
+    watchdogWorkingOn("looking up block " + to_string(_height) + " in DigiByte Core");
     string hash = dgb->getBlockHash(_height);
     bool fastMode = false;
     chrono::steady_clock::time_point beginTime;
@@ -322,11 +492,23 @@ void ChainAnalyzer::phaseSync() {
 
         //process each tx in block
         if (shouldStoreNonAssetUTXO() || (_height >= 8432316)) { //only non asset utxo below this height
-            for (string& tx: blockData.tx)
+            for (string& tx: blockData.tx) {
+                //named here rather than per block: an issuance whose metadata the ipfs node
+                //can not produce blocks on one transaction, and that is the one worth printing
+                watchdogWorkingOn("block " + to_string(blockData.height) + " transaction " + tx);
                 processTX(tx, blockData.height);
+            }
+        }
+
+        if (!fastMode) {
+            //near the tip: let event stream subscribers know a block was processed
+            EventBroadcaster::GetInstance()->broadcast(
+                    "{\"event\":\"newBlock\",\"height\":" + to_string(_height) +
+                    ",\"blocksBehind\":" + to_string(0 - _state) + "}");
         }
 
         if (endBatch && inTransaction) {
+            watchdogWorkingOn("writing block " + to_string(blockData.height) + " to the database");
             db->endTransaction();
             inTransaction = false;
         }
@@ -386,7 +568,11 @@ void ChainAnalyzer::phaseSync() {
         phasePrune();
 
         //if fully synced pause until new block
+        watchdogIdle(); //waiting for the chain to move is not a stall
         while (blockData.nextblockhash.empty()) {
+            //a new block can be minutes away - don't hold up shutdown waiting for one
+            if (stopRequested()) return;
+
             //see if any performance indexes need to be added(do before marking as synced will set state to BUSY if there is anything to do)
             db->executePerformanceIndex(_state);
 
@@ -414,6 +600,7 @@ void ChainAnalyzer::phaseSync() {
 
         //get what actually is the next block(we check both ways because if they don't match there was a rollback)
         _height++;
+        watchdogWorkingOn("looking up block " + to_string(_height) + " in DigiByte Core");
         hash = dgb->getBlockHash(_height);
         blockData = dgb->getBlock(hash);
 
@@ -421,6 +608,7 @@ void ChainAnalyzer::phaseSync() {
         db->insertBlock(blockData.height, blockData.hash, blockData.time, blockData.algo, blockData.difficulty);
     }
     if (inTransaction) db->endTransaction();
+    watchdogIdle();
 }
 
 void ChainAnalyzer::phasePrune() {
@@ -492,6 +680,43 @@ void ChainAnalyzer::processTX(const string& txid, unsigned int height) {
     duration = std::chrono::steady_clock::now() - startTime;
     _clearAddressCacheRunTime += std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
     _clearAddressCacheRunCount++;
+
+    //let event stream subscribers know about asset activity.  Only asset bearing
+    //transactions get events so there is no firehose during initial sync
+    if (tx.isIssuance() || tx.isTransfer(true) || tx.isBurn(true)) {
+        EventBroadcaster* events = EventBroadcaster::GetInstance();
+
+        //unique list of asset ids involved(inputs too - a full burn has no asset outputs)
+        vector<string> assetIds;
+        for (size_t i = 0; i < inputCount; i++) {
+            for (const DigiAsset& asset: tx.getInput(i).assets) assetIds.emplace_back(asset.getAssetId());
+        }
+        for (size_t i = 0; i < outputCount; i++) {
+            for (const DigiAsset& asset: tx.getOutput(i).assets) assetIds.emplace_back(asset.getAssetId());
+        }
+        sort(assetIds.begin(), assetIds.end());
+        assetIds.erase(unique(assetIds.begin(), assetIds.end()), assetIds.end());
+        string assetIdJson;
+        for (const string& id: assetIds) {
+            if (!assetIdJson.empty()) assetIdJson += ",";
+            assetIdJson += "\"" + id + "\"";
+        }
+
+        string type = tx.isIssuance() ? "assetIssued" : (tx.isBurn(true) ? "assetBurn" : "assetTransfer");
+        events->broadcast("{\"event\":\"" + type + "\",\"assetIds\":[" + assetIdJson +
+                          "],\"txid\":\"" + txid + "\",\"height\":" + to_string(height) + "}");
+
+        //addresses whose holdings changed(list deduped above; asset ids and addresses
+        //are base58/bech32 so no json escaping needed)
+        string addressJson;
+        for (const string& address: addresses) {
+            if (address.empty()) continue;
+            if (!addressJson.empty()) addressJson += ",";
+            addressJson += "\"" + address + "\"";
+        }
+        events->broadcast("{\"event\":\"balanceChanged\",\"addresses\":[" + addressJson +
+                          "],\"txid\":\"" + txid + "\",\"height\":" + to_string(height) + "}");
+    }
 }
 
 

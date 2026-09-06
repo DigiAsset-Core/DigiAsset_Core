@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=DigiAsset Core Daemon
+GenericName=DigiAsset Node
+Comment=DigiAsset Core indexing daemon
+Exec=digiasset_core
+Icon=app_icon
+Categories=Office;Finance;Network;
+Terminal=true

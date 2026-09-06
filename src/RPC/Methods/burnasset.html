@@ -1,0 +1,67 @@
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link rel="stylesheet" type="text/css" href="/css/style.css" />
+    </head>
+    <body>
+        <div class="document" id="burnasset">
+            <h1 class="title">burnasset</h1>
+            <!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+            <tt class="docutils literal">burnasset</tt>
+            <p>
+                Permanently destroys DigiAssets held by the wallet. The burn is
+                written on chain so total supply verifiably drops. Any asset
+                change goes back to the wallet and the transaction fee is paid
+                in DigiByte. Requires DigiByte Core to be built with wallet
+                support and the wallet to be unlocked.
+            </p>
+            <div class="section" id="input">
+                <h2>Input Parameters</h2>
+                <p>
+                    <tt>asset</tt> (string or integer): assetId or assetIndex
+                    of the asset to burn. Assets that can have more than 1
+                    index (unlocked assets not starting with "L" or "Ua") must
+                    be referred to by assetIndex.
+                </p>
+                <p>
+                    <tt>amount</tt> (number or string): Amount to burn in
+                    display units. Burning "1.5" of an asset with 2 decimals
+                    burns 150 of the smallest unit.
+                </p>
+                <p>
+                    <tt>options</tt> (object, optional):
+                </p>
+                <pre class="literal-block">
+{
+    "changeAddress": "dgb1....",  // address asset change should go to.
+    "dryrun": false               // when true builds the transaction and returns its cost
+                                  // (outputs, estimatedMinerFee, estimatedTotal) without
+                                  // broadcasting anything
+                                  // defaults to a new wallet change address
+}
+</pre
+                >
+            </div>
+            <div class="section" id="output">
+                <h2>Output Format</h2>
+                <pre class="literal-block">
+txid (string) of the broadcast transaction
+</pre
+                >
+            </div>
+            <div class="section" id="examples">
+                <h2>Examples</h2>
+                <pre class="literal-block">
+digiasset_core-cli burnasset "La5x1DEP8J2XiViw9J7bhCFXVsJnfLDBBWo6aS" 5
+</pre
+                >
+                <pre class="literal-block">
+curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "burnasset", "params": ["La5x1DEP8J2XiViw9J7bhCFXVsJnfLDBBWo6aS", 5]}' -H 'content-type: text/plain;' http://127.0.0.1:14024/
+</pre
+                >
+            </div>
+        </div>
+    </body>
+</html>

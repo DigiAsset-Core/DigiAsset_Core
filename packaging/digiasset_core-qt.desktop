@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=DigiAsset Core
+GenericName=DigiAsset Wallet
+Comment=Wallet and explorer for DigiAssets on the DigiByte blockchain
+Exec=digiasset_core-qt
+Icon=app_icon
+Categories=Office;Finance;Network;
+Terminal=false

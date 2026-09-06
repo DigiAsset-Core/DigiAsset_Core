@@ -36,6 +36,9 @@ class DigiAssetRules {
     void decodeVoteAndExpiry(const getrawtransaction_t& txData, BitIO& dataStream, const std::string& cid);
     void decodeDeflation(const getrawtransaction_t& txData, BitIO& dataStream);
 
+    bool usesStandardVoteAddresses() const;
+    unsigned char standardExchangeRateIndex() const;
+
     friend void serialize(std::vector<uint8_t>& serializedData, const DigiAssetRules& input);
     friend void deserialize(const std::vector<uint8_t>& serializedData, size_t& i, DigiAssetRules& output);
 
@@ -90,9 +93,22 @@ public:
     void setRequireKYC(const std::vector<std::string>& countries,
                        bool banList = false); //sets countries allowed to hold(optionally countries not allowed)
     void setRoyalties(const std::vector<Royalty>& royalties, const ExchangeRate& rate = {});
-    void setVote(const std::vector<VoteOption>& voteOptions, uint64_t expiry = EXPIRE_NEVER);
+    void setVote(const std::vector<VoteOption>& voteOptions, uint64_t expiry = EXPIRE_NEVER,
+                 bool movable = true); //movable=false means asset may ONLY be sent to vote addresses
     void setExpiry(uint64_t expiry);
     void setDeflationary(uint64_t deflateRate);
+
+    //encoding(inverse of the chain decode constructor above)
+    struct RuleOutput {
+        std::string address;
+        uint64_t sats;
+    };
+    //outputs the issuance transaction must include for these rules to be encodable.  Add them
+    //to the transaction contiguously and pass the vout index of the first one to encode()
+    std::vector<RuleOutput> getRequiredOutputs() const;
+    //appends the rules bitstream(rule nibbles, end marker, 1-padding to byte boundary).
+    //firstRuleOutput = vout index of the first output from getRequiredOutputs()
+    void encode(BitIO& stream, unsigned int firstRuleOutput) const;
 
     //comparators
     bool operator==(const DigiAssetRules& b); //needed for testing class

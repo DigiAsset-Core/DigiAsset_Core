@@ -5,6 +5,7 @@
 #include "AppMain.h"
 #include "RPC/Response.h"
 #include "RPC/Server.h"
+#include <cmath>
 #include <jsoncpp/json/value.h>
 
 namespace RPC {
@@ -34,7 +35,29 @@ namespace RPC {
                 }
 
                 Database* db = AppMain::GetInstance()->getDatabase();
-                AssetUTXO assetInputData = db->getAssetUTXO(params[0].asString(), params[1].asUInt());
+                AssetUTXO assetInputData;
+                try {
+                    assetInputData = db->getAssetUTXO(params[0].asString(), params[1].asUInt());
+                } catch (const Database::exceptionDataPruned& e) {
+                    //A plain output never gets a utxos row when storenonassetutxo=0, so this is
+                    //the normal answer for an ordinary coin rather than a sign the data is gone.
+                    //Core answered, so the output is unspent, and pruning only ever removes rows
+                    //of outputs that have been spent - so once the analyzer has passed its height
+                    //a missing row means "no assets".  Anything above that we genuinely can't say
+                    unsigned int utxoHeight = 0;
+                    if (coreInputData["confirmations"].isNumeric()) {
+                        unsigned int confirmations = coreInputData["confirmations"].asUInt();
+                        unsigned int chainHeight = AppMain::GetInstance()->getDigiByteCore()->getBlockCount();
+                        if ((confirmations > 0) && (confirmations <= chainHeight)) {
+                            utxoHeight = chainHeight - confirmations + 1;
+                        }
+                    }
+                    if (!db->isHeightIndexed(utxoHeight)) throw;
+                    assetInputData.txid = params[0].asString();
+                    assetInputData.vout = params[1].asUInt();
+                    assetInputData.digibyte = static_cast<uint64_t>(llround(coreInputData["value"].asDouble() * 100000000.0));
+                    assetInputData.assets.clear();
+                }
                 coreInputData["digibyte"] = static_cast<Json::UInt64>(assetInputData.digibyte);
 
                 Value jsonArray = Json::arrayValue;

@@ -9,15 +9,20 @@ option(BUILD_TEST "Build Tests" OFF)
 
 # Set compiler settings
 set(CMAKE_CXX_STANDARD 11)
-if(NOT MSVC)
+if(MSVC)
+    set(CMAKE_CXX_FLAGS "/W4 /EHsc")
+    add_definitions(-D_WIN32_WINNT=0x0601)   # Windows 7+
+    add_definitions(-DNOMINMAX)              # Prevent Windows.h min/max macros colliding with std::min/max
+    add_definitions(-DWIN32_LEAN_AND_MEAN)   # Trim unused Windows headers
+else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Wall")
 endif()
 
 # Set version number
-SET(MAJOR_VERSION 0)
-SET(MINOR_VERSION 3)
-SET(PATCH_VERSION 3)
-SET(SO_VERSION    0)
+SET(MAJOR_VERSION 1)
+SET(MINOR_VERSION 0)
+SET(PATCH_VERSION 0)
+SET(SO_VERSION    1)
 
 # Set output directory for binaries and libraries
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)  # For executables

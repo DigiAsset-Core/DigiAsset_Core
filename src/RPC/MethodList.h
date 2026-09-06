@@ -15,6 +15,7 @@ namespace RPC {
         extern const Response asyncclear(const Json::Value& params);
         extern const Response asyncget(const Json::Value& params);
         extern const Response asyncstart(const Json::Value& params);
+        extern const Response burnasset(const Json::Value& params);
         extern const Response debugwaittimes(const Json::Value& params);
         extern const Response getaddressholdings(const Json::Value& params);
         extern const Response getaddresskyc(const Json::Value& params);
@@ -26,11 +27,13 @@ namespace RPC {
         extern const Response getencryptedkey(const Json::Value& params);
         extern const Response getexchangerates(const Json::Value& params);
         extern const Response getipfscount(const Json::Value& params);
-        extern const Response getoldstreamkey(const Json::Value& params);
+        extern const Response getnewaddress(const Json::Value& params);
         extern const Response getpsp(const Json::Value& params);
         extern const Response getrandom(const Json::Value& params);
         extern const Response getrawtransaction(const Json::Value& params);
         extern const Response gettxout(const Json::Value& params);
+        extern const Response getwalletbalances(const Json::Value& params);
+        extern const Response issueasset(const Json::Value& params);
         extern const Response listaddresshistory(const Json::Value& params);
         extern const Response listassetissuances(const Json::Value& params);
         extern const Response listassets(const Json::Value& params);
@@ -38,9 +41,12 @@ namespace RPC {
         extern const Response listlastassetspageindexes(const Json::Value& params);
         extern const Response listlastblocks(const Json::Value& params);
         extern const Response listunspent(const Json::Value& params);
+        extern const Response reissueasset(const Json::Value& params);
         extern const Response resyncmetadata(const Json::Value& params);
         extern const Response send(const Json::Value& params);
+        extern const Response sendasset(const Json::Value& params);
         extern const Response sendmany(const Json::Value& params);
+        extern const Response sendmanyassets(const Json::Value& params);
         extern const Response sendtoaddress(const Json::Value& params);
         extern const Response shutdown(const Json::Value& params);
         extern const Response syncstate(const Json::Value& params);

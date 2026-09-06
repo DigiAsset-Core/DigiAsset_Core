@@ -85,6 +85,7 @@ class Database {
 private:
     sqlite3* _db = nullptr;
     sqlite3* _dbCheckpoint = nullptr; //second connection used exclusively for WAL checkpointing (avoids SQLITE_LOCKED on same-connection cursors)
+    std::string _fileName;      //what the database was opened as, for the sidecar cleanup below
     int _transactionDepth = 0;
     Statement _stmtCheckFlag;
     Statement _stmtSetFlag;
@@ -98,6 +99,7 @@ private:
     Statement _stmtAddWatchAddress;
     Statement _stmtGetSpendingAddress;
     Statement _stmtAddExchangeRate;
+    Statement _stmtReplaceExchangeRate;
     Statement _stmtAddKYC;
     Statement _stmtRevokeKYC;
     Statement _stmtPruneUTXOs;
@@ -192,6 +194,7 @@ public:
         result += printStatementInfo("_stmtAddWatchAddress", _stmtAddWatchAddress);
         result += printStatementInfo("_stmtGetSpendingAddress", _stmtGetSpendingAddress);
         result += printStatementInfo("_stmtAddExchangeRate", _stmtAddExchangeRate);
+        result += printStatementInfo("_stmtReplaceExchangeRate", _stmtReplaceExchangeRate);
         result += printStatementInfo("_stmtAddKYC", _stmtAddKYC);
         result += printStatementInfo("_stmtRevokeKYC", _stmtRevokeKYC);
         result += printStatementInfo("_stmtPruneUTXOs", _stmtPruneUTXOs);
@@ -406,6 +409,7 @@ public:
     void insertBlock(uint height, const std::string& hash, unsigned int time, unsigned char algo, double difficulty);
     std::string getBlockHash(uint height);
     uint getBlockHeight();
+    bool isHeightIndexed(unsigned int height); //true if the analyzer has finished processing height
     void clearBlocksAboveHeight(uint height);
     std::vector<BlockBasics> getLastBlocks(unsigned int limit, unsigned int start = std::numeric_limits<unsigned int>::max());
 

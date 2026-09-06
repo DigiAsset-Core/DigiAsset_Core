@@ -37,7 +37,6 @@ TEST(RPC_MethodList, methodMap_containsExpectedMethods) {
         "getencryptedkey",
         "getexchangerates",
         "getipfscount",
-        "getoldstreamkey",
         "getpsp",
         "getrandom",
         "getrawtransaction",

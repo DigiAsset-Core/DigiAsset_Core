@@ -78,6 +78,21 @@ TEST_F(DatabaseTest, insertMultipleBlocks_heightUpdates) {
     EXPECT_EQ(db->getBlockHeight(), 4u);
 }
 
+TEST_F(DatabaseTest, isHeightIndexed_onlyBelowNewestBlock) {
+    db->insertBlock(2, "0000000000000000000000000000000000000000000000000000000000000002", 1000, 1, 1.0);
+    db->insertBlock(3, "0000000000000000000000000000000000000000000000000000000000000003", 1001, 1, 1.0);
+
+    // the newest block in the database is the one about to be processed, so it is not done yet
+    EXPECT_TRUE(db->isHeightIndexed(2));
+    EXPECT_FALSE(db->isHeightIndexed(3));
+    EXPECT_FALSE(db->isHeightIndexed(4));
+}
+
+TEST_F(DatabaseTest, isHeightIndexed_zeroMeansUnknown) {
+    // 0 is what callers pass when they don't know when the output was created
+    EXPECT_FALSE(db->isHeightIndexed(0));
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // KYC table
 // ─────────────────────────────────────────────────────────────────────────────

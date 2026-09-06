@@ -41,10 +41,14 @@ public:
         } else if (errcode == Errors::ERROR_RPC_INTERNAL_ERROR && message.size() == 18) {
             this->code = errcode;
             this->msg = "Failed to authenticate successfully";
-            /* Miscellaneous error */
-        } else {
+            /* Wrapped DigiByte Core error — message is a bitcoin-style JSON blob */
+        } else if (containsErrorBlob(message)) {
             this->code = parseCode(message);
             this->msg = parseMessage(message);
+            /* Directly thrown error — keep the code and message as given */
+        } else {
+            this->code = errcode;
+            this->msg = message;
         }
     }
 
@@ -69,6 +73,15 @@ public:
         }
 
         return ret;
+    }
+
+    /* True if the message carries a bitcoin-style {"error":{...}} JSON blob
+       (the format jsonrpccpp produces when DigiByte Core rejects a call) */
+    bool containsErrorBlob(const std::string& in) {
+        Value root;
+        Reader reader;
+        std::string strJson = removePrefix(in, "INTERNAL_ERROR: : ");
+        return reader.parse(strJson.c_str(), root) && root.isObject() && root.isMember("error");
     }
 
     /* Auxiliary JSON parsing */
@@ -101,7 +114,7 @@ public:
         bool parsingSuccessful = reader.parse(strJson.c_str(), root);
         if (parsingSuccessful) {
             ret = removePrefix(root["error"]["message"].asString(), "Error: ");
-            ret[0] = toupper(ret[0]);
+            if (!ret.empty()) ret[0] = toupper(ret[0]);
         }
 
         return ret;

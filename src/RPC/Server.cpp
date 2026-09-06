@@ -3,6 +3,7 @@
 //
 
 #include "RPC/Server.h"
+#include "AcceptWaker.h"
 #include "AppMain.h"
 #include "Config.h"
 #include "DigiByteCore.h"
@@ -102,12 +103,7 @@ namespace RPC {
     }
 
     Server::~Server() {
-        // Wait for all threads in the pool to exit.
-        for (auto& thread: _thread_pool) {
-            if (thread.joinable()) {
-                thread.join();
-            }
-        }
+        stop();
     }
 
     void Server::run_thread() {
@@ -115,7 +111,26 @@ namespace RPC {
     }
 
     void Server::start() {
-        accept();
+        _acceptThread = std::thread([this] { accept(); });
+    }
+
+    /**
+     * Stops accepting connections, drains the worker pool and joins all threads.
+     * Safe to call more than once.  After stop() no thread of this Server touches
+     * shared state, so the rest of the app can be torn down.
+     */
+    void Server::stop() {
+        if (_stopRequested.exchange(true)) return;
+        boost::system::error_code ec;
+        //closing the acceptor does NOT unblock a thread already inside accept() - see AcceptWaker.h
+        wakeBlockedAccept(_acceptor);
+        _acceptor.close(ec);
+        if (_acceptThread.joinable()) _acceptThread.join();
+        _work.reset();
+        _io.stop();
+        for (auto& thread: _thread_pool) {
+            if (thread.joinable()) thread.join();
+        }
     }
 
     /*
@@ -129,7 +144,7 @@ namespace RPC {
 
     void Server::accept() {
         Log* log = Log::GetInstance();
-        while (true) {
+        while (!_stopRequested) {
             uint64_t callNumber = _callCounter++; // Get a unique identifier for this call
             try {
                 auto socket = std::make_shared<tcp::socket>(_io);
@@ -138,8 +153,10 @@ namespace RPC {
                 log->addMessage("RPC call #" + std::to_string(callNumber) + " added to que", Log::DEBUG);
                 boost::asio::post(_io, [this, socket, callNumber]() { this->handleConnection(socket, callNumber); });
             } catch (const std::exception& e) {
+                if (_stopRequested) break; //acceptor closed by stop()
                 log->addMessage("Unexpected exception in RPC call #" + std::to_string(callNumber) + ": " + e.what(), Log::DEBUG);
             } catch (...) {
+                if (_stopRequested) break;
                 log->addMessage("Unknown exception in RPC call #" + std::to_string(callNumber), Log::DEBUG);
             }
         }
@@ -173,7 +190,9 @@ namespace RPC {
                 error = true;
             } catch (const std::exception& e) {
                 log->addMessage("Unexpected exception in RPC call #" + std::to_string(callNumber) + ": " + e.what(), Log::DEBUG);
-                response = createErrorResponse(RPC_MISC_ERROR, "Unexpected Error", request);
+                //surface the real reason - "Unexpected Error" alone cost hours of debugging
+                //(the detail used to exist only at DEBUG log level)
+                response = createErrorResponse(RPC_MISC_ERROR, std::string("Unexpected Error: ") + e.what(), request);
                 error = true;
             } catch (...) {
                 log->addMessage("Unknown exception in RPC call #" + std::to_string(callNumber), Log::DEBUG);

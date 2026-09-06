@@ -6,6 +6,7 @@ bin/cache/*
 bin/stream/*
 build
 build/*
+build-*/
 src/Version.h
 config.cfg
 debug.log
@@ -13,3 +14,5 @@ debug.log
 tests/testFiles/assetTest.*
 tests/testFiles/rpcTest.*
 !*/.gitkeep
+.DS_Store
+config.cfg.local

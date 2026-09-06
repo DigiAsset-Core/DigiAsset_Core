@@ -368,4 +368,26 @@ TEST_F(RPCMethodsTest, getassetdata) {
     } catch (...) {
         EXPECT_TRUE(false);
     }
+
+    //test a pruning node still returns the asset, just without the initial supply.
+    //initialCount is worked out from issuance outputs that pruning removes, and it used to take
+    //the whole call down with it - so an asset listassets had just returned came back as pruned
+    int originalPruneFlag=-1; //-1 is the never pruned value so it is a safe restore either way
+    try {
+        originalPruneFlag=db->getBeenPrunedUTXOHistory();
+    } catch (...) {}
+    db->setBeenPrunedUTXOHistory(1000000);
+    try {
+        Json::Value params=Json::arrayValue;
+        params.append(245);
+        params.append(true); //skip IPFS so this stays a database only test
+        auto results=RPC::methods[METHOD](params).toJSON(1)["result"];
+        EXPECT_TRUE(results.isObject());
+        EXPECT_EQ(results["assetId"].asString(),"La3LdaAT4PEYsN4qZ2vnjdeWbE6hY7VrMZHYBU");
+        EXPECT_EQ(results["count"].asUInt64(),20999397);
+        EXPECT_FALSE(results.isMember("initialCount"));
+    } catch (...) {
+        EXPECT_TRUE(false);
+    }
+    db->setBeenPrunedUTXOHistory(originalPruneFlag);
 }

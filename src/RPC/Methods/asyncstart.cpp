@@ -15,7 +15,11 @@
 namespace RPC {
     namespace Methods {
         namespace {
-            UniqueTaskQueue _taskQueue;
+            //heap allocated and never destroyed: the detached processing thread waits on
+            //the queue's condition variable even while the process exits - destroying the
+            //queue under it is undefined behaviour(this was the intermittent "mutex lock
+            //failed" crash at test-suite exit)
+            UniqueTaskQueue& _taskQueue = *new UniqueTaskQueue();
             std::atomic<bool> _processingThreadStarted{false};
         } // namespace
 

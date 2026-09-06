@@ -7,6 +7,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <stdexcept>
 #include <thread>
 
 using namespace std;
@@ -122,4 +123,100 @@ TEST(Threaded, stopRequested_becomesTrueAfterStop) {
     // After the thread has seen the stop request, sawStopRequest may be set
     // This is a best-effort check — the main loop exits on stopRequested()
     SUCCEED(); // just verify no crash; stop() blocks until thread ends
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// A mainFunction that throws
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// std::async parks the exception in the future and the future's destructor throws it away, so
+// an error escaping mainFunction() used to leave no trace whatsoever - an IPFS worker or the
+// analyzer failing on every pass looked exactly like one that was idle.  _reportResult now
+// collects each finished task and logs what went wrong.  That means it also has to swallow the
+// exception itself: letting one escape _threadFunction would call std::terminate and take the
+// whole daemon down, so these two tests pin both halves of that.
+
+class ThrowingThread : public Threaded {
+public:
+    atomic<int> mainCount{0};
+
+protected:
+    void mainFunction() override {
+        mainCount++;
+        this_thread::sleep_for(chrono::milliseconds(5));
+        throw runtime_error("deliberate failure from a test");
+    }
+};
+
+class ThrowingNonStandardThread : public Threaded {
+public:
+    atomic<int> mainCount{0};
+
+protected:
+    void mainFunction() override {
+        mainCount++;
+        this_thread::sleep_for(chrono::milliseconds(5));
+        throw 42; //not derived from std::exception
+    }
+};
+
+TEST(Threaded, mainFunctionThatThrows_keepsTheLoopAlive) {
+    ThrowingThread t;
+    t.start();
+    this_thread::sleep_for(chrono::milliseconds(100));
+    t.stop();
+
+    EXPECT_GT(t.mainCount.load(), 1) << "one failed pass must not stop the thread from trying again";
+}
+
+TEST(Threaded, mainFunctionThatThrowsNonStandardType_keepsTheLoopAlive) {
+    ThrowingNonStandardThread t;
+    t.start();
+    this_thread::sleep_for(chrono::milliseconds(100));
+    t.stop();
+
+    EXPECT_GT(t.mainCount.load(), 1) << "a non std::exception throw must be caught too, or the daemon terminates";
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// A startupFunction that throws
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// startupFunction() ran outside any try, and an exception leaving a std::thread's entry point
+// calls std::terminate - so a node whose DigiByte Core was not answering yet died on the spot
+// with nothing in the log.  It now logs and ends that one thread.  The thread it leaves behind
+// is still joinable, which is why start() and stop() both have to join it.
+
+class FailingStartupThread : public Threaded {
+public:
+    atomic<int> mainCount{0};
+
+protected:
+    void startupFunction() override {
+        throw runtime_error("deliberate startup failure from a test");
+    }
+
+    void mainFunction() override {
+        mainCount++;
+    }
+};
+
+TEST(Threaded, startupThatThrows_stopsThatThreadWithoutKillingTheProcess) {
+    FailingStartupThread t;
+    t.start();
+    this_thread::sleep_for(chrono::milliseconds(50));
+
+    EXPECT_NO_THROW(t.stop());
+    EXPECT_EQ(t.mainCount.load(), 0) << "the loop must not run when startup never completed";
+}
+
+TEST(Threaded, startAfterFailedStartup_doesNotCrash) {
+    FailingStartupThread t;
+    t.start();
+    this_thread::sleep_for(chrono::milliseconds(50));
+
+    //second start() has to join the thread the failed one left behind before replacing it
+    EXPECT_NO_THROW(t.start());
+    this_thread::sleep_for(chrono::milliseconds(50));
+    EXPECT_NO_THROW(t.stop());
 }

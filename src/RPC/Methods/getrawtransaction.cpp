@@ -25,20 +25,37 @@ namespace RPC {
             //get what core wallet has to say
             Json::Value rawTransactionData = AppMain::GetInstance()->getDigiByteCore()->sendcommand("getrawtransaction", params);
 
-            //handle core version 8.22
-            if (rawTransactionData.isObject()) {//todo delete this whole section
+            //handle core version 8.22 which dropped some fields
+            if (rawTransactionData.isObject()) {
                 for (Json::ValueIterator it = rawTransactionData["vout"].begin(); it != rawTransactionData["vout"].end(); it++) {
                     Json::Value& val = *it;
-                    if (val["scriptPubKey"].isMember("address")) {
-                        // Create an array and add the address value to it
+                    Json::Value& spk = val["scriptPubKey"];
+
+                    //8.22 uses singular "address" instead of "addresses" array
+                    if (spk.isMember("address")) {
                         Json::Value addresses(Json::arrayValue);
-                        addresses.append(val["scriptPubKey"]["address"]);
+                        addresses.append(spk["address"]);
+                        spk["addresses"] = addresses;
+                        spk.removeMember("address");
+                    }
 
-                        // Set the new "addresses" field
-                        val["scriptPubKey"]["addresses"] = addresses;
-
-                        // Remove the original "address" field
-                        val["scriptPubKey"].removeMember("address");
+                    //8.22 dropped reqSigs — reconstruct from script type
+                    if (!spk.isMember("reqSigs") && spk.isMember("type")) {
+                        std::string type = spk["type"].asString();
+                        unsigned int reqSigs = 0;
+                        if (type == "pubkeyhash" || type == "scripthash" ||
+                            type == "witness_v0_keyhash" || type == "witness_v0_scripthash" ||
+                            type == "pubkey") {
+                            reqSigs = 1;
+                        } else if (type == "multisig" && spk.isMember("asm")) {
+                            //multisig ASM starts with "M OP_..." where M is reqSigs count
+                            std::string asm_ = spk["asm"].asString();
+                            size_t space = asm_.find(' ');
+                            if (space != std::string::npos) {
+                                try { reqSigs = std::stoul(asm_.substr(0, space)); } catch (...) {}
+                            }
+                        }
+                        spk["reqSigs"] = reqSigs;
                     }
                 }
             }

@@ -4,11 +4,14 @@
 
 #include "Log.h"
 
-std::mutex Log::_mutex;
+std::mutex& Log::getLock() {
+    static std::mutex* mutex = new std::mutex; //intentionally leaked - see header
+    return *mutex;
+}
 Log* Log::_pinstance = nullptr;
 
 Log* Log::GetInstance() {
-    std::lock_guard<std::mutex> lock(_mutex);
+    std::lock_guard<std::mutex> lock(getLock());
     if (_pinstance == nullptr) {
         _pinstance = new Log();
     }
@@ -16,7 +19,7 @@ Log* Log::GetInstance() {
 }
 
 Log* Log::GetInstance(const string& fileName) {
-    std::lock_guard<std::mutex> lock(_mutex);
+    std::lock_guard<std::mutex> lock(getLock());
     if (_pinstance == nullptr) {
         _pinstance = new Log();
     }
@@ -40,7 +43,7 @@ void Log::setMinLevelToFile(LogLevel level) {
 }
 
 void Log::addMessage(const string& message, LogLevel level) {
-    lock_guard<mutex> lock(_mutex);
+    lock_guard<mutex> lock(getLock());
 
     string logLevelStr;
     switch (level) {

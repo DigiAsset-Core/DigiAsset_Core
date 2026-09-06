@@ -1,0 +1,63 @@
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link rel="stylesheet" type="text/css" href="/css/style.css" />
+    </head>
+    <body>
+        <div class="document" id="sendmanyassets">
+            <h1 class="title">sendmanyassets</h1>
+            <!-- This file is licensed under the MIT License (MIT) available on
+http://opensource.org/licenses/MIT. -->
+            <tt class="docutils literal">sendmanyassets</tt>
+            <p>
+                Sends DigiAssets to several recipients in a single
+                transaction. The wallet automatically picks which asset UTXOs
+                to spend, sends all asset change back to the wallet and pays
+                the transaction fee in DigiByte. Requires DigiByte Core to be
+                built with wallet support and the wallet to be unlocked.
+            </p>
+            <div class="section" id="input">
+                <h2>Input Parameters</h2>
+                <p>
+                    <tt>sends</tt> (array): one entry per recipient, up to 31
+                    entries (protocol limit - asset outputs must sit in the
+                    first 32 outputs).
+                </p>
+                <pre class="literal-block">
+[{
+    "address": "dgb1....",        // recipient address or DigiByte domain
+    "asset": "La....",            // assetId or assetIndex.  unlocked assets
+                                  // not starting with "Ua" must use index
+    "amount": 5                   // amount in display units
+}, ...]
+</pre
+                >
+                <p>
+                    <tt>options</tt> (object, optional):
+                </p>
+                <pre class="literal-block">
+{
+    "changeAddress": "dgb1...."   // address asset change should go to.
+                                  // defaults to a new wallet change address
+}
+</pre
+                >
+            </div>
+            <div class="section" id="output">
+                <h2>Output Format</h2>
+                <pre class="literal-block">
+txid (string) of the broadcast transaction
+</pre
+                >
+            </div>
+            <div class="section" id="examples">
+                <h2>Examples</h2>
+                <pre class="literal-block">
+digiasset_core-cli sendmanyassets '[{"address":"dgb1qtqt4vrsjfnncr7wjvdvhw7evgzsyj39kaxhg6z","asset":"La5x1DEP8J2XiViw9J7bhCFXVsJnfLDBBWo6aS","amount":5},{"address":"dgb1qunxh378eltj2jrwza5sj9grvu5xud43vqvudwh","asset":5350,"amount":2}]'
+</pre
+                >
+            </div>
+        </div>
+    </body>
+</html>

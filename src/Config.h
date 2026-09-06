@@ -34,6 +34,7 @@ public:
     bool getBool(const string& key) const;
     bool getBool(const string& key, bool defaultValue) const;
     bool isKey(const string& key, unsigned char type = UNKNOWN) const;
+    vector<string> getPlaceholderKeys() const; //keys still holding the # placeholder from example.cfg
 
     map<string, string> getStringMap(const string& keyPrefix) const;
     map<string, int> getIntegerMap(const string& keyPrefix) const;

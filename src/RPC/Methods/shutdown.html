@@ -11,10 +11,11 @@
 http://opensource.org/licenses/MIT. -->
             <tt class="docutils literal">shutdown</tt>
             <p>
-                This command safely shuts down the DigiByte node's subsystems,
-                ensuring that all components such as the blockchain analyzer and
-                IPFS are properly stopped before closure. It logs a critical
-                message indicating it is safe to shut down the system.
+                This command safely shuts down DigiAsset Core: the blockchain
+                analyzer and IPFS subsystems are stopped, the database is
+                flushed and closed, and the daemon process exits cleanly after
+                this response is sent. Sending SIGINT (ctrl-c) or SIGTERM to
+                the daemon performs the same clean shutdown.
             </p>
             <div class="section" id="input">
                 <h2>Input Parameters</h2>

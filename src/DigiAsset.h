@@ -53,7 +53,6 @@ class DigiAsset {
     bool
     processIssuance(const getrawtransaction_t& txData, unsigned int height, unsigned char version, unsigned char opcode,
                     BitIO& dataStream);
-    std::string calculateAssetId(const vin_t& firstVin, uint8_t issuanceFlags) const;
     static std::vector<uint8_t> calcSimpleScriptPubKey(const vin_t& vinData);
     static void insertSRHash(const std::string& dataToHash, std::vector<uint8_t>& result, size_t startIndex);
     static void insertSRHash(std::vector<uint8_t> dataToHash, std::vector<uint8_t>& result, size_t startIndex);
@@ -74,6 +73,10 @@ public:
     DigiAsset() = default;
     DigiAsset(const getrawtransaction_t& txData, unsigned int height, unsigned char version,
               unsigned char opcode, BitIO& dataStream);
+
+    //constructor for building a brand new asset that is not yet on chain(see DigiByteTransaction::setIssuance)
+    DigiAsset(const std::string& cid, uint64_t count, unsigned char divisibility, bool locked,
+              unsigned char aggregation, const DigiAssetRules& rules = DigiAssetRules());
 
     //helper functions for preprocessing asset
     static void decodeAssetTxHeader(const getrawtransaction_t& txData, unsigned char& version, unsigned char& opcode,
@@ -116,6 +119,10 @@ public:
     bool isAggregable() const;
     bool isDispersed() const;
     bool isLocked() const;
+
+    //issuance encoding helpers(used when building new issuance transactions)
+    unsigned char getIssuanceFlags() const;
+    std::string calculateAssetId(const vin_t& firstVin, uint8_t issuanceFlags) const;
 
     //functions that can only be used on assets we own and can be edited(or new assets not on chain)
     void setOwned();

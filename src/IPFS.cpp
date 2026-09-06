@@ -7,6 +7,7 @@
 #include "Config.h"
 #include "CurlHandler.h"
 #include "Database.h"
+#include "Log.h"
 #include <fstream>
 #include <iostream>
 #include <regex>
@@ -63,8 +64,22 @@ IPFS::IPFS(const string& configFile, bool runStart) {
     _timeoutPin = config.getInteger("ipfstimeoutpin", 1200);
     _timeoutDownload = config.getInteger("ipfstimeoutdownload", 3600);
     _timeoutRetry = config.getInteger("ipfstimeoutretry", 3600);
+    _timeoutCommand = config.getInteger("ipfstimeoutcommand", 30);
     setMaxParallels(config.getInteger("ipfsparallel", 10));
     if (runStart) start();
+}
+
+IPFS::~IPFS() {
+    stop();
+}
+
+void IPFS::stop() {
+    //in flight requests can block for up to the pin/download timeout(minutes) and
+    //Threaded::stop() waits for every job thread - cut the requests short instead.
+    //Interrupted jobs fail like timeouts: still queued in the db, resumed on restart
+    CurlHandler::abortAllTransfers(true);
+    Threaded::stop();
+    CurlHandler::abortAllTransfers(false);
 }
 
 /*
@@ -110,6 +125,8 @@ void IPFS::mainFunction() {
                     (getSize(cid) < stoul(extra)) //within restrictions
             ) {
                 _command("pin/add/" + cid, {}, _timeoutPin * 1000);
+                std::lock_guard<std::mutex> lock(_pinnedCacheMutex);
+                _pinnedCache.insert(cid);
             }
         } catch (const exceptionTimeout& e) {
             //don't worry about failed pin
@@ -122,15 +139,20 @@ void IPFS::mainFunction() {
                     (getSize(cid) < stoul(extra)) //within restrictions
             ) {
                 _command("pin/rm/" + cid, {}, _timeoutPin * 1000);
+                std::lock_guard<std::mutex> lock(_pinnedCacheMutex);
+                _pinnedCache.erase(cid);
             }
         } catch (const exceptionTimeout& e) {
             //don't worry about failed pin
         }
     } else {
-        //figure out what the max time we should try to download the file for is
+        //figure out what the max time we should try to download the file for is.
+        //maxSleep 0 means the caller set no deadline of its own(every callOnDownload and pin job
+        //does), so this gets the full download timeout and keeps retrying - it must not be read
+        //as "give up immediately", or a file that simply takes a while to arrive is dropped
         unsigned int timeout = _timeoutDownload * 1000;
         bool lastTry = false;
-        if (maxSleep < timeout) {
+        if ((maxSleep > 0) && (maxSleep < timeout)) {
             timeout = maxSleep;
             lastTry = true;
         }
@@ -199,6 +221,44 @@ string IPFS::sha256ToCID(const string& hash) {
     return sha256ToCID(data);
 }
 
+/**
+ * Converts an IPFS cid back to the SHA256 hash of the file's content.
+ * This is the reverse of sha256ToCID and only works for base32 CIDv1 raw mode cids
+ * (the kind created by sha256ToCID and addFile).
+ * @param cid - base32 CIDv1 raw cid("b" followed by 58 base32 characters)
+ * @return - 64 character hex sha256 of the content
+ */
+string IPFS::cidToSha256(const string& cid) {
+    const string chars = "abcdefghijklmnopqrstuvwxyz234567";
+    if ((cid.length() != 59) || (cid[0] != 'b')) throw exceptionInvalidCID(cid);
+
+    //decode base 32
+    BitIO data;
+    for (size_t i = 1; i < cid.length(); i++) {
+        size_t pos = chars.find(cid[i]);
+        if (pos == string::npos) throw exceptionInvalidCID(cid);
+        data.appendBits(pos, 5);
+    }
+
+    //check header is CIDv1, raw codec, sha2-256, 32 byte digest
+    data.movePositionToBeginning();
+    if (data.getBits(32) != 0x01551220) throw exceptionInvalidCID(cid);
+
+    //return the 32 byte digest
+    return data.getHexString(64);
+}
+
+
+/**
+ * True if it has been long enough since the last warning of this kind to print another one
+ */
+bool IPFS::_shouldWarn(std::atomic<long long>& lastWarning) {
+    long long now = duration_cast<seconds>(steady_clock::now().time_since_epoch()).count();
+    long long last = lastWarning.load();
+    if ((last != 0) && (now - last < static_cast<long long>(WARNING_REPEAT_SECONDS))) return false;
+    lastWarning.store(now);
+    return true;
+}
 
 /**
  * Sends a command to the IPFS node and return result
@@ -210,19 +270,38 @@ string IPFS::sha256ToCID(const string& hash) {
  */
 string IPFS::_command(const string& command, const map<string, string>& data, unsigned int timeout, const string& outputPath) const {
     string url = _nodePrefix + command;
+    if (timeout == 0) timeout = _timeoutCommand * 1000; //never wait forever - see _timeoutCommand
     try {
         if (outputPath.empty()) return CurlHandler::post(url, data, timeout);
         CurlHandler::postDownload(url, outputPath, data, timeout);
     } catch (const CurlHandler::exceptionTimeout& e) {
+        //shutdown aborts every transfer, which arrives here looking exactly like a timeout
+        if (!stopRequested() && _shouldWarn(_lastTimeoutWarning)) {
+            Log::GetInstance()->addMessage(
+                    "IPFS node did not answer \"" + command + "\" within " + to_string(timeout / 1000) +
+                            " seconds.  Raise ipfstimeoutcommand if this is normal for your node",
+                    Log::WARNING);
+        }
         //replace CurlHandler error with IPFS error
         throw exceptionTimeout();
     } catch (const std::exception& e) {
-        if (string(e.what()) == "Couldn't connect to server") throw exceptionNoConnection();
+        if (string(e.what()) == "Couldn't connect to server") {
+            if (_shouldWarn(_lastOfflineWarning)) {
+                Log::GetInstance()->addMessage("Could not reach the IPFS node at " + _nodePrefix +
+                                                       " - asset metadata will not be processed until it is running",
+                                               Log::WARNING);
+            }
+            throw exceptionNoConnection();
+        }
         throw;
     }
     return "";
 }
 
+
+///these are small text responses from third party services, and there are three of them to
+///try, so a short limit is right - the point is to move on rather than to succeed
+static const unsigned int IP_LOOKUP_TIMEOUT_MS = 15000;
 
 /**
  * Gets the users current IP address
@@ -235,7 +314,8 @@ string IPFS::getIP() {
 
     for (const auto& url: ipSources) {
         try {
-            string ip = CurlHandler::get(url);
+            //bounded so one unresponsive lookup service does not stop us trying the next
+            string ip = CurlHandler::get(url, IP_LOOKUP_TIMEOUT_MS);
             if (ip.empty()) continue;
             return ip;
         } catch (const runtime_error& e) {
@@ -330,7 +410,7 @@ void IPFS::registerCallback(const string& callbackSymbol, const IPFSCallbackFunc
 */
 /**
  * Function to download data from IPFS and run a pre registered callback when done.
- * If sync is "" call back may be executed immediately if data already downloaded.
+ * The callback always runs on a job thread, never on the caller's.
  * Is sync provided will always execute all values with the same sync value in order.
  * @param cid - cid of file you want downloaded
  * @param sync - "" to specify order execution does not matter.  all values of same sync value otherwise executed in order added
@@ -346,19 +426,13 @@ void IPFS::callOnDownload(const string& cid, const string& sync, const string& e
 
     Database* db = AppMain::GetInstance()->getDatabase();
 
-    //check if we can do synchronously quickly
-    if (sync.empty() && isPinned(cid)) {
-        try {
-            string content = _command("cat/" + cid);
-            db->getIPFSCallback(callbackRegistry)(cid, extra, content, false);
-        } catch (...) {
-            //this function makes the request and does not wait for a response.
-            //If asynchronous exceptions can't be handled, so we will ignore if synchronous, so it responds the same both ways
-        }
-        return;
-    }
-
-    //add type download to database
+    //Always queue, never run it here.  There used to be a shortcut that fetched the content and
+    //ran the callback inline whenever the cid was already pinned, on the theory that local
+    //content is instant.  The content is - the callback is not: a storage pool callback sizes
+    //every file the metadata links to, and those are fetched from the network one at a time.
+    //Since the only callers of this are the chain analyzer processing an issuance, one asset
+    //whose linked files nobody is serving stopped the entire node on that block.  The job
+    //threads exist for exactly this work, so let them do it
     db->addIPFSJob(cid, sync, extra, maxTime, callbackRegistry);
 }
 
@@ -443,21 +517,47 @@ void IPFS::unpin(const string& cid) {
 
 
 bool IPFS::isPinned(const string& cid) const {
-    string results = _command("pin/ls/" + cid);
-    return (results.find("is not pinned") == string::npos);
+    std::lock_guard<std::mutex> lock(_pinnedCacheMutex);
+
+    //one bulk load instead of one HTTP round trip per lookup.  The cache is kept fresh
+    //by the pin/unpin job handlers, so the only misses are pins made by OTHER programs
+    //sharing the node - for those we just queue a download job which is still correct
+    if (!_pinnedCacheLoaded) {
+        try {
+            string results = _command("pin/ls?type=recursive");
+            Json::Value json;
+            Json::CharReaderBuilder rbuilder;
+            istringstream stream(results);
+            string errs;
+            if (Json::parseFromStream(rbuilder, stream, &json, &errs) && json.isMember("Keys")) {
+                for (const string& key: json["Keys"].getMemberNames()) {
+                    _pinnedCache.insert(key);
+                }
+            }
+            _pinnedCacheLoaded = true;
+        } catch (...) {
+            return false; //node not reachable - treat as not pinned, retry the load next call
+        }
+    }
+    return (_pinnedCache.count(cid) > 0);
 }
 
 unsigned int IPFS::getSize(const string& cid) const {
     if (!isValidCID(cid)) throw exceptionInvalidCID(cid);
     if (isLostCID(cid)) throw exceptionTimeout(); //well it would have timed out if we had let it
-    string stats = _command("object/stat?arg=" + cid);
+    //files/stat handles both dag-pb(Qm…) and raw-leaves(bafkrei…) cids.  object/stat was
+    //removed in kubo 0.40 so it failed for every cid on modern nodes.
+    //This is the one command here that is not a local lookup - working out CumulativeSize walks
+    //the whole dag, fetching any block the node does not have, so a large file on a slow link
+    //legitimately takes minutes.  It gets the download timeout, not the short command one
+    string stats = _command("files/stat?arg=/ipfs/" + cid, {}, _timeoutDownload * 1000);
     Json::Value json;
     Json::CharReaderBuilder rbuilder;
     istringstream s(stats);
     string errs;
     if (!Json::parseFromStream(rbuilder, s, &json, &errs)) throw out_of_range("No size data found");
 
-    if (json.isMember("CumulativeSize") && json["CumulativeSize"].isInt()) {
+    if (json.isMember("CumulativeSize") && json["CumulativeSize"].isNumeric()) {
         return json["CumulativeSize"].asUInt();
     }
     // Handle error case
@@ -474,8 +574,62 @@ unsigned int IPFS::getSize(const string& cid) const {
 void IPFS::downloadFile(const string& cid, const string& filePath, bool pinAlso) {
     if (!isValidCID(cid)) throw exceptionInvalidCID(cid);
     if (isLostCID(cid)) throw exceptionTimeout(); //well it would have timed out if we had let it
-    if (pinAlso) _command("pin/add/" + cid);
-    _command("cat?arg=" + cid, {}, 0, filePath);
+    //this is the one caller that legitimately waits a long time(bootstrap files), so it asks
+    //for the pin/download timeouts instead of the short default every other command gets
+    if (pinAlso) {
+        _command("pin/add/" + cid, {}, _timeoutPin * 1000);
+        std::lock_guard<std::mutex> lock(_pinnedCacheMutex);
+        _pinnedCache.insert(cid);
+    }
+    _command("cat?arg=" + cid, {}, _timeoutDownload * 1000, filePath);
+}
+
+/**
+ * Synchronously adds content to the IPFS node and returns its cid.
+ * The file is stored in raw mode with a sha2-256 hash so the returned cid is always a
+ * base32 CIDv1 that can be converted to/from the content's sha256 with cidToSha256/sha256ToCID.
+ * This is the storage mode DigiAsset issuance metadata must use(the sha256 gets encoded on chain).
+ * @param content - the file content to add(2MB max, raw mode limit)
+ * @param pinFile - defaults true.  Pin so the content is not garbage collected
+ * @return - cid of the added content
+ */
+string IPFS::addFile(const string& content, bool pinFile) const {
+    if (content.empty()) throw exception("Can not add empty content to IPFS");
+    if (content.length() > 2096896) throw exception("Content too large.  Raw mode has a 2MB limit");
+
+    //upload as multipart form data(chunker set to the maximum ipfs allows so the content is
+    //always a single raw block, which keeps cid == sha256(content))
+    string url = _nodePrefix + "add?raw-leaves=true&cid-version=1&hash=sha2-256&chunker=size-2096896&pin=" +
+                 (pinFile ? "true" : "false");
+    string response;
+    try {
+        response = CurlHandler::postFile(url, "file", "file", content, _timeoutPin * 1000);
+    } catch (const CurlHandler::exceptionTimeout& e) {
+        throw exceptionTimeout();
+    } catch (const std::exception& e) {
+        if (string(e.what()) == "Couldn't connect to server") throw exceptionNoConnection();
+        throw;
+    }
+
+    //parse response({"Name":"file","Hash":"b...","Size":"..."})
+    Json::Value root;
+    Json::Reader reader;
+    if (!reader.parse(response, root) || !root.isObject() || !root.isMember("Hash")) {
+        throw exception("Unexpected response from IPFS add: " + response);
+    }
+    string cid = root["Hash"].asString();
+
+    //mark as pinned in the cache immediately - without this, isPinned(cid) for content we
+    //just added ourselves incorrectly returns false(the cache doesn't know about it until the
+    //next full pin/ls reload, which may never happen again once loaded), so every caller that
+    //checks isPinned first(eg a storage pool costing its own just-published metadata) takes the
+    //slow path: queuing a download job behind whatever the async job queue is already working
+    //through, which can be tied up for a very long time on unrelated historical content
+    if (pinFile) {
+        std::lock_guard<std::mutex> lock(_pinnedCacheMutex);
+        _pinnedCache.insert(cid);
+    }
+    return cid;
 }
 
 /**

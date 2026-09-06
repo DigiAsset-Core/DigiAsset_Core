@@ -23,6 +23,8 @@ namespace jsonrpc {
     class Client;
 } // namespace jsonrpc
 
+class Config;
+
 class DigiByteCore {
 public:
     enum AddressTypes {
@@ -33,20 +35,28 @@ public:
 
     enum WalletVersion {
         unknown= 0,
-        v7=7,         //7 or less
-        v8=8          //8 or higher
+        v7=7,         //7.17.3 or older
+        v8=8,         //8.22.0 series
+        v9=9          //9 or newer - the only one this build supports
     };
+
+    ///Renders a WalletVersion for humans.  Used by the startup checks that refuse anything old
+    static std::string walletVersionName(WalletVersion version);
 
 
 private:
     std::unique_ptr<jsonrpc::HttpClient> httpClient = nullptr;
     std::unique_ptr<jsonrpc::Client> client = nullptr;
     uint64_t _dgbToSat(std::string value);
-    static std::mutex _mutex;
+    static std::mutex& getLock(); //never destroyed - safe to use during process exit
     bool _useAssetPort = false;
 
 
     std::string _configFileName = "config.cfg";
+    std::string _baseUrl;    //rpc url without any wallet on the end
+    std::string _walletName; //wallet the connection is pointed at.  empty=core picks
+
+    std::string selectWallet(const Config& config);
 
     template<typename fn_t>
     auto errorCheckAPI(fn_t fn) -> decltype(fn());
@@ -54,9 +64,19 @@ private:
     long long _runTime = 0;
     unsigned int _runCount = 0;
     WalletVersion _walletVersion = unknown;
+    ///set once the version came from getnetworkinfo.  The scriptPubKey sniffing below cannot tell
+    ///v9 from v8(both return scriptPubKey.address) so its answer must never win over the node's own
+    bool _walletVersionFromNode = false;
 
 public:
     WalletVersion coreVersion();
+
+    /**
+     * Version DigiByte Core reports through getnetworkinfo, eg 92605 for 9.26.5
+     * @return the version, or 0 if the node did not answer
+     */
+    int getNodeVersion();
+    std::string getWalletName() const; //wallet the connection is pointed at.  empty=core picks
 
 
     std::string printProfilingInfo() {
@@ -84,6 +104,10 @@ public:
 
     //functions that create connection
     void makeConnection(); //will throw an error if we can't connect
+
+    //overrides the http timeout set from config.cfg's rpctimeout(ms).  Useful for individual
+    //calls that are known to legitimately run long(eg issueasset's funding retries)
+    void setTimeout(unsigned int milliseconds);
 
     //config based getter
     std::string getFileName();

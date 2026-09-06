@@ -31,7 +31,10 @@ class DigiByteTransaction {
     std::vector<AssetUTXO> _outputs;
     DigiAsset _newAsset;
     unsigned char _txType = STANDARD; //must default to STANDARD since not set in code if STANDARD
-    bool _assetFound;
+    bool _assetFound = false;
+    unsigned int _ruleOutputsStart = 0; //vout index of the first rule output(see addRuleOutputs)
+    bool _ruleOutputsAdded = false;
+    std::vector<DigiAsset> _burns; //amounts destroyed by this tx(burn instructions target output 31)
     bool _unintentionalBurn = false;
     unsigned int _height;
     std::string _txid; //if set tx is not writable(existing)
@@ -62,6 +65,17 @@ class DigiByteTransaction {
     void decodeAssetTransfer(BitIO& dataStream, const std::vector<AssetUTXO>& inputAssets, uint8_t type);
     void checkRulesPass() const;
     void addAssetToOutput(size_t output, const DigiAsset& asset);
+
+    //new transaction building helpers
+    void checkWritable() const;
+    void buildTransferInstructions(BitIO& data) const;
+
+    friend class DigiByteTransactionBuilder_transferRoundTrip_Test;
+    friend class DigiByteTransactionBuilder_transferMultiAssetRoundTrip_Test;
+    friend class DigiByteTransactionBuilder_issuanceEncoding_Test;
+    friend class DigiByteTransactionBuilder_burnRoundTrip_Test;
+    friend class DigiByteTransactionBuilder_burnAllRoundTrip_Test;
+    friend class DigiByteTransactionBuilder_burnUnbalancedThrows_Test;
 
 public:
     explicit DigiByteTransaction();
@@ -96,8 +110,24 @@ public:
     unsigned int getOutputCount() const;
     unsigned int getHeight() const;
 
+    /*
+     * Functions for building a NEW transaction(not one already on chain).
+     * Typical usage(see RPC/Methods/sendasset.cpp and issueasset.cpp):
+     *   1) addInput() all asset bearing UTXOs being spent
+     *   2) addDigiAssetOutput()/addDigiByteOutput() for all desired outputs(asset outputs must be in first 32)
+     *   3) setIssuance() if creating a new asset
+     *   4) encodeAssetOpReturn() to get the OP_RETURN payload
+     *   5) fund/sign/send via the wallet(see AssetWallet helper)
+     */
+    bool isWritable() const;
+    void addInput(const AssetUTXO& utxo);
+    void setIssuance(const DigiAsset& asset);
     void addDigiByteOutput(const std::string& address, uint64_t amount);
     void addDigiAssetOutput(const std::string& address, const std::vector<DigiAsset>& assets);
+    void addAssetBurn(const std::vector<DigiAsset>& assets); //burns these amounts(marks the tx a burn)
+    void addRuleOutputs(); //adds the outputs the issued asset's rules require(call after all
+                           //asset outputs and before any other extra outputs, e.g. PSP fees)
+    std::string encodeAssetOpReturn() const;
 
     // Test helpers — not for production use
     void setHeightForTesting(unsigned int h) { _height = h; }

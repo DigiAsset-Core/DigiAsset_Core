@@ -7,7 +7,9 @@
 #include <QtCharts/QValueAxis>
 #include <QtCharts/QLineSeries>
 
-using namespace QtCharts;
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+using namespace QtCharts; //Qt6 moved the charts classes to the global namespace
+#endif
 using namespace std;
 
 PlotManager::PlotManager(QWidget *parent)

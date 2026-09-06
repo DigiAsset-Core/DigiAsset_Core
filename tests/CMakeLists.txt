@@ -17,16 +17,24 @@ find_package(jsoncpp CONFIG QUIET)
 find_package(JSONCPP QUIET)
 
 set(TESTS
+        AppMainTest.cpp
         BitIO.cpp
+        DigiByteDomainTest.cpp
+        LocalPoolTest.cpp
         DatabaseChain.cpp
         DigiByteCore.cpp
         IPFS.cpp
         Base58Tests.cpp
         DigiAssetTest.cpp
         DigiAssetRulesTest.cpp
+        AssetWalletRulesTest.cpp
         DigiAssetTransactionTest.cpp
+        DigiByteTransactionBuilderTest.cpp
+        DigiAssetRulesEncodeTest.cpp
         PermanentStoragePoolTest.cpp
+        PermanentStoragePoolListTest.cpp
         ConfigTest.cpp
+        EventBroadcasterTest.cpp
         KYCTest.cpp
         BlobTest.cpp
         UtilsTest.cpp
@@ -38,6 +46,8 @@ set(TESTS
         InstanceLockTest.cpp
         RPC_ResponseTest.cpp
         RPC_CacheTest.cpp
+        RPC_ServerTest.cpp
+        DigiByteExceptionTest.cpp
         Database_StatementTest.cpp
         DatabaseTest.cpp
         ChainAnalyzerTest.cpp

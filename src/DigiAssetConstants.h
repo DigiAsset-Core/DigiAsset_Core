@@ -9,6 +9,15 @@
 #include "DigiAssetTypes.h"
 namespace DigiAssetConstants {
 
+    /**
+     * Number of sats placed on outputs that carry assets when building new asset transactions.
+     * Must clear DigiByte Core's dust threshold or the wallet refuses to fund the tx
+     * ("Transaction amount too small"): v8.22 uses DUST_RELAY_TX_FEE=30000 sat/kvB, giving
+     * ~2940 sats for P2WPKH and ~5460 for P2PKH outputs.  10000 clears all standard types.
+     * (Historical on-chain asset txs carry 600 sats; that only matters when decoding.)
+     */
+    const uint64_t DIGIBYTE_DUST = 10000;
+
 
         /**
      * List of addresses that can be used for voting without hard encoding the addresses you wish to use in to the asset issuance.

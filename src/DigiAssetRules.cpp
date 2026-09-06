@@ -7,6 +7,7 @@
 #include "DigiAsset.h"
 #include "DigiAssetTypes.h"
 #include "DigiAssetConstants.h"
+#include "IPFS.h"
 #include "serialize.h"
 #include <algorithm>
 
@@ -551,10 +552,157 @@ void DigiAssetRules::setRoyalties(const vector<Royalty>& royalties, const Exchan
     _exchangeRate = rate;
 }
 
-void DigiAssetRules::setVote(const vector<VoteOption>& voteOptions, uint64_t expiry) {
+void DigiAssetRules::setVote(const vector<VoteOption>& voteOptions, uint64_t expiry, bool movable) {
     _noRules = false;
     _voteOptions = voteOptions;
     _expiry = expiry;
+    _movable = movable;
+}
+
+/**
+ * True when the vote options are exactly the standard vote addresses in order - those
+ * encode without needing outputs on the issuance transaction
+ */
+bool DigiAssetRules::usesStandardVoteAddresses() const {
+    if (_voteOptions.size() > DigiAssetConstants::standardVoteCount) return false;
+    for (size_t i = 0; i < _voteOptions.size(); i++) {
+        if (_voteOptions[i].address != DigiAssetConstants::standardVoteAddresses[i]) return false;
+    }
+    return true;
+}
+
+/**
+ * Returns the standard exchange rate index for the royalty currency.
+ * Custom exchange rate addresses can not be encoded on modern DigiByte: the protocol
+ * carries the tracker index as an output of 600+index sats, which is far below the
+ * v8.22 dust threshold, so such an issuance could never be relayed.
+ */
+unsigned char DigiAssetRules::standardExchangeRateIndex() const {
+    for (size_t i = 0; i < DigiAssetConstants::standardExchangeRatesCount; i++) {
+        if ((DigiAssetConstants::standardExchangeRates[i].address == _exchangeRate.address) &&
+            (DigiAssetConstants::standardExchangeRates[i].index == _exchangeRate.index)) {
+            return static_cast<unsigned char>(i);
+        }
+    }
+    throw exception("Royalty units must be one of the standard exchange rates(custom rate addresses would make the transaction unrelayable dust)");
+}
+
+/**
+ * Returns the outputs an issuance transaction must include for these rules to be
+ * encodable.  Add them to the transaction CONTIGUOUSLY, after the asset output(s), and
+ * pass the vout index of the first one to encode().  Order:
+ *   1 output per approval signer(address only - weights travel in the bitstream)
+ *   1 output per royalty recipient(the output VALUE is the royalty price in sats or
+ *     royalty-units*100000000 when units are set - must be at least the dust threshold)
+ *   1 output per custom vote address(the standard vote list encodes without outputs)
+ */
+vector<DigiAssetRules::RuleOutput> DigiAssetRules::getRequiredOutputs() const {
+    vector<RuleOutput> outputs;
+    if (_noRules) return outputs;
+
+    for (const Signer& signer: _signers) {
+        outputs.push_back(RuleOutput{signer.address, DigiAssetConstants::DIGIBYTE_DUST});
+    }
+
+    for (const Royalty& royalty: _royalties) {
+        if (royalty.amount < DigiAssetConstants::DIGIBYTE_DUST) {
+            throw exception("Royalty amounts below " + to_string(DigiAssetConstants::DIGIBYTE_DUST) +
+                            " sats can not be encoded(the output defining the price would be unrelayable dust)");
+        }
+        outputs.push_back(RuleOutput{royalty.address, royalty.amount});
+    }
+
+    if ((!_voteOptions.empty()) && (!usesStandardVoteAddresses())) {
+        for (const VoteOption& option: _voteOptions) {
+            outputs.push_back(RuleOutput{option.address, DigiAssetConstants::DIGIBYTE_DUST});
+        }
+    }
+    return outputs;
+}
+
+/**
+ * Appends the rules bitstream to an issuance OP_RETURN being built.  Exact inverse of
+ * the chain-decode constructor at the top of this file: rule nibbles in canonical order,
+ * 0xf end marker, then 1-padding to the byte boundary.
+ * The caller must already have added getRequiredOutputs() to the transaction starting at
+ * vout index firstRuleOutput.  The stream must be byte aligned on entry(it always is -
+ * everything before the rules section is whole bytes).
+ */
+void DigiAssetRules::encode(BitIO& stream, unsigned int firstRuleOutput) const {
+    if (_noRules) return;
+    unsigned int nextOutput = firstRuleOutput;
+    auto appendFixedPrecision = [&stream](uint64_t value) {
+        BitIO bits = BitIO::makeFixedPrecision(value);
+        stream.appendBits(bits);
+    };
+    auto append3B40 = [&stream](const string& text) {
+        BitIO bits = BitIO::make3B40String(text);
+        stream.appendBits(bits);
+    };
+
+    //approval - per-output form(output number+1 then weight, 0x00 terminator)
+    if (_signersRequired > 0) {
+        stream.appendBits(RULE_APPROVAL, 4);
+        appendFixedPrecision(_signersRequired);
+        for (const Signer& signer: _signers) {
+            appendFixedPrecision(nextOutput + 1); //+1 so first byte is never 0x00
+            appendFixedPrecision(signer.weight);
+            nextOutput++;
+        }
+        stream.appendBits(0, 8); //end of signer list
+    }
+
+    //royalties(nibble 9 when units are set falls through to the royalty range in decode)
+    if (!_royalties.empty()) {
+        if (_exchangeRate.enabled()) {
+            stream.appendBits(RULE_ROYALTY_UNITS, 4);
+            stream.appendBits(1, 1); //standard currency flag
+            stream.appendBits(standardExchangeRateIndex(), 7);
+        } else {
+            stream.appendBits(RULE_ROYALTIES, 4);
+        }
+        appendFixedPrecision(nextOutput);
+        appendFixedPrecision(_royalties.size());
+        nextOutput += _royalties.size();
+    }
+
+    //geofence(ban list may be empty = KYC required, any country)
+    if (_countryListIsBan || (!_countryList.empty())) {
+        stream.appendBits(_countryListIsBan ? RULE_GEOFENCE_DENIED : RULE_GEOFENCE_ALLOWED, 4);
+        for (const string& country: _countryList) {
+            if (country.length() != 3) throw exception("Country codes must be ISO 3166-1 alpha-3");
+            string lower = country;
+            std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+            append3B40(lower);
+        }
+        append3B40("..."); //0xf9ff end marker
+    }
+
+    //vote and/or expiry(share nibble 4.  decoder rejects either on rewritable assets)
+    if ((!_voteOptions.empty()) || expires()) {
+        if (_rewritable) throw exception("Votes and expiry can not be part of a rewritable rule asset");
+        if (_voteOptions.size() > 127) throw exception("Maximum 127 vote options");
+        stream.appendBits(RULE_VOTE, 4);
+        stream.appendBits(_movable ? 1 : 0, 1);
+        stream.appendBits(_voteOptions.size(), 7);
+        appendFixedPrecision(expires() ? _expiry : 0);
+        if (_voteOptions.empty() || usesStandardVoteAddresses()) {
+            appendFixedPrecision(0); //standard vote address list
+        } else {
+            appendFixedPrecision(nextOutput + 1); //start output+1
+            nextOutput += _voteOptions.size();
+        }
+    }
+
+    //deflation
+    if (_deflate != 0) {
+        stream.appendBits(RULE_DEFLATION, 4);
+        appendFixedPrecision(_deflate);
+    }
+
+    //end marker then pad to byte boundary with 1s
+    stream.appendBits(RULE_END, 4);
+    while (stream.getLength() % 8 != 0) stream.appendBits(1, 1);
 }
 
 void DigiAssetRules::setExpiry(uint64_t expiry) {
@@ -678,11 +826,20 @@ Json::Value DigiAssetRules::toJSON() {
             }
             vote["options"] = options;
         } catch (const exceptionVoteOptionsCorrupt& e) {
-            //download failed so include list of addresses but flag that labels are corrupt
+            //labels downloaded but did not match the chain data
             Json::Value options(Json::objectValue);
             vector<VoteOption> voteOptions = _voteOptions;
             for (const VoteOption& option: voteOptions) {
                 options[option.address] = "Label corrupt";
+            }
+            vote["options"] = options;
+        } catch (const IPFS::exception& e) {
+            //labels could not be fetched in time.  Still answer with the addresses - an asset
+            //whose label file is unavailable must not make getassetdata fail outright
+            Json::Value options(Json::objectValue);
+            vector<VoteOption> voteOptions = _voteOptions;
+            for (const VoteOption& option: voteOptions) {
+                options[option.address] = "Label unavailable";
             }
             vote["options"] = options;
         }
@@ -717,9 +874,13 @@ Json::Value DigiAssetRules::toJSON() {
  * @return A vector of VoteOption structs containing the addresses and labels for each voting option.
  */
 std::vector<VoteOption> DigiAssetRules::getVoteOptions() {
-    if (_voteLabelsCID.empty()) { //labels already processed so skip that step
+    if (!_voteLabelsCID.empty()) { //an unprocessed labels cid remains - fetch and apply it
+                                   //(was inverted: it downloaded the EMPTY cid after labels
+                                   //were processed and skipped the fetch when one was pending)
         IPFS* ipfs = AppMain::GetInstance()->getIPFS();
-        string content = ipfs->callOnDownloadSync(_voteLabelsCID);
+        //bounded: this is reached from getassetdata, and a label file nobody is serving used to
+        //leave the rpc call hanging with no answer and no error
+        string content = ipfs->callOnDownloadSync(_voteLabelsCID, "", DIGIASSET_JSON_IPFS_MAX_WAIT);
 
         //parse returned data
         Json::Reader reader;

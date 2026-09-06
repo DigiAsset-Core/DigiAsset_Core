@@ -41,6 +41,8 @@ http://opensource.org/licenses/MIT. -->
 <h2>Output Format</h2>
 <pre class="literal-block">
 JSON object that represents the asset in detailed format. Includes information such as asset name, creator, associated metadata, and IPFS links unless excluded.
+
+initialCount(the supply the asset was first issued with) is left out on nodes that prune UTXO history, since it is worked out from issuance outputs that no longer exist.
 </pre>
 </div>
 <div class="section" id="examples">

@@ -4,7 +4,9 @@
 
 #include "DigiByteCore.h"
 #include "Config.h"
+#include "Log.h"
 #include "utils.h"//todo delete
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <thread>
@@ -45,7 +47,10 @@ using Json::Value;
 using Json::ValueIterator;
 using namespace std;
 
-mutex DigiByteCore::_mutex;
+mutex& DigiByteCore::getLock() {
+    static mutex* m = new mutex; //intentionally leaked - see header
+    return *m;
+}
 
 DigiByteCore::~DigiByteCore() {
     dropConnection();
@@ -107,13 +112,23 @@ void DigiByteCore::makeConnection() {
 
     Config config = Config(_configFileName);
 
-    //see if core is online and config if valid
+    //the asset port(rpcassetport) is served by the DigiAsset Core daemon(this project), which
+    //normally runs locally, while rpcbind/rpcport point at the DigiByte Core node(which can be
+    //remote).  They are different hosts, so the asset connection has its own rpcassetbind key
+    //(defaulting to localhost) rather than reusing rpcbind.
+    std::string host = _useAssetPort
+                               ? config.getString("rpcassetbind", "127.0.0.1")
+                               : config.getString("rpcbind", "127.0.0.1");
+    int port = _useAssetPort ? config.getInteger("rpcassetport", 14024)
+                             : config.getInteger("rpcport", 14022);
+
+    //see if core is online and config if valid.  This runs against the plain endpoint so a wallet
+    //that is named wrong can never be mistaken for the node being unreachable
+    _baseUrl = "http://" + urlEncode(config.getString("rpcuser")) + ":" +
+               urlEncode(config.getString("rpcpassword")) + "@" + host + ":" + std::to_string(port);
+    _walletName.clear();
     try {
-        httpClient.reset(new jsonrpc::HttpClient(
-                "http://" + urlEncode(config.getString("rpcuser")) + ":" +
-                urlEncode(config.getString("rpcpassword")) + "@" +
-                config.getString("rpcbind", "127.0.0.1") + ":" +
-                std::to_string(_useAssetPort ? config.getInteger("rpcassetport", 14024) : config.getInteger("rpcport", 14022))));
+        httpClient.reset(new jsonrpc::HttpClient(_baseUrl));
         client.reset(new jsonrpc::Client(*httpClient, jsonrpc::JSONRPC_CLIENT_V1));
         httpClient->SetTimeout(config.getInteger("rpctimeout", 50000));
         if (!_useAssetPort) getblockcount();
@@ -124,6 +139,91 @@ void DigiByteCore::makeConnection() {
         }
         throw Config::exceptionConfigFileInvalid();
     }
+
+    //the asset port is this daemon talking to itself and has no wallets, so only a connection to
+    //DigiByte Core needs to say which wallet it means
+    if (_useAssetPort) return;
+    _walletName = selectWallet(config);
+    if (!_walletName.empty()) {
+        httpClient->SetUrl(_baseUrl + "/wallet/" + urlEncode(_walletName));
+        Log::GetInstance()->addMessage("Using DigiByte Core wallet \"" + _walletName + "\"");
+    }
+}
+
+/**
+ * Works out which wallet the connection should be pointed at.
+ *
+ * DigiByte Core serves wallet commands at /wallet/<name> and answers on the plain endpoint only
+ * when zero or one wallet is loaded.  With more than one loaded every wallet command comes back
+ * "Wallet file not specified" instead, which is what breaks issuing, sending and the PSP payout
+ * address lookup on a node that has a second wallet open.  rpcwallet is the same option name
+ * digibyte-cli uses, and the name is percent encoded the same way it encodes it.
+ *
+ * @param config - already loaded config file
+ * @return name of the wallet to address, or empty to leave the choice to core
+ */
+std::string DigiByteCore::selectWallet(const Config& config) {
+    Log* log = Log::GetInstance();
+    std::string requested = config.getString("rpcwallet", "");
+
+    //find out what core has loaded.  A core too old to know the command tells us nothing, in which
+    //case we do what has always been done and take the config at its word
+    std::vector<std::string> loaded;
+    bool loadedKnown = false;
+    try {
+        Json::Value params = Json::arrayValue;
+        Json::Value result = sendcommand("listwallets", params);
+        if (result.isArray()) {
+            loadedKnown = true;
+            for (const Json::Value& name: result) loaded.push_back(name.asString());
+        }
+    } catch (const std::exception& e) {
+        //older core, or wallet support compiled out.  Nothing to check against
+    }
+    std::string loadedList;
+    for (const std::string& name: loaded) {
+        if (!loadedList.empty()) loadedList += ", ";
+        loadedList += "\"" + name + "\"";
+    }
+
+    //operator named one
+    if (!requested.empty()) {
+        if (loadedKnown && (std::find(loaded.begin(), loaded.end(), requested) == loaded.end())) {
+            log->addMessage("rpcwallet is set to \"" + requested + "\" but DigiByte Core does not have it loaded." +
+                                    (loaded.empty() ? "  No wallets are loaded." : "  Loaded: " + loadedList),
+                            Log::CRITICAL);
+            throw Config::exceptionConfigFileInvalid("rpcwallet names a wallet DigiByte Core does not have loaded");
+        }
+        return requested;
+    }
+
+    //only one to pick.  Say which one anyway so loading a second wallet later can't change what
+    //this connection means half way through a run
+    if (loaded.size() == 1) return loaded[0];
+
+    //core can't guess either, and would answer every wallet command with an error
+    if (loaded.size() > 1) {
+        log->addMessage("DigiByte Core has " + std::to_string(loaded.size()) + " wallets loaded(" + loadedList +
+                                ") so it cannot tell which one to use.  Add rpcwallet=<name> to " + _configFileName +
+                                " or every wallet command will fail.",
+                        Log::CRITICAL);
+    }
+    return "";
+}
+
+/**
+ * Wallet the connection is pointed at.  Empty means the plain endpoint, which core resolves itself
+ */
+std::string DigiByteCore::getWalletName() const {
+    return _walletName;
+}
+
+/**
+ * Overrides the http timeout set from config.cfg's rpctimeout(ms)
+ */
+void DigiByteCore::setTimeout(unsigned int milliseconds) {
+    if (httpClient == nullptr) throw exceptionDigiByteCoreNotConnected();
+    httpClient->SetTimeout(milliseconds);
 }
 
 /**
@@ -137,10 +237,17 @@ std::string DigiByteCore::getFileName() {
 /**
  * Standard DigiByte Core API call error checking wrapper function.
  * On success returns results.  On failure returns helpful exceptions to allow for easy handling or trouble shooting
+ *
+ * Only a failure to get an answer at all means the node is offline.  When the node did answer, the
+ * DigiByteException constructor has already dug the real error code and message out of the reply,
+ * and both need to survive: an error like "Wallet file not specified" reported as "Core Offline"
+ * sends the operator looking at connectivity while their node is perfectly healthy.
+ *
  * Possible Errors:
  *  exceptionDigiByteCoreNotConnected
  *  exceptionCoreOffline
  *  exception
+ *  DigiByteException - whatever the node itself said
  */
 template<typename fn_t>
 auto DigiByteCore::errorCheckAPI(fn_t fn) -> decltype(fn()) {
@@ -148,11 +255,14 @@ auto DigiByteCore::errorCheckAPI(fn_t fn) -> decltype(fn()) {
     try {
         return fn();
     } catch (DigiByteException& e) {
-        string temp = e.getMessage();
-        if (e.getMessage() != "Failed to authenticate successfully") {
-            throw exceptionCoreOffline();
-        }
-        throw exception(e.getMessage());
+        //could not reach the node(no route, refused, timed out)
+        if (e.getCode() == Errors::ERROR_CLIENT_CONNECTOR) throw exceptionCoreOffline();
+
+        //reached it but it would not talk to us
+        if (e.getMessage() == "Failed to authenticate successfully") throw exception(e.getMessage());
+
+        //the node answered with an error of its own
+        throw;
     } catch (const std::exception& e) {
         throw exception();
     }
@@ -233,7 +343,7 @@ Value DigiByteCore::sendcommand(const string& command, const Value& params) {
     Value result;
     _runCount++;
     std::chrono::steady_clock::time_point _creationTime=std::chrono::steady_clock::now();
-    std::lock_guard<std::mutex> lock(_mutex); //we can only run one at a time or bad things happen
+    std::lock_guard<std::mutex> lock(getLock()); //we can only run one at a time or bad things happen
     try {
         result = client->CallMethod(command, params);
 
@@ -1625,8 +1735,53 @@ uint64_t DigiByteCore::_dgbToSat(std::string value) {
     return result;
 }
 
+/**
+ * Which wallet generation DigiByte Core is.
+ *
+ * getnetworkinfo names the version outright, so ask that first.  The fallback below infers it from
+ * the shape of a getrawtransaction reply, which cannot separate v9 from v8 - both return
+ * scriptPubKey.address where v7 returned scriptPubKey.addresses - and that inference runs as a side
+ * effect of any getrawtransaction call, so it can be cached before this is ever called.  The node's
+ * own answer therefore has to override it rather than the other way round.
+ */
 DigiByteCore::WalletVersion DigiByteCore::coreVersion() {
-    if (_walletVersion!=unknown) return _walletVersion;
+    if (_walletVersionFromNode) return _walletVersion;
+
+    int nodeVersion = getNodeVersion(); //eg 92605 for 9.26.5
+    if (nodeVersion > 0) {
+        if (nodeVersion >= 90000) {
+            _walletVersion = v9;
+        } else if (nodeVersion >= 80000) {
+            _walletVersion = v8;
+        } else {
+            _walletVersion = v7;
+        }
+        _walletVersionFromNode = true;
+        return _walletVersion;
+    }
+
+    //node did not answer - fall back to whatever the reply shape said
+    if (_walletVersion != unknown) return _walletVersion;
     getrawtransaction("0378a92db8025318a129c83e2ee0766a5908550ef7b4619e8a325c9c69873a4b",true); //force wallet version to be set
     return _walletVersion;
+}
+
+std::string DigiByteCore::walletVersionName(WalletVersion version) {
+    switch (version) {
+        case v7: return "7.17.3 or older";
+        case v8: return "8.22.0";
+        case v9: return "9 or newer";
+        default: return "of unknown version";
+    }
+}
+
+int DigiByteCore::getNodeVersion() {
+    try {
+        Value params(Json::arrayValue);
+        Value result = sendcommand("getnetworkinfo", params);
+        if (!result.isMember("version")) return 0;
+        return result["version"].asInt();
+    } catch (const exception& e) {
+        return 0; //treat an unanswerable node as unknown rather than as too old
+    }
 }

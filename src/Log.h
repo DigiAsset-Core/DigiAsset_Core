@@ -30,7 +30,8 @@ public:
  */
 private:
     static Log* _pinstance;
-    static std::mutex _mutex;
+    static std::mutex& getLock(); //heap allocated, never destroyed: background threads
+                                   //may still log during process exit(static destruction)
 
 protected:
     Log() = default;

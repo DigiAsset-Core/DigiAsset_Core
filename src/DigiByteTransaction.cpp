@@ -3,6 +3,7 @@
 //
 
 #include "DigiByteTransaction.h"
+#include "Log.h"
 #include "AppMain.h"
 #include "BitIO.h"
 #include "DigiAsset.h"
@@ -269,7 +270,18 @@ bool DigiByteTransaction::decodeAssetTX(const getrawtransaction_t& txData, int d
         try {
             decodeAssetTransfer(dataStream, _inputs, burn ? DIGIASSET_BURN : DIGIASSET_TRANSFER);
         } catch (const DigiAsset::exceptionRuleFailed& e) {
-            //clear asset outputs
+            //Every asset output is cleared, the change output included.  That is deliberate: if
+            //change survived a violation a sender could declare everything as change and sidestep
+            //the royalty entirely.  There is also no alternative - the transaction is already on
+            //chain and its inputs are spent, so assets that may not move to the outputs have
+            //nowhere left to exist.  See docs/asset-rules-and-burns.md.
+            //
+            //It used to happen with nothing written anywhere, which is why it went unnoticed.
+            Log* log = Log::GetInstance();
+            log->addMessage("Transaction " + _txid + " in block " + std::to_string(_height) +
+                                    " broke an asset rule(" + e.what() +
+                                    ").  Every asset output it carries is being destroyed, including any change.",
+                            Log::WARNING);
             _unintentionalBurn = true;
             for (AssetUTXO& output: _outputs) {
                 output.assets.clear();
@@ -837,8 +849,259 @@ unsigned int DigiByteTransaction::getHeight() const {
 }
 
 
+/**
+ * Returns true if this transaction is still being built and can be modified.
+ * Transactions loaded from chain are never writable.
+ */
+bool DigiByteTransaction::isWritable() const {
+    return _txid.empty();
+}
+
+/**
+ * Throws an exception if the transaction is not writable
+ */
+void DigiByteTransaction::checkWritable() const {
+    if (!isWritable()) throw exception("Transaction is already on chain and can not be modified");
+}
+
+/**
+ * Adds a UTXO that will be spent by this transaction.
+ * Include the asset data(see Database::getAssetUTXO) so transfer instructions can be computed.
+ * Fee only inputs do not need to be added here; they can be added by the wallet's fundrawtransaction.
+ */
+void DigiByteTransaction::addInput(const AssetUTXO& utxo) {
+    checkWritable();
+    if (_txType == DIGIASSET_ISSUANCE && !utxo.assets.empty()) {
+        throw exception("Asset bearing inputs can not be used in an issuance(they would be burned)");
+    }
+    _inputs.push_back(utxo);
+    if (!utxo.assets.empty()) {
+        _assetFound = true;
+        if (_txType == STANDARD) _txType = DIGIASSET_TRANSFER;
+    }
+}
+
+/**
+ * Marks this transaction as an issuance of the provided new asset(see DigiAsset new asset constructor).
+ * The new assets can then be assigned to outputs with addDigiAssetOutput.
+ */
+void DigiByteTransaction::setIssuance(const DigiAsset& asset) {
+    checkWritable();
+    if (_assetFound) throw exception("Asset bearing inputs can not be used in an issuance(they would be burned)");
+    _newAsset = asset;
+    _txType = DIGIASSET_ISSUANCE;
+}
+
+/**
+ * Marks amounts of assets on the inputs to be destroyed by this transaction.  The burn
+ * travels as a transfer instruction targeting output 31, exactly what decodeAssetTransfer
+ * treats as a burn.  Anything on the inputs that is neither burned nor assigned to an
+ * asset output still needs an explicit change output.
+ */
+void DigiByteTransaction::addAssetBurn(const std::vector<DigiAsset>& assets) {
+    checkWritable();
+    if (!_assetFound) throw exception("Add the asset bearing inputs before declaring burns");
+    if (_txType == DIGIASSET_ISSUANCE) throw exception("Issuances can not burn assets");
+    for (const DigiAsset& asset: assets) {
+        if (asset.getCount() == 0) throw exception("Can not burn 0 of an asset");
+        _burns.push_back(asset);
+    }
+    _txType = DIGIASSET_BURN;
+}
+
+/**
+ * Adds the outputs required by the issued asset's rules(signer/royalty/custom vote
+ * address outputs - see DigiAssetRules::getRequiredOutputs).  Must be called AFTER all
+ * asset outputs(the rules bitstream references these outputs by their final vout index)
+ * and BEFORE any other extra outputs like storage pool fees.  No-op when the asset has
+ * no rules or no outputs are needed.
+ */
+void DigiByteTransaction::addRuleOutputs() {
+    checkWritable();
+    if (_txType != DIGIASSET_ISSUANCE) throw exception("Rule outputs only apply to issuances");
+    if (_ruleOutputsAdded) throw exception("Rule outputs already added");
+
+    std::vector<DigiAssetRules::RuleOutput> required = _newAsset.getRules().getRequiredOutputs();
+    _ruleOutputsStart = _outputs.size();
+    _ruleOutputsAdded = true;
+    for (const DigiAssetRules::RuleOutput& output: required) {
+        addDigiByteOutput(output.address, output.sats);
+    }
+}
+
+/**
+ * Adds a DigiByte only output to the transaction being built.
+ * Warning: fee and balance checks are not done here.  They are handled when the transaction
+ * is funded by the wallet(fundrawtransaction will fail if the wallet lacks funds).
+ */
 void DigiByteTransaction::addDigiByteOutput(const string& address, uint64_t amount) {
-    //todo check its unlocked
-    //todo check there is enough funds to send(and still pay tx fee)
-    //todo add the output
+    checkWritable();
+    if (address.empty()) throw exception("Output address can not be blank");
+    _outputs.emplace_back(AssetUTXO{
+            .txid = "",
+            .vout = static_cast<uint16_t>(_outputs.size()),
+            .address = address,
+            .digibyte = amount});
+}
+
+/**
+ * Adds an asset bearing output to the transaction being built.
+ * The output is given the standard asset dust value of DigiByte.
+ * Asset outputs must be within the first 32 outputs(protocol limit on transfer instructions).
+ */
+void DigiByteTransaction::addDigiAssetOutput(const string& address, const vector<DigiAsset>& assets) {
+    checkWritable();
+    if (address.empty()) throw exception("Output address can not be blank");
+    if (assets.empty()) throw exception("Asset output must contain at least 1 asset");
+    if (_outputs.size() > 31) throw exception("Asset outputs must be within the first 32 outputs");
+    for (const DigiAsset& asset: assets) {
+        if (asset.getCount() == 0) throw exception("Asset output can not contain 0 of an asset");
+    }
+    _outputs.emplace_back(AssetUTXO{
+            .txid = "",
+            .vout = static_cast<uint16_t>(_outputs.size()),
+            .address = address,
+            .digibyte = DigiAssetConstants::DIGIBYTE_DUST,
+            .assets = assets});
+}
+
+/**
+ * Computes the transfer instruction section of an asset OP_RETURN from the difference between
+ * input assets and desired output assets.  Mirrors the consumption logic of decodeAssetTransfer:
+ * instructions consume asset chunks from asset bearing inputs strictly in order, front to back.
+ * One instruction is emitted per (input chunk, output) pair so instructions never span inputs
+ * (which keeps the encoding legal for all aggregation types including hybrid).
+ *
+ * Throws if input assets and output assets don't balance exactly.  Callers must explicitly
+ * assign every input asset to an output(add a change output for any left over).
+ */
+void DigiByteTransaction::buildTransferInstructions(BitIO& data) const {
+    //flatten input asset chunks in the same order decodeAssetTransfer consumes them
+    vector<vector<DigiAsset>> inputs;
+    if (_txType == DIGIASSET_ISSUANCE) {
+        inputs.push_back(vector<DigiAsset>{_newAsset});
+    } else {
+        for (const AssetUTXO& vin: _inputs) {
+            if (vin.assets.empty()) continue;
+            inputs.push_back(vin.assets);
+        }
+    }
+    if (inputs.empty()) throw exception("No assets to build transfer instructions for");
+
+    //copy of desired output assets that we can count down as we assign
+    vector<vector<DigiAsset>> desired;
+    desired.reserve(_outputs.size());
+    for (const AssetUTXO& vout: _outputs) desired.push_back(vout.assets);
+
+    //copy of the burn amounts we can count down the same way
+    vector<DigiAsset> burns = _burns;
+
+    //walk input chunks in consumption order and route them to outputs
+    for (vector<DigiAsset>& chunkList: inputs) {
+        for (DigiAsset& chunk: chunkList) {
+            uint64_t remaining = chunk.getCount();
+            for (size_t o = 0; (o < desired.size()) && (remaining > 0); o++) {
+                for (DigiAsset& want: desired[o]) {
+                    if (want.getCount() == 0) continue;
+                    if (want.getAssetIndex(true) != chunk.getAssetIndex(true)) continue;
+                    uint64_t take = min(remaining, want.getCount());
+
+                    //encode instruction: skip=0, range=0, percent=0, 5 bit output, fixed precision amount
+                    if (o > 31) throw exception("Asset outputs must be within the first 32 outputs");
+                    if ((o == 31) && (_txType == DIGIASSET_BURN)) throw exception("Output 31 is reserved for the burn marker in burn transactions");
+                    data.appendBits(0, 3);
+                    data.appendBits(o, 5);
+                    BitIO amount = BitIO::makeFixedPrecision(take);
+                    data.appendBits(amount);
+
+                    want.setCount(want.getCount() - take);
+                    remaining -= take;
+                    if (remaining == 0) break;
+                }
+            }
+
+            //anything declared for burning is routed to the burn marker(output 31)
+            for (DigiAsset& burn: burns) {
+                if (remaining == 0) break;
+                if (burn.getCount() == 0) continue;
+                if (burn.getAssetIndex(true) != chunk.getAssetIndex(true)) continue;
+                uint64_t take = min(remaining, burn.getCount());
+                data.appendBits(0, 3);
+                data.appendBits(31, 5); //burn instruction
+                BitIO amount = BitIO::makeFixedPrecision(take);
+                data.appendBits(amount);
+                burn.setCount(burn.getCount() - take);
+                remaining -= take;
+            }
+            if (remaining > 0) throw exception("Input assets not fully assigned to outputs.  Add an asset change output");
+        }
+    }
+
+    //make sure no output wants assets that weren't available on inputs
+    for (const vector<DigiAsset>& vout: desired) {
+        for (const DigiAsset& want: vout) {
+            if (want.getCount() > 0) throw exception("Output requests more assets than inputs provide");
+        }
+    }
+    for (const DigiAsset& burn: burns) {
+        if (burn.getCount() > 0) throw exception("Burn requests more assets than inputs provide");
+    }
+}
+
+/**
+ * Encodes the OP_RETURN payload for the asset transaction being built.
+ * Returns the payload as a hex string suitable for the "data" output of createrawtransaction
+ * (the wallet adds the OP_RETURN opcode and push bytes itself).
+ *
+ * Supported types:
+ *   DIGIASSET_ISSUANCE - opcode 0x01(metadata, no rules) or 0x05(no metadata).  Rule encoding not yet implemented.
+ *   DIGIASSET_TRANSFER - opcode 0x15
+ */
+string DigiByteTransaction::encodeAssetOpReturn() const {
+    BitIO data;
+    data.appendBits(0x4441, 16); //"DA" magic
+    data.appendBits(3, 8);       //version 3
+
+    if (_txType == DIGIASSET_ISSUANCE) {
+        DigiAssetRules rules = _newAsset.getRules();
+        bool hasMetaData = !_newAsset.getCID().empty();
+
+        //opcode: 1 = metadata no rules, 5 = no metadata no rules,
+        //        3 = metadata + rewritable rules, 4 = metadata + locked rules
+        if (rules.empty()) {
+            data.appendBits(hasMetaData ? 0x01 : 0x05, 8);
+        } else {
+            if (!hasMetaData) throw exception("Assets with rules require metadata(rule op codes 3 and 4 always carry a metadata hash)");
+            if (!_ruleOutputsAdded) throw exception("Call addRuleOutputs() before encoding an issuance with rules");
+            data.appendBits(rules.isRewritable() ? 0x03 : 0x04, 8);
+        }
+
+        //32 byte sha256 of the metadata(derived from the raw mode cid)
+        if (hasMetaData) {
+            BitIO hash = BitIO::makeHexString(IPFS::cidToSha256(_newAsset.getCID()));
+            data.appendBits(hash);
+        }
+
+        //number of assets to create
+        BitIO count = BitIO::makeFixedPrecision(_newAsset.getCount());
+        data.appendBits(count);
+
+        //rules section(only op codes 3 and 4)
+        if (!rules.empty()) rules.encode(data, _ruleOutputsStart);
+
+        //transfer instructions assigning the new assets to outputs
+        buildTransferInstructions(data);
+
+        //issuance flags byte
+        data.appendBits(_newAsset.getIssuanceFlags(), 8);
+    } else if ((_txType == DIGIASSET_TRANSFER) || (_txType == DIGIASSET_BURN)) {
+        data.appendBits((_txType == DIGIASSET_BURN) ? 0x25 : 0x15, 8);
+        buildTransferInstructions(data);
+    } else {
+        throw exception("Transaction is not an asset transaction");
+    }
+
+    //convert to hex(everything encoded above is byte aligned)
+    data.movePositionToBeginning();
+    return data.getHexString(data.getLength() / 4);
 }

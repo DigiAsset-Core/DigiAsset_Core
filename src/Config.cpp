@@ -170,6 +170,23 @@ bool Config::getBool(const string& key, bool defaultValue) const {
     }
 }
 
+/**
+ * Returns any keys that still have the # placeholder from example.cfg in them.
+ *
+ * example.cfg documents the per pool options as psp#subscribe, psp#payout and so on, where # stands
+ * for the pool number.  Copied over literally the # becomes part of the key name - it only starts a
+ * note at the very start of a line - so the setting quietly does nothing and the default applies,
+ * which for subscribe means subscribed to a pool the operator meant to opt out of.  A # can never
+ * be part of a real key, so anything holding one was copied rather than filled in.
+ */
+vector<string> Config::getPlaceholderKeys() const {
+    vector<string> results;
+    for (const auto& kv: _values) {
+        if (kv.first.find('#') != string::npos) results.push_back(kv.first);
+    }
+    return results;
+}
+
 map<string, string> Config::getStringMap(const string& keyPrefix) const {
     map<string, string> result;
     for (const auto& kv: _values) {

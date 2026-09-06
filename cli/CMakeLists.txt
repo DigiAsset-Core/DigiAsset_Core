@@ -15,11 +15,15 @@ set(HEADER_FILES
         ../src/Config.h
         ../src/DigiByteCore.cpp
         ../src/utils.cpp
+        ../src/Log.h
         )
 
+#DigiByteCore.cpp says which wallet it picked, and complains when core has more than one loaded and
+#the config does not say which to use, so it needs Log.cpp.  Log.cpp has no dependencies of its own
 set(SOURCE_FILES
         ../src/Config.cpp
         ../src/DigiByteCore.cpp
+        ../src/Log.cpp
         )
 
 add_executable(digiasset_core-cli main.cpp ${SOURCE_FILES} ${HEADER_FILES})

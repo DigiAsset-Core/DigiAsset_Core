@@ -1,0 +1,270 @@
+name: Build and Release
+
+# Artifacts are bundled, not bare binaries.  Both the daemon and the GUI link against
+# Qt, jsoncpp and libjson-rpc-cpp, none of which a normal user has installed, so a bare
+# executable will not start on a machine that has not built from source.  Each platform
+# therefore ships something self contained:
+#   Linux    AppImage (linuxdeploy)     - single file, chmod +x and run
+#   macOS    .app / folder (macdeployqt, dylibbundler), zipped
+#   Windows  folder with its DLLs (windeployqt), zipped
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+env:
+  QT_VERSION: '6.7.2'
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake g++ \
+            libsqlite3-dev \
+            libssl-dev \
+            libcurl4-openssl-dev \
+            libjsoncpp-dev \
+            libjsonrpccpp-dev \
+            libboost-dev \
+            libgl1-mesa-dev \
+            libfuse2 file desktop-file-utils
+
+      # Charts is not part of qtbase and the GUI links it, so it is requested explicitly.
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          modules: 'qtcharts'
+          cache: true
+
+      - name: Build
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TEST=OFF \
+            -DBUILD_CLI=OFF \
+            -DBUILD_WEB=OFF \
+            -DBUILD_QT=ON
+          cmake --build build -j$(nproc)
+
+      - name: Bundle into AppImages
+        run: |
+          set -euo pipefail
+          curl -fsSLO https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          curl -fsSLO https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
+          chmod +x linuxdeploy-x86_64.AppImage linuxdeploy-plugin-qt-x86_64.AppImage
+
+          # linuxdeploy would otherwise name the file after the desktop entry's Name field;
+          # OUTPUT pins it so the release file list cannot drift from what is produced.
+
+          # GUI - needs the qt plugin to pull in the platform plugins and Qt libraries
+          OUTPUT=digiasset_core-qt-linux-x86_64.AppImage \
+          ./linuxdeploy-x86_64.AppImage \
+            --appdir gui.AppDir \
+            --executable bin/digiasset_core-qt \
+            --icon-file bin/images/app_icon.png \
+            --desktop-file packaging/digiasset_core-qt.desktop \
+            --plugin qt \
+            --output appimage
+
+          # daemon - no Qt, just its own shared libraries
+          OUTPUT=digiasset_core-linux-x86_64.AppImage \
+          ./linuxdeploy-x86_64.AppImage \
+            --appdir daemon.AppDir \
+            --executable bin/digiasset_core \
+            --icon-file bin/images/app_icon.png \
+            --desktop-file packaging/digiasset_core.desktop \
+            --output appimage
+
+          chmod +x digiasset_core-qt-linux-x86_64.AppImage digiasset_core-linux-x86_64.AppImage
+          ls -l *.AppImage
+          # prove they start on a machine that never built them
+          ./digiasset_core-linux-x86_64.AppImage --help
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-binary
+          path: |
+            digiasset_core-linux-x86_64.AppImage
+            digiasset_core-qt-linux-x86_64.AppImage
+
+  build-macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          brew install cmake sqlite openssl@3 curl jsoncpp libjson-rpc-cpp boost dylibbundler
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          modules: 'qtcharts'
+          cache: true
+
+      - name: Build
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TEST=OFF \
+            -DBUILD_CLI=OFF \
+            -DBUILD_WEB=OFF \
+            -DBUILD_QT=ON \
+            -DOPENSSL_ROOT_DIR=$(brew --prefix openssl@3)
+          cmake --build build -j$(sysctl -n hw.ncpu)
+
+      - name: Bundle
+        run: |
+          set -euo pipefail
+
+          # A dependency left pointing at /usr/local or /opt/homebrew is exactly the bug this
+          # job exists to prevent - it works here and fails on the user's machine - so an
+          # escapee fails the build rather than shipping.
+          assert_self_contained() {
+            local what="$1" bin="$2" leaked
+            leaked=$(otool -L "$bin" | tail -n +2 \
+                     | grep -vE "@executable_path|@rpath|@loader_path|/usr/lib/|/System/" || true)
+            if [ -n "$leaked" ]; then
+              echo "::error::$what still references libraries outside the bundle:"
+              echo "$leaked"
+              exit 1
+            fi
+            echo "$what: self contained"
+          }
+
+          # GUI - qt/CMakeLists.txt builds a .app on Apple so macdeployqt has a bundle to work on
+          "$QT_ROOT_DIR/bin/macdeployqt" bin/digiasset_core-qt.app -always-overwrite
+          assert_self_contained "GUI" bin/digiasset_core-qt.app/Contents/MacOS/digiasset_core-qt
+
+          # daemon - a plain executable, so its Homebrew dylibs are copied in beside it
+          mkdir -p dist/digiasset_core
+          cp bin/digiasset_core dist/digiasset_core/
+          dylibbundler -od -b -cd \
+            -x dist/digiasset_core/digiasset_core \
+            -d dist/digiasset_core/libs \
+            -p @executable_path/libs
+          assert_self_contained "daemon" dist/digiasset_core/digiasset_core
+
+          # and prove it actually starts
+          ./dist/digiasset_core/digiasset_core --help
+
+          ditto -c -k --keepParent bin/digiasset_core-qt.app digiasset_core-qt-macos-arm64.zip
+          ditto -c -k --keepParent dist/digiasset_core     digiasset_core-macos-arm64.zip
+          ls -l *.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-binary
+          path: |
+            digiasset_core-macos-arm64.zip
+            digiasset_core-qt-macos-arm64.zip
+
+  build-windows:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          modules: 'qtcharts'
+          cache: true
+
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgDirectory: '${{ github.workspace }}/vcpkg'
+          vcpkgGitCommitId: '2024.11.16'
+
+      - name: Build
+        uses: lukka/run-cmake@v10
+        with:
+          cmakeListsTxtPath: '${{ github.workspace }}/CMakeLists.txt'
+          configurePreset: ''
+          buildPreset: ''
+          cmakeAppendedArgs: >-
+            -DCMAKE_BUILD_TYPE=Release
+            -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
+            -DVCPKG_TARGET_TRIPLET=x64-windows
+            -DBUILD_TEST=OFF
+            -DBUILD_CLI=OFF
+            -DBUILD_WEB=OFF
+            -DBUILD_QT=ON
+          buildDirectory: '${{ github.workspace }}/build'
+
+      # CMAKE_RUNTIME_OUTPUT_DIRECTORY points at bin/ but MSVC is multi-config and adds its
+      # own Release/ level, so the executables are located rather than assumed.  vcpkg copies
+      # the dependency DLLs next to whatever it builds, so those come along from the same dir.
+      - name: Bundle
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $daemon = Get-ChildItem -Recurse -Filter digiasset_core.exe    | Select-Object -First 1
+          $gui    = Get-ChildItem -Recurse -Filter digiasset_core-qt.exe | Select-Object -First 1
+          if (-not $daemon) { throw "digiasset_core.exe not found" }
+          if (-not $gui)    { throw "digiasset_core-qt.exe not found" }
+          Write-Host "daemon: $($daemon.FullName)"
+          Write-Host "gui:    $($gui.FullName)"
+
+          New-Item -ItemType Directory -Force -Path dist\daemon, dist\gui | Out-Null
+          Copy-Item $daemon.FullName dist\daemon\
+          Copy-Item $gui.FullName    dist\gui\
+          Copy-Item (Join-Path $daemon.Directory.FullName '*.dll') dist\daemon\ -ErrorAction SilentlyContinue
+          Copy-Item (Join-Path $gui.Directory.FullName    '*.dll') dist\gui\    -ErrorAction SilentlyContinue
+
+          & "$env:QT_ROOT_DIR\bin\windeployqt.exe" --release --no-translations dist\gui\digiasset_core-qt.exe
+
+          # prove the daemon starts using only the DLLs sitting beside it
+          & dist\daemon\digiasset_core.exe --help
+          if ($LASTEXITCODE -ne 0) { throw "bundled daemon failed to run (exit $LASTEXITCODE)" }
+
+          Compress-Archive -Path dist\daemon\* -DestinationPath digiasset_core-windows-x64.zip
+          Compress-Archive -Path dist\gui\*    -DestinationPath digiasset_core-qt-windows-x64.zip
+          Get-ChildItem *.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-binary
+          path: |
+            digiasset_core-windows-x64.zip
+            digiasset_core-qt-windows-x64.zip
+
+  release:
+    needs: [build-linux, build-macos, build-windows]
+    runs-on: ubuntu-22.04
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/linux-binary/digiasset_core-linux-x86_64.AppImage
+            artifacts/linux-binary/digiasset_core-qt-linux-x86_64.AppImage
+            artifacts/macos-binary/digiasset_core-macos-arm64.zip
+            artifacts/macos-binary/digiasset_core-qt-macos-arm64.zip
+            artifacts/windows-binary/digiasset_core-windows-x64.zip
+            artifacts/windows-binary/digiasset_core-qt-windows-x64.zip
+          generate_release_notes: true

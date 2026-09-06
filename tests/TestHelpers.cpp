@@ -5,11 +5,30 @@
 #include "TestHelpers.h"
 #include "BitIO.h"
 
-#include <vector>
-#include <string>
 #include <cmath>
+#include <cstdlib>
+#include <exception>
+#include <execinfo.h>
+#include <string>
+#include <unistd.h>
+#include <vector>
 
 using namespace std;
+
+namespace {
+    //if any thread dies with an uncaught exception(e.g. the intermittent "mutex lock
+    //failed" during process exit) print WHERE it was thrown from before aborting -
+    //the default terminate gives no backtrace which made that flake undebuggable
+    [[noreturn]] void printBacktraceAndAbort() {
+        void* frames[64];
+        int count = backtrace(frames, 64);
+        backtrace_symbols_fd(frames, count, STDERR_FILENO);
+        abort();
+    }
+    struct TerminateDiagnosticInstaller {
+        TerminateDiagnosticInstaller() { std::set_terminate(printBacktraceAndAbort); }
+    } terminateDiagnosticInstaller;
+} // namespace
 
 string TestHelpers::getCSVValue(const string& line, size_t& li) {
     string result;

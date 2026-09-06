@@ -6,6 +6,7 @@
 #include "RPC/Response.h"
 #include "RPC/Server.h"
 #include <jsoncpp/json/value.h>
+#include <numeric>
 
 namespace RPC {
     namespace Methods {

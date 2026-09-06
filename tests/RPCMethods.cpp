@@ -63,14 +63,22 @@ void RPCMethodsTest::SetUpTestSuite() {
 }
 
 void RPCMethodsTest::TearDownTestSuite() {
-    ipfs->stop();        // stop IPFS thread before deleting anything
-    appMain->reset();    // clear AppMain pointers before objects are deleted
+    //everything may still be null if SetUpTestSuite bailed out(missing rpcTest.db or a
+    //throwing constructor) - an unguarded ipfs->stop() here segfaulted the whole run
+    if (ipfs != nullptr) ipfs->stop(); // stop IPFS thread before deleting anything
+    if (appMain != nullptr) appMain->reset(); // clear AppMain pointers before objects are deleted
     delete dgb;
+    dgb = nullptr;
     delete ipfs;
+    ipfs = nullptr;
     delete psp;
+    psp = nullptr;
     delete db;
+    db = nullptr;
     delete analyzer;
+    analyzer = nullptr;
     delete rpcCache;
+    rpcCache = nullptr;
 
     remove("../tests/testFiles/rpcTest.db");
     remove("../tests/testFiles/rpcTest.db-wal");

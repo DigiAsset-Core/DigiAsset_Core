@@ -1,0 +1,13 @@
+{
+  "name": "digiasset-core",
+  "version": "0.3.3",
+  "dependencies": [
+    "boost-asio",
+    "boost-system",
+    "curl",
+    "openssl",
+    "sqlite3",
+    "jsoncpp",
+    "libjson-rpc-cpp"
+  ]
+}

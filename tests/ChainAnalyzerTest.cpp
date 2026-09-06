@@ -7,8 +7,10 @@
 #include "Database.h"
 #include "gtest/gtest.h"
 
+#include <chrono>
 #include <cstdio>
 #include <string>
+#include <thread>
 
 using namespace std;
 
@@ -109,4 +111,73 @@ TEST(ChainAnalyzer_Constants, stateConstants_areDistinct) {
 
 TEST(ChainAnalyzer_Constants, synced_isZero) {
     EXPECT_EQ(+ChainAnalyzer::SYNCED, 0);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Stall watchdog
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// The analyzer only logs once a block completes, so a step that never returns - a wedged IPFS
+// daemon, an unreachable storage pool server - produced no output at all.  "Is anyone's node
+// stuck on block 24,081,128?" had to be answered by reading the chain because the log said
+// nothing after the previous block.
+//
+// Driving the watchdog directly here rather than through a running analyzer: the real thing
+// needs a live DigiByte Core, and a one second threshold keeps the test to a few seconds.
+
+class WatchdogProbe : public ChainAnalyzer {
+public:
+    explicit WatchdogProbe(unsigned int stallSeconds) {
+        _stallWarningSeconds = stallSeconds;
+    }
+    using ChainAnalyzer::watchdogIdle;
+    using ChainAnalyzer::watchdogStart;
+    using ChainAnalyzer::watchdogStop;
+    using ChainAnalyzer::watchdogWorkingOn;
+
+    unsigned int warnings() const { return _stallWarnings.load(); }
+};
+
+TEST(ChainAnalyzerWatchdog, reportsAStepThatDoesNotFinish) {
+    WatchdogProbe probe(1);
+    probe.watchdogStart();
+    probe.watchdogWorkingOn("block 24081128 transaction dd86362f6d765181e5bd90503b85166ead6e39e50971b3c66ed10f6cffe64cc8");
+    this_thread::sleep_for(chrono::milliseconds(2500));
+    probe.watchdogStop();
+
+    EXPECT_GE(probe.warnings(), 1u) << "a step running well past the limit must be reported";
+}
+
+TEST(ChainAnalyzerWatchdog, keepsReportingWhileTheStepIsStillRunning) {
+    WatchdogProbe probe(1);
+    probe.watchdogStart();
+    probe.watchdogWorkingOn("block 24081128 transaction dd86362f");
+    this_thread::sleep_for(chrono::milliseconds(3500));
+    probe.watchdogStop();
+
+    EXPECT_GE(probe.warnings(), 2u) << "one warning and then silence looks the same as recovering";
+}
+
+TEST(ChainAnalyzerWatchdog, saysNothingWhileIdle) {
+    WatchdogProbe probe(1);
+    probe.watchdogStart();
+    probe.watchdogWorkingOn("block 24081128 transaction dd86362f");
+    probe.watchdogIdle(); //eg the node is synced and waiting for the chain to move
+    this_thread::sleep_for(chrono::milliseconds(2500));
+    probe.watchdogStop();
+
+    EXPECT_EQ(probe.warnings(), 0u) << "a synced node must not warn about waiting for a block";
+}
+
+TEST(ChainAnalyzerWatchdog, saysNothingWhileStepsKeepFinishing) {
+    WatchdogProbe probe(2);
+    probe.watchdogStart();
+    for (int i = 0; i < 10; i++) {
+        probe.watchdogWorkingOn("block 24081128 transaction " + to_string(i));
+        this_thread::sleep_for(chrono::milliseconds(250));
+    }
+    probe.watchdogIdle();
+    probe.watchdogStop();
+
+    EXPECT_EQ(probe.warnings(), 0u) << "elapsed is per step, not since the watchdog started";
 }

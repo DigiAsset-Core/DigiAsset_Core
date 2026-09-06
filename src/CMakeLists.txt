@@ -57,13 +57,6 @@ endforeach()
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 set(CMAKE_CXX_STANDARD 11)
-FIND_PACKAGE(JSONCPP REQUIRED)
-FIND_PACKAGE(JSONRPCCPP REQUIRED)
-find_package(CURL REQUIRED)
-
-#add_library(ldigibyteapi STATIC IMPORTED)
-add_library(lsqlite3 STATIC IMPORTED)
-add_library(llibcurl STATIC IMPORTED)
 
 
 
@@ -71,6 +64,8 @@ set(HEADER_FILES
         static_block.hpp
         Threaded.h
         ChainAnalyzer.h
+        EventBroadcaster.h
+        AcceptWaker.h
         Database.h
         DigiByteCore.h
         Blob.h
@@ -100,9 +95,9 @@ set(HEADER_FILES
         PermanentStoragePool/pools/mctrivia.h
         PermanentStoragePool/pools/local.h
         AppMain.h
+        AssetWallet.h
         CurlHandler.h
         Version.h
-        OldStream.h
         UniqueTaskQueue.h
         Database_Statement.h
         Database_LockedStatement.h
@@ -114,6 +109,7 @@ set(HEADER_FILES
 set(SOURCE_FILES
         Threaded.cpp
         ChainAnalyzer.cpp
+        EventBroadcaster.cpp
         Database.cpp
         DigiByteCore.cpp
         Blob.cpp
@@ -139,8 +135,8 @@ set(SOURCE_FILES
         PermanentStoragePool/pools/mctrivia.cpp
         PermanentStoragePool/pools/local.cpp
         AppMain.cpp
+        AssetWallet.cpp
         CurlHandler.cpp
-        OldStream.cpp
         UniqueTaskQueue.cpp
         Database_Statement.cpp
         Database_LockedStatement.cpp
@@ -151,20 +147,58 @@ set(SOURCE_FILES
 
 add_executable(digiasset_core main.cpp ${SOURCE_FILES} ${HEADER_FILES} ${RPC_METHODS_FILES})
 
+# --- Dependency linking (cross-platform) ---
 
+# CURL
+find_package(CURL REQUIRED)
 target_link_libraries(digiasset_core PRIVATE CURL::libcurl)
-target_link_libraries(digiasset_core PUBLIC sqlite3)
+
+# SQLite3
+find_package(SQLite3 QUIET)
+if(TARGET SQLite::SQLite3)
+    target_link_libraries(digiasset_core PUBLIC SQLite::SQLite3)
+else()
+    target_link_libraries(digiasset_core PUBLIC sqlite3)
+endif()
+
+# OpenSSL + Threads
 find_package(OpenSSL REQUIRED)
 find_package(Threads REQUIRED)
 target_link_libraries(digiasset_core PRIVATE OpenSSL::SSL OpenSSL::Crypto Threads::Threads)
 
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(JSONCPP REQUIRED jsoncpp)
-target_include_directories(digiasset_core PRIVATE ${JSONCPP_INCLUDE_DIRS})
-target_link_libraries(digiasset_core PRIVATE ${JSONCPP_LIBRARIES})
-target_link_libraries(digiasset_core PRIVATE jsonrpccpp-common)
-target_link_libraries(digiasset_core PRIVATE jsonrpccpp-client)
+# JsonCpp: try vcpkg/cmake config first, then pkg-config (Linux/macOS), then custom Find module
+find_package(jsoncpp CONFIG QUIET)
+if(TARGET jsoncpp_lib)
+    target_link_libraries(digiasset_core PRIVATE jsoncpp_lib)
+elseif(TARGET jsoncpp_object)
+    target_link_libraries(digiasset_core PRIVATE jsoncpp_object)
+else()
+    find_package(PkgConfig QUIET)
+    if(PkgConfig_FOUND)
+        pkg_check_modules(JSONCPP jsoncpp)
+    endif()
+    if(JSONCPP_FOUND)
+        target_include_directories(digiasset_core PRIVATE ${JSONCPP_INCLUDE_DIRS})
+        target_link_libraries(digiasset_core PRIVATE ${JSONCPP_LIBRARIES})
+    else()
+        find_package(JSONCPP REQUIRED)  # custom cmake/FindJSONCPP.cmake
+        target_include_directories(digiasset_core PRIVATE ${JSONCPP_INCLUDE_DIRS})
+        target_link_libraries(digiasset_core PRIVATE ${JSONCPP_LIBRARIES})
+    endif()
+endif()
 
+# libjson-rpc-cpp: try vcpkg/cmake config first, then custom Find module
+find_package(libjson-rpc-cpp CONFIG QUIET)
+if(TARGET libjson-rpc-cpp::jsonrpccpp-common)
+    target_link_libraries(digiasset_core PRIVATE libjson-rpc-cpp::jsonrpccpp-common libjson-rpc-cpp::jsonrpccpp-client)
+else()
+    target_link_libraries(digiasset_core PRIVATE jsonrpccpp-common jsonrpccpp-client)
+endif()
+
+# Windows: Boost.ASIO requires Winsock2 and crypto libraries
+if(WIN32)
+    target_link_libraries(digiasset_core PRIVATE ws2_32 mswsock bcrypt)
+endif()
 
 install(TARGETS digiasset_core DESTINATION bin)
 add_library(digiasset_core_lib STATIC ${SOURCE_FILES} ${HEADER_FILES} ${RPC_METHODS_FILES})

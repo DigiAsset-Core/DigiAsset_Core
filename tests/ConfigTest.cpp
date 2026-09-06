@@ -4,6 +4,7 @@
 
 #include "Config.h"
 #include "gtest/gtest.h"
+#include <algorithm>
 #include <cstdio>
 #include <fstream>
 #include <map>
@@ -43,6 +44,37 @@ TEST(Config, emptyConstructorAndSetters) {
 
     cfg.setBool("verbose", false);
     EXPECT_FALSE(cfg.getBool("verbose"));
+}
+
+TEST(Config, getPlaceholderKeys) {
+    // example.cfg writes the per pool options with a # standing in for the pool number.  Copied
+    // over as is they parse as keys of their own that nothing ever reads, so the daemon has to be
+    // able to spot them
+    const string path = writeTempConfig(
+            "psp#subscribe=0\n"
+            "psp#payout=_psppayout\n"
+            "psp1visible=1\n"
+            "rpcallow*=1\n"
+            "rpcpassword=has#in#value\n");
+    Config cfg(path);
+    vector<string> found = cfg.getPlaceholderKeys();
+    remove(path.c_str());
+
+    ASSERT_EQ(found.size(), 2u);
+    EXPECT_NE(std::find(found.begin(), found.end(), "psp#subscribe"), found.end());
+    EXPECT_NE(std::find(found.begin(), found.end(), "psp#payout"), found.end());
+}
+
+TEST(Config, getPlaceholderKeys_noneOnACleanConfig) {
+    const string path = writeTempConfig(
+            "#psp#subscribe=0 is only a note\n"
+            "psp0subscribe=0\n"
+            "psp1subscribe=1\n");
+    Config cfg(path);
+    vector<string> found = cfg.getPlaceholderKeys();
+    remove(path.c_str());
+
+    EXPECT_TRUE(found.empty());
 }
 
 TEST(Config, isKey) {

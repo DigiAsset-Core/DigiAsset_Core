@@ -13,10 +13,13 @@ using namespace std;
 
 
 AppMain* AppMain::_pinstance = nullptr;
-mutex AppMain::_mutex;
+mutex& AppMain::getLock() {
+    static mutex* m = new mutex; //intentionally leaked - see header
+    return *m;
+}
 
 AppMain* AppMain::GetInstance() {
-    lock_guard<mutex> lock(_mutex);
+    lock_guard<mutex> lock(getLock());
     if (_pinstance == nullptr) {
         _pinstance = new AppMain();
     }

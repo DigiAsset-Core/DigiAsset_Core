@@ -15,6 +15,17 @@
 #include <thread>
 using namespace std;
 
+///The bad list refresh happens on the chain analyzer's thread(isAssetBad is called while
+///processing an issuance), so an unresponsive pool server used to stop the whole node on
+///whichever block the next issuance was in.  Bounded here: a stale bad list is harmless
+static const unsigned int PSP_SERVER_TIMEOUT_MS = 30000;
+
+///max wait for the metadata of the issuance being costed.  Same reasoning: getCost runs on an
+///rpc thread and used to wait for a cid the node may never be able to fetch.  Generous rather
+///than snappy - the file is normally one this node just published, but if it has to come from
+///the network it is up to 2MB over whatever link the operator has
+static const unsigned int PSP_METADATA_WAIT_MS = 300000;
+
 mctrivia::mctrivia() : _keepRunning(false){};
 mctrivia::~mctrivia() { stop(); }
 
@@ -48,8 +59,9 @@ uint64_t mctrivia::getCost(const DigiByteTransaction& tx) {
     IPFS* ipfs = AppMain::GetInstance()->getIPFS();
     size += ipfs->getSize(cid);
 
-    //download the metadata and decode it
-    string metadataStr = ipfs->callOnDownloadSync(cid);
+    //download the metadata and decode it.  Bounded: an issuance whose metadata the node can not
+    //produce should fail the rpc call with an error, not leave the caller waiting forever
+    string metadataStr = ipfs->callOnDownloadSync(cid, "", PSP_METADATA_WAIT_MS);
     Json::CharReaderBuilder rbuilder;
     Json::Value metadata;
     istringstream s(metadataStr);
@@ -77,13 +89,13 @@ uint64_t mctrivia::getCost(const DigiByteTransaction& tx) {
         size += ipfs->getSize(url.substr(7));
     }
 
-    //calculate us dollar cost
-    uint64_t usdCost = size * 120; //$1.20 / MB
-
-    //get current DGB cost
+    //convert size to DGB sats: $1.20 USD per MB, exchange rate is DGB sats per US dollar.
+    //Must stay the exact inverse of serializeMetaProcessor's
+    //   bytes = 1000000 * dgb / (exchangeRate * 1.2)
+    //or pay ins won't buy the number of bytes the pool expects
     Database* db = AppMain::GetInstance()->getDatabase();
     double exchangeRate = db->getCurrentExchangeRate(DigiAssetConstants::standardExchangeRates[1]); //USD
-    return usdCost * exchangeRate;
+    return static_cast<uint64_t>(ceil(size * 1.2 * exchangeRate / 1000000.0));
 }
 
 /**
@@ -99,6 +111,10 @@ void mctrivia::enable(DigiByteTransaction& tx) {
 
     //get cost
     uint64_t cost = getCost(tx);
+
+    //an output below the dust threshold would make the whole tx unrelayable.  Overpaying
+    //slightly is harmless(pay in simply buys more storage than needed)
+    if (cost < DigiAssetConstants::DIGIBYTE_DUST) cost = DigiAssetConstants::DIGIBYTE_DUST;
 
     //check if there is already an output to output address:
     const string outputAddress = "dgb1qjnzadu643tsfzjqjydnh06s9lgzp3m4sg3j68x";
@@ -238,7 +254,8 @@ void mctrivia::_callServer(ServerCalls command, const string& extra) {
     CurlHandler::post(url, {{"address", address},
                             {"peerId", peerId},
                             {"visible", (_visible ? "v" : "h")},
-                            {"secret", _secretCode}});
+                            {"secret", _secretCode}},
+                      PSP_SERVER_TIMEOUT_MS);
     if (command==KEEP_ALIVE) {
         Log* log=Log::GetInstance();
         log->addMessage("Reported online to ipfs.digiassetx.com with server id: "+peerId);
@@ -267,10 +284,16 @@ void mctrivia::_reportAssetBad(const std::string& assetId) {
 }
 void mctrivia::updateBadList() {
     std::lock_guard<std::mutex> lock(_badListMutex);
+
+    //stamp the attempt, not the success.  This runs on the chain analyzer's thread, and
+    //leaving it unstamped on failure meant an unreachable pool server was retried on every
+    //single issuance - each one paying the full timeout before the block could finish
+    _badTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+
     try {
         //make curl request
         const string url = "https://ipfs.digiassetx.com/bad.json";
-        string readBuffer = CurlHandler::get(url);
+        string readBuffer = CurlHandler::get(url, PSP_SERVER_TIMEOUT_MS);
 
         //convert to json object
         Json::Value root;
@@ -295,11 +318,11 @@ void mctrivia::updateBadList() {
             }
         }
 
-        //update bad list time
-        _badTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
     } catch (const exception& e) {
         Log* log = Log::GetInstance();
-        log->addMessage("Failed to load bad list for mctrivia bad list", Log::DEBUG);
+        log->addMessage("Could not refresh the bad asset list from ipfs.digiassetx.com.  "
+                        "Retrying in 20 minutes",
+                        Log::DEBUG);
     }
 }
 void mctrivia::_reportFileBad(const string& cid) {

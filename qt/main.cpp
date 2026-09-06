@@ -4,6 +4,11 @@
 #include "PlotManager.h"
 #include "RPC/Server.h"
 #include "RPCLoader.h"
+#include "tabs/BalancesTab.h"
+#include "tabs/CreateAssetTab.h"
+#include "tabs/SendAssetTab.h"
+#include "tabs/HistoryTab.h"
+#include "tabs/ManageAssetTab.h"
 #include "tabs/SyncTab.h"
 #include <QApplication>
 #include <QDebug>
@@ -12,6 +17,7 @@
 #include <QProcess>
 #include <QProgressBar>
 #include <QTabWidget>
+#include <QTcpSocket>
 #include <QTimer>
 #include <QVBoxLayout>
 #include <chrono>
@@ -34,6 +40,24 @@ void startCoreProcess() {
     if (coreProcess && coreProcess->state() != QProcess::NotRunning) {
         qDebug() << "Core process is already running.";
         return;
+    }
+
+    //don't spawn a second daemon if one is already serving the RPC port
+    //(two daemons would run two chain analyzers over the same database)
+    try {
+        Config config("config.cfg");
+        QTcpSocket probe;
+        //the asset daemon(this project) is reached via rpcassetbind, not rpcbind(which points at
+        //the DigiByte Core node).  Probing the wrong host would spawn a duplicate local daemon.
+        probe.connectToHost(QString::fromStdString(config.getString("rpcassetbind", "127.0.0.1")),
+                            static_cast<quint16>(config.getInteger("rpcassetport", 14024)));
+        if (probe.waitForConnected(500)) {
+            probe.disconnectFromHost();
+            qDebug() << "A DigiAsset Core daemon is already serving the RPC port; not starting another.";
+            return;
+        }
+    } catch (...) {
+        //no readable config yet - the daemon's own startup wizard will handle it
     }
 
     coreProcess = new QProcess();
@@ -152,6 +176,11 @@ void updateLoadingProgress(QTimer *timer, QWidget &splash) {
             tabWidget = new QTabWidget();
             SyncTab *syncTab = new SyncTab();
             tabWidget->addTab(syncTab, "Sync Status");
+            tabWidget->addTab(new BalancesTab(), "Balances");
+            tabWidget->addTab(new SendAssetTab(), "Send Asset");
+            tabWidget->addTab(new CreateAssetTab(), "Create Asset");
+            tabWidget->addTab(new ManageAssetTab(), "Burn / Reissue");
+            tabWidget->addTab(new HistoryTab(), "History");
             tabWidget->resize(800, 600);
             tabWidget->show();
         }

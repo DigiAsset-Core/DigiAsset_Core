@@ -19,7 +19,7 @@ class AppMain {
  */
 private:
     static AppMain* _pinstance;
-    static std::mutex _mutex;
+    static std::mutex& getLock(); //never destroyed - safe to use during process exit
 
 protected:
     AppMain() = default;

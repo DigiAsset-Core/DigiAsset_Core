@@ -66,7 +66,15 @@ namespace RPC {
 
             //look up how many assets exist
             asset.setCount(db->getTotalAssetCount(asset.getAssetIndex()));
-            asset.getInitialCount();
+            try {
+                asset.getInitialCount();
+            } catch (const Database::exceptionDataPruned& e) {
+                //the original supply is worked out from the issuance outputs and those rows are
+                //gone once they have been spent and pruned.  Everything else about the asset is
+                //still known, so leave initialCount unset(toJSON leaves the field out) instead of
+                //failing the whole call - which is why a pruning node could not look up an asset
+                //that listassets had just returned
+            }
 
             //lookup PSP Membership
             asset.getPspMembership();
