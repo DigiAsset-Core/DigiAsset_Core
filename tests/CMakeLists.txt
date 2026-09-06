@@ -27,6 +27,7 @@ set(TESTS
         Base58Tests.cpp
         DigiAssetTest.cpp
         DigiAssetRulesTest.cpp
+        AssetWalletRulesTest.cpp
         DigiAssetTransactionTest.cpp
         DigiByteTransactionBuilderTest.cpp
         DigiAssetRulesEncodeTest.cpp

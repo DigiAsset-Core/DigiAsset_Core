@@ -3,6 +3,7 @@
 //
 
 #include "DigiByteTransaction.h"
+#include "Log.h"
 #include "AppMain.h"
 #include "BitIO.h"
 #include "DigiAsset.h"
@@ -269,7 +270,15 @@ bool DigiByteTransaction::decodeAssetTX(const getrawtransaction_t& txData, int d
         try {
             decodeAssetTransfer(dataStream, _inputs, burn ? DIGIASSET_BURN : DIGIASSET_TRANSFER);
         } catch (const DigiAsset::exceptionRuleFailed& e) {
-            //clear asset outputs
+            //Every asset output is cleared, the change output included, so the sender loses the
+            //whole holding and not just the amount sent.  Changing that is a consensus change and
+            //is deliberately not done here - but it used to happen with nothing written anywhere,
+            //which is why it went unnoticed.  Say so loudly instead.
+            Log* log = Log::GetInstance();
+            log->addMessage("Transaction " + _txid + " in block " + std::to_string(_height) +
+                                    " broke an asset rule(" + e.what() +
+                                    ").  Every asset output it carries is being destroyed, including any change.",
+                            Log::WARNING);
             _unintentionalBurn = true;
             for (AssetUTXO& output: _outputs) {
                 output.assets.clear();

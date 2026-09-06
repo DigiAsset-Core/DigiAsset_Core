@@ -24,9 +24,33 @@ namespace AssetWallet {
     std::vector<AssetUTXO> getWalletUTXOs(int minconf = 1);
 
     /**
+     * Throws DigiByteException if the asset carries a rule that a wallet built transfer can
+     * never satisfy, so the caller refuses the send instead of destroying the holding.
+     *
+     * addRuleOutputs() runs on issuance only - no part of the transfer path adds rule outputs.
+     * A transfer of an asset whose rules require them therefore fails DigiAsset::checkRulesPass
+     * when it is decoded, and the handler for that failure clears the asset from *every* output
+     * in the transaction, the change output included.  Sending 1 of 5 units destroys all 5,
+     * silently.  Refusing up front costs nothing: such a transfer could never have succeeded.
+     *
+     * Only rules no transfer can satisfy are refused.  KYC and vote restrictions are not, because
+     * a send to an allowed address is legal and must keep working.
+     */
+    void assertTransferableAsset(const DigiAsset& asset);
+
+    /**
+     * As above, but with the chain state passed in rather than looked up, so the rule logic can
+     * be exercised without a database.  chainHeight and nowSeconds are only read by the expiry
+     * check; note getIfExpired() wants seconds, while the expiry is stored in ms.
+     */
+    void assertTransferableAsset(const DigiAsset& asset, unsigned int chainHeight, uint64_t nowSeconds);
+
+    /**
      * Selects wallet UTXOs holding at least `amount` of the given asset.
      * Prefers UTXOs that hold only the requested asset so other assets don't need to be moved.
      * Throws DigiByteTransaction::exceptionNotEnoughFunds if the wallet lacks the requested amount.
+     * Throws DigiByteException if the asset can not be transferred at all - see
+     * assertTransferableAsset(), which this calls before choosing any input.
      */
     std::vector<AssetUTXO> selectAssetInputs(uint64_t assetIndex, uint64_t amount);
 
