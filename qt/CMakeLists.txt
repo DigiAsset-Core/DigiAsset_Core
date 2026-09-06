@@ -15,8 +15,10 @@ set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 
 # --- Find external dependencies ---
-find_package(JSONCPP REQUIRED)
-find_package(JSONRPCCPP REQUIRED)
+# JSONCPP/JSONRPCCPP are resolved further down with the same cascade the daemon uses
+# (src/CMakeLists.txt).  The legacy Find modules only look in /usr, /usr/local and
+# win32-deps, so on Windows under vcpkg they find nothing - which is why the GUI could
+# not be built natively there.
 find_package(CURL REQUIRED)
 
 # --- Find Qt libraries ---
@@ -62,11 +64,28 @@ set(SOURCE_FILES
         )
 
 # --- Create the executable ---
-add_executable(digiasset_core-qt
+# On macOS this has to be a .app bundle: macdeployqt only works on bundles, and without it the
+# released binary points at the build machine's Qt frameworks and will not start anywhere else.
+# Linux and Windows are unaffected - they stay plain executables and are bundled by
+# linuxdeploy and windeployqt respectively.
+if(APPLE)
+    set(DIGIASSET_QT_BUNDLE MACOSX_BUNDLE)
+endif()
+
+add_executable(digiasset_core-qt ${DIGIASSET_QT_BUNDLE}
         main.cpp
         ${SOURCE_FILES}
         ${HEADER_FILES}
         )
+
+if(APPLE)
+    set_target_properties(digiasset_core-qt PROPERTIES
+            MACOSX_BUNDLE_BUNDLE_NAME "DigiAsset Core"
+            MACOSX_BUNDLE_GUI_IDENTIFIER "org.digiassetcore.qt"
+            MACOSX_BUNDLE_BUNDLE_VERSION "${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION}"
+            MACOSX_BUNDLE_SHORT_VERSION_STRING "${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION}"
+            )
+endif()
 
 # --- Add application icon AFTER target creation ---
 set(APP_ICON_RESOURCE ../bin/images/app_icon.rc)
@@ -79,14 +98,42 @@ target_link_libraries(digiasset_core-qt PRIVATE CURL::libcurl)
 target_link_libraries(digiasset_core-qt PRIVATE OpenSSL::SSL OpenSSL::Crypto Threads::Threads)
 
 # --- Link JSON libraries ---
-target_include_directories(digiasset_core-qt PRIVATE ${JSONCPP_INCLUDE_DIRS})
-if(JSONCPP_LIBRARIES)
-    target_link_libraries(digiasset_core-qt PRIVATE ${JSONCPP_LIBRARIES})
+# JsonCpp: try vcpkg/cmake config first, then pkg-config (Linux/macOS), then custom Find module
+find_package(jsoncpp CONFIG QUIET)
+if(TARGET jsoncpp_lib)
+    target_link_libraries(digiasset_core-qt PRIVATE jsoncpp_lib)
+elseif(TARGET jsoncpp_object)
+    target_link_libraries(digiasset_core-qt PRIVATE jsoncpp_object)
 else()
-    target_link_libraries(digiasset_core-qt PRIVATE jsoncpp)
+    find_package(PkgConfig QUIET)
+    if(PkgConfig_FOUND)
+        pkg_check_modules(JSONCPP jsoncpp)
+    endif()
+    if(JSONCPP_FOUND)
+        target_include_directories(digiasset_core-qt PRIVATE ${JSONCPP_INCLUDE_DIRS})
+        target_link_libraries(digiasset_core-qt PRIVATE ${JSONCPP_LIBRARIES})
+    else()
+        find_package(JSONCPP REQUIRED)  # custom cmake/FindJSONCPP.cmake
+        target_include_directories(digiasset_core-qt PRIVATE ${JSONCPP_INCLUDE_DIRS})
+        target_link_libraries(digiasset_core-qt PRIVATE ${JSONCPP_LIBRARIES})
+    endif()
 endif()
-target_link_libraries(digiasset_core-qt PRIVATE jsonrpccpp-common)
-target_link_libraries(digiasset_core-qt PRIVATE jsonrpccpp-client)
+
+# libjson-rpc-cpp: try vcpkg/cmake config first, then plain library names
+find_package(libjson-rpc-cpp CONFIG QUIET)
+if(TARGET libjson-rpc-cpp::jsonrpccpp-common)
+    target_link_libraries(digiasset_core-qt PRIVATE
+            libjson-rpc-cpp::jsonrpccpp-common libjson-rpc-cpp::jsonrpccpp-client)
+else()
+    find_package(JSONRPCCPP REQUIRED)  # custom cmake/FindJSONRPCCPP.cmake
+    target_include_directories(digiasset_core-qt PRIVATE ${JSONRPCCPP_INCLUDE_DIRS})
+    target_link_libraries(digiasset_core-qt PRIVATE jsonrpccpp-common jsonrpccpp-client)
+endif()
+
+# Windows: the RPC client pulls in Winsock
+if(WIN32)
+    target_link_libraries(digiasset_core-qt PRIVATE ws2_32)
+endif()
 
 # --- Link SQLite (if needed) ---
 # target_link_libraries(digiasset_core-qt PUBLIC sqlite3)
