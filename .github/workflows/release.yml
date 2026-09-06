@@ -24,7 +24,17 @@ jobs:
             libcurl4-openssl-dev \
             libjsoncpp-dev \
             libjsonrpccpp-dev \
-            libboost-dev
+            libboost-dev \
+            libgl1-mesa-dev
+
+      # The GUI needs Qt Core/Gui/Widgets/Charts/Network.  Charts is not part of qtbase,
+      # so it is requested here as an extra module.
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.7.2'
+          modules: 'qtcharts'
+          cache: true
 
       - name: Build
         run: |
@@ -33,17 +43,20 @@ jobs:
             -DBUILD_TEST=OFF \
             -DBUILD_CLI=OFF \
             -DBUILD_WEB=OFF \
-            -DBUILD_QT=OFF
+            -DBUILD_QT=ON
           cmake --build build -j$(nproc)
 
       - name: Package
         run: |
           cp bin/digiasset_core digiasset_core-linux-x64
+          cp bin/digiasset_core-qt digiasset_core-qt-linux-x64
 
       - uses: actions/upload-artifact@v4
         with:
           name: linux-binary
-          path: digiasset_core-linux-x64
+          path: |
+            digiasset_core-linux-x64
+            digiasset_core-qt-linux-x64
 
   build-macos:
     runs-on: macos-14
@@ -56,6 +69,13 @@ jobs:
         run: |
           brew install cmake sqlite openssl@3 curl jsoncpp libjson-rpc-cpp boost
 
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.7.2'
+          modules: 'qtcharts'
+          cache: true
+
       - name: Build
         run: |
           cmake -B build \
@@ -63,17 +83,21 @@ jobs:
             -DBUILD_TEST=OFF \
             -DBUILD_CLI=OFF \
             -DBUILD_WEB=OFF \
-            -DBUILD_QT=OFF \
+            -DBUILD_QT=ON \
             -DOPENSSL_ROOT_DIR=$(brew --prefix openssl@3)
           cmake --build build -j$(sysctl -n hw.ncpu)
 
       - name: Package
-        run: cp bin/digiasset_core digiasset_core-macos-arm64
+        run: |
+          cp bin/digiasset_core digiasset_core-macos-arm64
+          cp bin/digiasset_core-qt digiasset_core-qt-macos-arm64
 
       - uses: actions/upload-artifact@v4
         with:
           name: macos-binary
-          path: digiasset_core-macos-arm64
+          path: |
+            digiasset_core-macos-arm64
+            digiasset_core-qt-macos-arm64
 
   build-windows:
     runs-on: windows-2022
@@ -81,6 +105,13 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.7.2'
+          modules: 'qtcharts'
+          cache: true
 
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11
@@ -101,17 +132,31 @@ jobs:
             -DBUILD_TEST=OFF
             -DBUILD_CLI=OFF
             -DBUILD_WEB=OFF
-            -DBUILD_QT=OFF
+            -DBUILD_QT=ON
           buildDirectory: '${{ github.workspace }}/build'
 
+      # CMAKE_RUNTIME_OUTPUT_DIRECTORY sends binaries to bin/, but MSVC is multi-config and
+      # adds its own Release/ level, so the exact path differs from the single-config builds.
+      # Find them instead of hardcoding a layout that has never been exercised - no release
+      # has ever been cut from this workflow.
       - name: Package
+        shell: pwsh
         run: |
-          copy build\Release\digiasset_core.exe digiasset_core-windows-x64.exe
+          $daemon = Get-ChildItem -Recurse -Filter digiasset_core.exe    | Select-Object -First 1
+          $gui    = Get-ChildItem -Recurse -Filter digiasset_core-qt.exe | Select-Object -First 1
+          if (-not $daemon) { throw "digiasset_core.exe not found" }
+          if (-not $gui)    { throw "digiasset_core-qt.exe not found" }
+          Write-Host "daemon: $($daemon.FullName)"
+          Write-Host "gui:    $($gui.FullName)"
+          Copy-Item $daemon.FullName digiasset_core-windows-x64.exe
+          Copy-Item $gui.FullName    digiasset_core-qt-windows-x64.exe
 
       - uses: actions/upload-artifact@v4
         with:
           name: windows-binary
-          path: digiasset_core-windows-x64.exe
+          path: |
+            digiasset_core-windows-x64.exe
+            digiasset_core-qt-windows-x64.exe
 
   release:
     needs: [build-linux, build-macos, build-windows]
@@ -129,6 +174,9 @@ jobs:
         with:
           files: |
             artifacts/linux-binary/digiasset_core-linux-x64
+            artifacts/linux-binary/digiasset_core-qt-linux-x64
             artifacts/macos-binary/digiasset_core-macos-arm64
+            artifacts/macos-binary/digiasset_core-qt-macos-arm64
             artifacts/windows-binary/digiasset_core-windows-x64.exe
+            artifacts/windows-binary/digiasset_core-qt-windows-x64.exe
           generate_release_notes: true
