@@ -762,6 +762,22 @@ void DigiAsset::checkRulesPass(const vector<AssetUTXO>& inputs, const vector<Ass
         uint64_t exchangeRate = floor(db->getAcceptedExchangeRate(_rules.getRoyaltyCurrency(), height));
 
         //get the number of new recipients(assume 1 is change if more than 1 output)
+        //
+        //Starting at -1 is what drops the sender's change from the count, so change is never
+        //charged a royalty.  The floor below then stops the count reaching zero - without it a
+        //sender could route everything back to themselves as "change", move nothing on paper and
+        //owe nothing, which would make the royalty optional for anyone willing to shape their
+        //transaction that way.
+        //
+        //A complete burn has no outputs holding the asset, so the loop never runs and count stays
+        //wrapped at SIZE_MAX - the floor does not catch it because SIZE_MAX is not < 1.  The
+        //multiplication below then overflows into a figure nobody can pay, the rule fails, and
+        //every asset in the transaction is destroyed.  That is left alone deliberately: it is
+        //precisely what a complete burn asked for, so the error state is already the correct
+        //state and no arithmetic is spent steering around it.  A partial burn is different - it
+        //has a change output, so count is 1 and a royalty is genuinely owed, same as a send.
+        //
+        //See docs/asset-rules-and-burns.md
         size_t count = -1;
         for (const AssetUTXO& utxo: outputs) {
             for (const DigiAsset& asset: utxo.assets) {

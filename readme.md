@@ -407,6 +407,11 @@ Highlights:
 - `issueasset`, `reissueasset`, `sendasset` and `burnasset` all take a `dryrun` option
   that builds the transaction and returns a full cost breakdown (outputs, storage pool
   fee, estimated miner fee) without broadcasting anything.
+
+For how the rules are enforced and every situation in which assets are destroyed, see
+[docs/asset-rules-and-burns.md](docs/asset-rules-and-burns.md).  Worth reading before
+touching the transfer path: a rule violation burns every asset in the transaction, the
+sender's change included.
 - Any method the daemon doesn't recognize is transparently forwarded to the DigiByte Core
   wallet, so the standard DigiByte/Bitcoin RPC api is available through the same port too.
 

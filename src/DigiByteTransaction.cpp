@@ -270,10 +270,13 @@ bool DigiByteTransaction::decodeAssetTX(const getrawtransaction_t& txData, int d
         try {
             decodeAssetTransfer(dataStream, _inputs, burn ? DIGIASSET_BURN : DIGIASSET_TRANSFER);
         } catch (const DigiAsset::exceptionRuleFailed& e) {
-            //Every asset output is cleared, the change output included, so the sender loses the
-            //whole holding and not just the amount sent.  Changing that is a consensus change and
-            //is deliberately not done here - but it used to happen with nothing written anywhere,
-            //which is why it went unnoticed.  Say so loudly instead.
+            //Every asset output is cleared, the change output included.  That is deliberate: if
+            //change survived a violation a sender could declare everything as change and sidestep
+            //the royalty entirely.  There is also no alternative - the transaction is already on
+            //chain and its inputs are spent, so assets that may not move to the outputs have
+            //nowhere left to exist.  See docs/asset-rules-and-burns.md.
+            //
+            //It used to happen with nothing written anywhere, which is why it went unnoticed.
             Log* log = Log::GetInstance();
             log->addMessage("Transaction " + _txid + " in block " + std::to_string(_height) +
                                     " broke an asset rule(" + e.what() +
