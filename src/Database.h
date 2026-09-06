@@ -162,7 +162,6 @@ private:
     sqlite3* _db = nullptr;
     sqlite3* _dbCheckpoint = nullptr; //second connection used exclusively for WAL checkpointing (avoids SQLITE_LOCKED on same-connection cursors)
     std::string _fileName;
-    bool _deleteSidecarsOnClose = false; //set by compactForDistribution() so close leaves a single file behind
     int _transactionDepth = 0;
     Statement _stmtCheckFlag;
     Statement _stmtSetFlag;
@@ -444,7 +443,6 @@ public:
     void startTransaction();
     void endTransaction();
     void walCheckpoint();       //flushes WAL back to main db and truncates the WAL file
-    void compactForDistribution(); //folds the WAL in, leaves WAL mode and vacuums so the db is a single shareable file
     void
     disableWriteVerification(); //on power failure not all commands may be written.  If using need to check at startup
 

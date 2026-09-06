@@ -192,38 +192,3 @@ TEST_F(DatabaseTest, addExchangeRate_doesNotThrow) {
         db->addExchangeRate("dgb1qexchange", 0, 1, 0.001)
     );
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Bootstrap image generation (--bootgen)
-// ─────────────────────────────────────────────────────────────────────────────
-
-static bool fileIsThere(const string& path) {
-    FILE* f = fopen(path.c_str(), "rb");
-    if (f == nullptr) return false;
-    fclose(f);
-    return true;
-}
-
-TEST_F(DatabaseTest, compactForDistribution_leavesSingleFileWithDataIntact) {
-    //write enough that there is something sitting in the WAL
-    db->startTransaction();
-    for (unsigned int height = 2; height <= 200; height++) {
-        char hash[65];
-        snprintf(hash, sizeof(hash), "%064x", height);
-        db->insertBlock(height, hash, 1000 + height, 1, 1.0);
-    }
-    db->endTransaction();
-
-    db->compactForDistribution();
-
-    //closing must leave the main file alone on disk
-    delete db;
-    db = nullptr;
-    EXPECT_TRUE(fileIsThere(DB_PATH));
-    EXPECT_FALSE(fileIsThere(DB_PATH + "-wal"));
-    EXPECT_FALSE(fileIsThere(DB_PATH + "-shm"));
-
-    //and everything written before compacting has to still be readable
-    db = new Database(DB_PATH);
-    EXPECT_EQ(db->getBlockHeight(), 200u);
-}
